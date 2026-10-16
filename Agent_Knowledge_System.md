@@ -3282,7 +3282,1333 @@ final response → task-dependent
 
 ### 1.5 Structured Output
 
-待补充。
+#### 1.5.1 定义：什么是 Structured Output？
+
+普通 LLM 默认输出的是自由形式自然语言：
+
+```text
+明天东京大约 22 度，可能有小雨，建议带伞。
+```
+
+但 Agent 系统中的很多下游组件并不是“人”，而是程序。
+
+程序通常不希望解析一段模糊自然语言，而希望得到稳定的机器可读结构，例如：
+
+```json
+{
+  "city": "Tokyo",
+  "temperature_c": 22,
+  "rain_expected": true,
+  "recommendation": "bring_umbrella"
+}
+```
+
+因此 **Structured Output** 可以理解为：
+
+> **让模型输出满足一个明确结构契约的数据，而不是任意自由文本。**
+
+这个结构契约可能表现为：
+
+- JSON object；
+- JSON Schema；
+- enum；
+- typed object / data class；
+- grammar；
+- XML-like structure；
+- function arguments schema。
+
+在现代 Agent 中，最常见的思想是：
+
+```text
+Natural-language model
+        ↓
+Structured interface contract
+        ↓
+Machine-readable output
+        ↓
+Program / Harness / Tool / State
+```
+
+所以 Structured Output 是从“语言模型”走向“可编程 Agent”的关键桥梁之一。
+
+---
+
+#### 1.5.2 为什么一句“请输出 JSON”不够？
+
+最简单的做法是 Prompt：
+
+```text
+请严格输出 JSON，不要输出任何额外内容。
+```
+
+这通常能提高 JSON 输出概率，但它仍然只是自然语言 instruction。
+
+模型可能输出：
+
+```text
+Here is the JSON:
+{
+  "city": "Tokyo"
+}
+```
+
+也可能输出：
+
+```json
+{
+  "city": "Tokyo",
+  "temperature": "twenty two"
+}
+```
+
+甚至：
+
+```json
+{
+  "city": "Tokyo",
+  "temperature": 22,
+}
+```
+
+最后这个例子存在 trailing comma，严格来说不是合法 JSON。
+
+因此仅靠 Prompt 存在三个不同层次的问题：
+
+```text
+1. Format compliance
+   是否真的是 JSON？
+
+2. Schema compliance
+   字段名、字段类型、必填字段是否正确？
+
+3. Semantic correctness
+   字段中的值是否真的对？
+```
+
+一句“请输出 JSON”最多是在提高第一层的成功率，不能稳定解决后两层。
+
+---
+
+#### 1.5.3 JSON 只是格式，Schema 才是契约
+
+假设程序期待：
+
+```json
+{
+  "action": "search",
+  "query": "agent harness"
+}
+```
+
+下面这个也是合法 JSON：
+
+```json
+{
+  "foo": 123,
+  "bar": false
+}
+```
+
+但它对程序毫无用处。
+
+所以：
+
+> **JSON 只解决语法格式；Schema 才定义“什么样的 JSON 是这个接口真正允许的”。**
+
+例如可以抽象一个 schema：
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "enum": ["search", "answer", "ask_user"]
+    },
+    "query": {
+      "type": ["string", "null"]
+    }
+  },
+  "required": ["action", "query"],
+  "additionalProperties": false
+}
+```
+
+它规定：
+
+```text
+action 必须存在
+query 必须存在
+action 只能取有限枚举值
+query 只能是 string 或 null
+不能随便增加其他字段
+```
+
+这才形成一个真正可被程序依赖的接口契约。
+
+因此后面看到 Structured Output 时，最好建立这个层次：
+
+```text
+Free text
+   ↓
+JSON format
+   ↓
+Schema-conformant object
+   ↓
+Business-valid object
+```
+
+越往下，约束越强。
+
+---
+
+#### 1.5.4 Schema 通常约束哪些东西？
+
+一个结构化契约通常会约束以下几类内容。
+
+**1. Field Names**
+
+```json
+{
+  "city": "Tokyo"
+}
+```
+
+程序不希望模型偶尔改成：
+
+```json
+{
+  "location_name": "Tokyo"
+}
+```
+
+如果下游代码只读取 `city`，字段漂移会直接导致 failure。
+
+**2. Types**
+
+```text
+string
+number / integer
+boolean
+array
+object
+null
+```
+
+例如：
+
+```json
+{"retry_count": 3}
+```
+
+与：
+
+```json
+{"retry_count": "three"}
+```
+
+对程序完全不是一回事。
+
+**3. Required vs Optional**
+
+某些字段必须出现，某些字段可以不存在或为 null。
+
+**4. Enum**
+
+例如：
+
+```text
+status ∈ {"success", "failed", "needs_review"}
+```
+
+而不是让模型自由创造：
+
+```text
+"kind_of_done"
+```
+
+**5. Nested Structure**
+
+例如：
+
+```json
+{
+  "plan": {
+    "steps": [
+      {"id": 1, "action": "search"},
+      {"id": 2, "action": "read"}
+    ]
+  }
+}
+```
+
+**6. Additional Properties**
+
+是否允许模型临时增加未定义字段。
+
+对于稳定 API，通常越明确越好。
+
+---
+
+#### 1.5.5 Parsing、Validation、Constrained Generation 是三件不同的事
+
+这三个词容易混淆。
+
+##### Parsing
+
+把文本转成程序对象：
+
+```text
+"{\"x\": 1}"
+     ↓ parse
+{"x": 1}
+```
+
+Parsing 只回答：
+
+> 这段文本能不能被解释成目标语法？
+
+---
+
+##### Validation
+
+拿已经 parse 出来的对象检查 schema：
+
+```text
+{"x": "one"}
+     ↓ validate against x: integer
+INVALID
+```
+
+Validation 回答：
+
+> 这个对象是否满足接口契约？
+
+---
+
+##### Constrained Generation / Constrained Decoding
+
+在模型**生成过程中**就限制哪些 token / token sequences 是合法的。
+
+抽象来说：
+
+```text
+Model logits
+   ↓
+Current grammar / schema state
+   ↓
+Mask invalid next tokens
+   ↓
+Decode only from valid tokens
+```
+
+这样系统不是等模型生成完错误结构之后再抱怨，而是在生成过程中就阻止某些结构错误。
+
+所以三者的关系可以记成：
+
+```text
+Parsing
+= 文本 → 对象
+
+Validation
+= 对象 → 是否满足契约
+
+Constrained Decoding
+= 生成时限制合法空间
+```
+
+它们可以组合使用，但不是同一个概念。
+
+---
+
+#### 1.5.6 Structured Output 为什么能提高 Agent 可靠性？
+
+假设 Agent 要决定下一步：
+
+```text
+继续搜索？
+直接回答？
+还是请求用户补充信息？
+```
+
+自由文本可能是：
+
+```text
+我觉得最好再搜一下，也许可以看看官方文档。
+```
+
+程序需要自己理解这句话到底意味着什么。
+
+Structured Output 可以直接变成：
+
+```json
+{
+  "decision": "search",
+  "query": "official documentation"
+}
+```
+
+于是下游 Harness 可以确定性处理：
+
+```python
+if decision == "search":
+    run_search(query)
+```
+
+这减少了一个危险环节：
+
+> **让另一个 heuristic / parser 再去猜模型自然语言到底想表达什么。**
+
+所以 Structured Output 的核心价值之一是：
+
+```text
+LLM judgment
+     ↓
+explicit typed representation
+     ↓
+deterministic program logic
+```
+
+它把“模糊语言边界”压缩成“明确接口边界”。
+
+---
+
+#### 1.5.7 结构合法 ≠ 语义正确
+
+这是本节最重要的边界之一。
+
+假设 schema 要求：
+
+```json
+{
+  "city": "string",
+  "temperature_c": "number"
+}
+```
+
+模型输出：
+
+```json
+{
+  "city": "Tokyo",
+  "temperature_c": 83
+}
+```
+
+这个对象可能完全满足 schema。
+
+但如果东京实际温度不是 83°C，那么它在语义上仍然错误。
+
+因此：
+
+```text
+Schema-valid
+≠
+Factually correct
+```
+
+类似地：
+
+```json
+{
+  "tool": "delete_file",
+  "path": "/important/data"
+}
+```
+
+即使结构完全合法，也不意味着：
+
+- 这个工具选择是正确的；
+- 这个 path 是正确的；
+- 用户真的授权删除；
+- 操作在安全策略下被允许。
+
+所以 Structured Output 解决的是：
+
+> **“模型有没有按照机器接口表达它的决策？”**
+
+而不是：
+
+> **“这个决策本身一定正确吗？”**
+
+语义正确性还需要：
+
+- business validation；
+- permission checks；
+- factual verification；
+- environment checks；
+- human approval；
+- evaluator / verifier。
+
+---
+
+#### 1.5.8 Schema Validation 和 Business Validation 要分开
+
+可以把验证分成两层。
+
+##### Layer 1：Schema Validation
+
+检查：
+
+```text
+字段是否存在？
+类型是否正确？
+enum 是否合法？
+是否有非法额外字段？
+```
+
+例如：
+
+```json
+{
+  "amount": "100"
+}
+```
+
+如果 `amount` 要求 number，则 schema validation 失败。
+
+##### Layer 2：Business / Domain Validation
+
+即使：
+
+```json
+{
+  "amount": 100
+}
+```
+
+结构合法，还要继续检查：
+
+```text
+余额够不够？
+是否超过单笔上限？
+用户是否授权？
+收款对象是否允许？
+是不是重复交易？
+```
+
+所以可靠 Agent 的 action pipeline 更像：
+
+```text
+Model output
+   ↓
+Schema validation
+   ↓
+Business validation
+   ↓
+Permission / Policy checks
+   ↓
+Execution
+```
+
+而不是：
+
+```text
+Valid JSON
+   ↓
+直接执行
+```
+
+---
+
+#### 1.5.9 Structured Output 与 Function Calling 的关系
+
+这两个概念高度相关，但不能完全画等号。
+
+Structured Output 是更一般的概念：
+
+> **要求模型把某个判断或结果表达成符合结构契约的数据。**
+
+例如：
+
+```json
+{
+  "sentiment": "positive",
+  "confidence": 0.83
+}
+```
+
+它可能只是最终结果，根本不需要执行任何工具。
+
+Function / Tool Calling 则通常表示：
+
+> **模型输出一个“要调用哪个工具，以及参数是什么”的结构化 action。**
+
+例如：
+
+```json
+{
+  "name": "get_weather",
+  "arguments": {
+    "city": "Tokyo"
+  }
+}
+```
+
+所以关系可以写成：
+
+```text
+Structured Output
+        │
+        ├── classification result
+        ├── extracted fields
+        ├── plan object
+        ├── evaluation object
+        └── tool-call arguments
+                 ↓
+          Function Calling
+```
+
+即：
+
+> **Function Calling 可以看作 Structured Output 在“Action Interface”上的一个重要特例。**
+
+但 Function Calling 还多了一层：
+
+```text
+structured action
+      ↓
+Harness / Runtime
+      ↓
+real execution
+```
+
+这一点会在 1.6 节详细展开。
+
+---
+
+#### 1.5.10 Structured Output 与 Tool Arguments 为什么特别重要？
+
+如果模型调用工具：
+
+```text
+send_email(recipient, subject, body)
+```
+
+参数不能只是一句模糊自然语言：
+
+```text
+给张三发封邮件说会议改期了。
+```
+
+Runtime 需要明确的字段：
+
+```json
+{
+  "recipient": "...",
+  "subject": "Meeting rescheduled",
+  "body": "..."
+}
+```
+
+Schema 可以进一步规定：
+
+```text
+recipient: string
+subject: string
+body: string
+```
+
+但再次注意：
+
+> `recipient` 是合法 string，不代表它一定是正确收件人。
+
+因此高风险 Tool Calling 常见完整链路是：
+
+```text
+LLM
+ ↓
+Structured arguments
+ ↓
+Schema validation
+ ↓
+Semantic / business validation
+ ↓
+Permission / approval
+ ↓
+Tool execution
+```
+
+Structured Output 只是让这条链路的第一步变得可靠得多。
+
+---
+
+#### 1.5.11 Optional、Nullable、Missing：为什么要区分？
+
+在机器接口中：
+
+```text
+字段不存在
+```
+
+和：
+
+```json
+{"field": null}
+```
+
+不一定是同一个意思。
+
+例如：
+
+```text
+missing
+= 模型没有提供这个信息
+
+null
+= 模型明确判断当前没有值
+```
+
+实际 API / Schema 语义依具体实现而定，但设计时要明确。
+
+类似地：
+
+```json
+{"query": ""}
+```
+
+又和 `null` 不同。
+
+所以 Schema 设计不是“把字段列出来”这么简单，还需要明确：
+
+- required；
+- optional；
+- nullable；
+- default；
+- empty value semantics。
+
+这对 Agent State、Tool Arguments 和 API Integration 都很重要。
+
+---
+
+#### 1.5.12 Enum 为什么对 Agent 很有价值？
+
+假设 Agent 需要输出下一步状态。
+
+自由字符串：
+
+```json
+{"status": "I think we probably need more information"}
+```
+
+程序很难可靠处理。
+
+使用 enum：
+
+```text
+status ∈ {
+  "continue",
+  "ask_user",
+  "complete",
+  "failed"
+}
+```
+
+模型只能在有限动作空间内表达决策。
+
+于是 Harness 可以写：
+
+```text
+continue → 继续 Agent loop
+ask_user → 暂停并向用户提问
+complete → 进入 completion validation
+failed → 进入 recovery path
+```
+
+这实际上实现了一个很重要的转换：
+
+```text
+open-ended language space
+        ↓
+finite action space
+```
+
+对 Agent 控制尤其有价值。
+
+---
+
+#### 1.5.13 Structured Output 可以用于哪些 Agent 内部对象？
+
+它并不只用于最终回答。
+
+常见场景包括：
+
+**1. Routing Decision**
+
+```json
+{
+  "route": "coding_agent"
+}
+```
+
+**2. Plan**
+
+```json
+{
+  "steps": [
+    {"id": 1, "task": "search repository"},
+    {"id": 2, "task": "inspect failing test"}
+  ]
+}
+```
+
+**3. Tool Arguments**
+
+```json
+{
+  "query": "authentication failure"
+}
+```
+
+**4. Evaluation Result**
+
+```json
+{
+  "passed": false,
+  "failure_type": "missing_evidence",
+  "retryable": true
+}
+```
+
+**5. Memory Extraction**
+
+```json
+{
+  "facts_to_store": [
+    {"key": "preferred_language", "value": "Chinese"}
+  ]
+}
+```
+
+**6. State Update**
+
+```json
+{
+  "completed_steps": [1, 2],
+  "next_step": 3
+}
+```
+
+所以 Structured Output 是 Agent 内部组件之间通信的重要 glue layer。
+
+---
+
+#### 1.5.14 Constrained Decoding 是如何工作的？
+
+不需要深入不同供应商的具体实现，但要理解一个通用思想。
+
+假设当前 schema 要求输出：
+
+```json
+{
+  "status": "success" | "failed"
+}
+```
+
+在某个生成位置，如果语法上只允许：
+
+```text
+"success"
+或
+"failed"
+```
+
+系统可以根据当前 parser / grammar state，屏蔽那些一定会导致非法结构的 token。
+
+抽象过程：
+
+```text
+LLM logits
+   ↓
+What tokens are structurally legal now?
+   ↓
+Mask impossible tokens
+   ↓
+Renormalize / decode
+   ↓
+Next token
+```
+
+这使得结构约束从：
+
+```text
+Please obey the format.
+```
+
+升级为：
+
+```text
+Invalid structural continuations are not available.
+```
+
+因此它比单纯 prompt-following 更可靠。
+
+但 constrained decoding 同样不能解决：
+
+```text
+模型选了结构合法但语义错误的值
+```
+
+例如 enum 允许：
+
+```text
+success
+failed
+```
+
+模型仍可能错误选择 `success`。
+
+---
+
+#### 1.5.15 “先生成再修 JSON”为什么不是最佳默认方案？
+
+一种常见实现是：
+
+```text
+LLM free generation
+   ↓
+JSON parse fails
+   ↓
+repair JSON
+   ↓
+parse again
+```
+
+甚至再调用一个 LLM：
+
+```text
+请修复下面这段 JSON
+```
+
+这种方法有时实用，但问题包括：
+
+- 增加 model call；
+- 增加 latency；
+- 增加 token cost；
+- repair 可能改变语义；
+- debugging 更复杂；
+- 错误可能被“修成结构合法但意思变了”。
+
+如果平台原生支持 schema-constrained output，通常更适合作为机器接口的默认选择。
+
+当然，repair / retry 仍然是现实系统中的 fallback 手段。
+
+更成熟的 pipeline 是：
+
+```text
+Prefer constrained generation
+        ↓
+Validate
+        ↓
+If unsupported / failed
+        ↓
+Retry / repair under bounded policy
+```
+
+---
+
+#### 1.5.16 Schema 设计本身也是 Agent 设计
+
+Schema 并不是纯后端细节。
+
+它会直接定义模型可以表达的 action space。
+
+例如设计 A：
+
+```json
+{
+  "action": "string"
+}
+```
+
+理论上模型可以输出任意 action 名称。
+
+设计 B：
+
+```json
+{
+  "action": {
+    "enum": ["search", "read", "answer"]
+  }
+}
+```
+
+模型被限制在三个动作里。
+
+因此 schema design 会影响：
+
+- model decision complexity；
+- tool selection ambiguity；
+- validation difficulty；
+- safety surface；
+- backward compatibility；
+- evaluator design。
+
+一个常见工程原则是：
+
+> **Schema 应尽可能表达真正的业务状态空间，而不是把自然语言重新包进一个大 string 字段。**
+
+例如：
+
+```json
+{
+  "decision": "search because I think maybe more evidence is useful..."
+}
+```
+
+虽然是 JSON，但仍然没有真正结构化。
+
+更好的是：
+
+```json
+{
+  "decision": "search",
+  "reason": "insufficient_external_evidence",
+  "query": "..."
+}
+```
+
+---
+
+#### 1.5.17 Schema 太复杂也会出问题
+
+Structured Output 不是 schema 越复杂越好。
+
+过度复杂可能导致：
+
+- 模型更难理解字段语义；
+- token overhead 增加；
+- 多层 nested object 难以稳定生成；
+- optional branch 太多；
+- schema evolution 困难；
+- debugging 困难。
+
+例如一个 60 字段的大对象，也许应该拆成多个 Agent step：
+
+```text
+Step 1: route
+Step 2: collect required data
+Step 3: produce action object
+```
+
+而不是让模型一次性填完所有内容。
+
+因此 schema 的设计目标是：
+
+> **足够严格地支持程序可靠消费，同时足够简单地让模型稳定表达决策。**
+
+---
+
+#### 1.5.18 Schema Evolution：接口变了怎么办？
+
+Agent 系统一旦进入工程环境，schema 也会版本迭代。
+
+例如 v1：
+
+```json
+{
+  "query": "..."
+}
+```
+
+v2：
+
+```json
+{
+  "query": "...",
+  "language": "zh"
+}
+```
+
+需要考虑：
+
+- 新字段是否 optional；
+- 旧 Agent / Runtime 是否还能处理；
+- evaluator 是否同步更新；
+- stored trajectories 是否仍能 replay；
+- prompt / tool description 是否同步；
+- schema version 是否记录。
+
+因此结构化接口最好像普通软件 API 一样管理版本，而不是散落在 prompt 字符串中。
+
+---
+
+#### 1.5.19 Structured Output 与 Safety 的关系
+
+Structured Output 可以减少一些风险，但不能被当成完整安全机制。
+
+它可以帮助：
+
+```text
+限制 action 类型
+限制字段格式
+拒绝未知字段
+让 validator 容易检查
+让 audit log 更清晰
+```
+
+例如：
+
+```text
+action ∈ {read, search}
+```
+
+就比自由文本 action space 更小。
+
+但如果 schema 本身允许：
+
+```text
+delete_file
+transfer_money
+send_email
+```
+
+那么结构化并不会阻止模型错误选择这些高风险动作。
+
+所以：
+
+```text
+Structured Output
+≠
+Authorization
+```
+
+完整安全链仍然应该是：
+
+```text
+Model decision
+   ↓
+Structured representation
+   ↓
+Schema validation
+   ↓
+Policy / permission check
+   ↓
+Human approval if required
+   ↓
+Runtime execution
+```
+
+---
+
+#### 1.5.20 Failure Modes
+
+**1. Valid JSON, Wrong Schema**
+
+JSON 能 parse，但字段、类型或 enum 不符合接口要求。
+
+**2. Schema-valid, Semantically Wrong**
+
+结构完全正确，但值是错误的。
+
+**3. Wrong Enum Decision**
+
+允许的选项是合法的，但模型选错了那个合法选项。
+
+**4. Missing-vs-null Confusion**
+
+系统没有明确字段缺失、空字符串和 null 的业务语义。
+
+**5. Overly Permissive Schema**
+
+大量 `string` / `additionalProperties` 使 schema 名义上存在，实际约束很弱。
+
+**6. Overly Complex Schema**
+
+嵌套过深、字段过多，降低模型稳定性。
+
+**7. Parse-and-Pray**
+
+只要 JSON 能 parse 就直接执行，没有 schema / business / permission validation。
+
+**8. Repair Semantic Drift**
+
+自动修 JSON 时修改了原始意图，而系统没有发现。
+
+**9. Schema-Version Drift**
+
+模型 prompt、tool definition、runtime parser 和 evaluator 使用不同版本 schema。
+
+**10. Structured Hallucination**
+
+Schema 强迫模型填写字段，模型在不知道时编造一个结构合法的值。
+
+例如 schema 要求 `source_url` 必填，但上下文里根本没有 URL，模型可能胡编一个。
+
+因此 schema 设计还必须允许表达：
+
+```text
+unknown
+not_available
+needs_lookup
+```
+
+而不是逼模型“必须猜一个值”。
+
+---
+
+#### 1.5.21 Agent 工程中的 Structured Output 原则
+
+**原则一：机器消费的数据不要只靠自然语言格式提示。**
+
+如果平台支持 schema / typed output，优先使用。
+
+**原则二：JSON 合法不等于接口合法。**
+
+必须区分 parsing 和 schema validation。
+
+**原则三：Schema 合法不等于业务正确。**
+
+结构验证之后仍需 semantic / policy / permission validation。
+
+**原则四：Schema 尽量缩小决策空间。**
+
+适合 enum 的字段不要全部设计成自由 string。
+
+**原则五：给“不知道”留合法表达。**
+
+不要用 required schema 逼模型 hallucinate。
+
+**原则六：Action Schema 要和 Runtime 权限分离。**
+
+模型能表达某个 action，不代表系统一定允许执行。
+
+**原则七：Schema 也要版本化和评测。**
+
+改变字段设计会改变模型行为和下游兼容性。
+
+**原则八：结构化接口应便于 observability。**
+
+如果每个 Agent decision 都有明确字段，trace、failure analysis 和 evaluation 都会更容易。
+
+---
+
+#### 1.5.22 一个最小 Agent Decision Schema 例子
+
+假设一个 research agent 每轮只能做三件事：
+
+```text
+search
+answer
+ask_user
+```
+
+可以设计：
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "enum": ["search", "answer", "ask_user"]
+    },
+    "query": {
+      "type": ["string", "null"]
+    },
+    "answer": {
+      "type": ["string", "null"]
+    },
+    "question": {
+      "type": ["string", "null"]
+    }
+  },
+  "required": ["action", "query", "answer", "question"],
+  "additionalProperties": false
+}
+```
+
+Harness 再做业务校验：
+
+```text
+if action == search:
+    query must not be null
+
+if action == answer:
+    answer must not be null
+
+if action == ask_user:
+    question must not be null
+```
+
+这展示了两个层次：
+
+```text
+Schema
+→ 保证对象形状
+
+Business rule
+→ 保证字段之间的语义关系
+```
+
+如果 action 是 `search`，Schema 本身未必足够表达“query 必须存在且 answer 应为空”的全部条件，具体可以用更复杂的 union / discriminated schema，也可以交给 application validator。
+
+这正说明：
+
+> **Structured Output 是接口设计，不只是模型格式化。**
+
+---
+
+#### 1.5.23 与相邻概念的边界
+
+| 概念 | 核心问题 | 与 Structured Output 的关系 |
+|---|---|---|
+| Prompt Formatting | 告诉模型“请按某格式输出” | 软约束 |
+| JSON | 一种数据语法 | 只保证格式，不定义业务契约 |
+| JSON Schema | 什么结构、字段、类型是允许的 | Structured Output 的常见契约形式 |
+| Parsing | 能否把文本转成对象 | 语法层 |
+| Validation | 对象是否满足 schema | 契约层 |
+| Constrained Decoding | 生成时限制非法结构 | 生成控制层 |
+| Business Validation | 值和字段关系是否满足业务规则 | Schema 之后的语义层 |
+| Function Calling | 输出工具名称与参数的结构化 action | Structured Output 在 Action Interface 上的重要特例 |
+| Tool Execution | 真正执行 action | 不属于 Structured Output 本身 |
+| Permission | 这个 action 是否允许执行 | Structured Output 不能替代 |
+| Agent State | 系统保存的运行状态 | 可以通过 Structured Output 更新或序列化 |
+| Harness | 解析、验证并路由结构化决策 | Structured Output 的主要消费者之一 |
+
+---
+
+#### 1.5.24 面试掌握边界
+
+这一节至少需要稳定回答：
+
+1. **Structured Output 是什么？**  
+   让模型输出满足明确机器接口契约的数据结构，而不是任意自然语言文本。
+
+2. **“请输出 JSON”和 Structured Output 有什么区别？**  
+   前者主要是自然语言软约束；真正的 Structured Output 通常还包含 schema validation，平台支持时还可能使用 constrained decoding。
+
+3. **JSON 和 JSON Schema 有什么区别？**  
+   JSON 定义语法格式；JSON Schema 定义字段、类型、必填项、枚举等结构契约。
+
+4. **Parsing、Validation、Constrained Decoding 有什么区别？**  
+   Parsing 是文本转对象；Validation 是检查对象是否满足契约；Constrained Decoding 是生成过程中限制哪些结构 continuation 合法。
+
+5. **Schema-valid 是否代表答案正确？**  
+   不代表。Schema 只保证结构，事实正确性、业务正确性和权限仍需额外验证。
+
+6. **Structured Output 和 Function Calling 什么关系？**  
+   Function Calling 可以看作 Structured Output 在 tool/action interface 上的重要特例；它还会被 Harness / Runtime 解释并执行。
+
+7. **为什么 enum 对 Agent 很有用？**  
+   它可以把开放自然语言决策压缩成有限 action space，使 routing、state transition 和 validation 更稳定。
+
+8. **为什么不能 JSON parse 成功就直接执行工具？**  
+   因为仍需 schema validation、business validation、permission / approval checks；合法 JSON 可能表达完全错误或危险的 action。
+
+9. **Schema 为什么也会影响 Agent 能力？**  
+   Schema 定义模型可以表达的决策空间，过宽增加歧义和风险，过窄则可能限制必要行为。
+
+10. **Structured Output 最大的局限是什么？**  
+    它主要解决表示与接口可靠性，不能自动解决 reasoning correctness、fact correctness、tool-selection correctness 或 authorization。
+
+如果继续追问“模型输出 tool call 后到底是谁执行”“tool name / arguments 是怎样流转的”，进入 **1.6 Function Calling / Tool Calling**；如果追问 action schema 怎样与 Harness 状态机结合，则在 **Agent Decision Loop / Agent Harness** 中继续展开。
+
+---
+
+#### 1.5.25 本节一句话总结
+
+> **Structured Output 的核心不是“让模型看起来像在输出 JSON”，而是把开放自然语言决策映射成程序可验证、可路由、可审计的接口契约；Schema 可以约束结构，却不能替代语义验证、权限控制和真实世界正确性检查。**
 
 ### 1.6 Function Calling / Tool Calling
 
@@ -3785,7 +5111,7 @@ Model
 
 | 层 | 章节 | 状态 |
 |---|---|---|
-| I | 1. LLM Foundation for Agents | 进行中：1.1–1.4 已完成 |
+| I | 1. LLM Foundation for Agents | 进行中：1.1–1.5 已完成 |
 | I | 2. Agent Decision Loop | 待写 |
 | II | 3. Tool Use & Action | 待写 |
 | II | 4. Context, Memory & Retrieval | 待写 |
@@ -3801,4 +5127,4 @@ Model
 | IV | 14. Recursive Self-Improvement | 待写 |
 | IV | 15. Harness RSI & Model–Harness Co-evolution | 待写 |
 
-下一步：继续 **I. Model & Decision Core → 1.5 Structured Output**。
+下一步：继续 **I. Model & Decision Core → 1.6 Function Calling / Tool Calling**。
