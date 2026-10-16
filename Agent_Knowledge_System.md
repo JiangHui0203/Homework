@@ -2153,11 +2153,1132 @@ Context compaction、retrieval top-k、history length 等改动都可能改变 A
 
 ### 1.4 Sampling & Decoding
 
-- Temperature
-- Top-p
-- Deterministic decoding / greedy decoding
+#### 1.4.1 定义：Decoding 到底在做什么？
 
-待补充。
+在 1.1 中我们已经知道，模型每一步会根据当前 context 输出一个覆盖整个词表的 logits 向量：
+
+```text
+[z_1, z_2, ..., z_V]
+```
+
+经过 softmax 后得到下一个 token 的概率分布：
+
+$$
+p_i = P(x_t=i\mid c,x_{<t})
+$$
+
+但是“有一个概率分布”还不等于“已经决定了下一个 token”。
+
+**Decoding** 解决的就是：
+
+> **给定模型对下一个 token 的概率分布，系统实际选择哪个 token，并由此继续走出哪一条完整生成轨迹。**
+
+因此完整过程是：
+
+```text
+Context
+   ↓
+Model
+   ↓
+Logits
+   ↓
+Probability distribution
+   ↓
+Decoding policy
+   ↓
+Chosen token
+   ↓
+New prefix
+   ↓
+Next-step distribution
+```
+
+所以 decoding 不是一个纯粹的“输出风格参数”。
+
+它会改变真实 prefix，而真实 prefix 又会改变之后的所有条件概率。
+
+这意味着：
+
+> **Decoding policy 实际上决定了模型会进入生成空间中的哪一条 trajectory。**
+
+对于 Agent，这条 trajectory 还可能进一步决定：
+
+- 调不调用工具；
+- 调哪个工具；
+- 参数是什么；
+- 选择哪种计划；
+- 是否继续搜索；
+- 是否停止；
+- 是否触发有副作用的 action。
+
+因此 decoding 是 Agent 决策稳定性和探索性的底层来源之一。
+
+---
+
+#### 1.4.2 Greedy Decoding：每一步都选概率最高的 token
+
+最直接的 decoding 方法是 **greedy decoding**：
+
+$$
+x_t = \arg\max_x P(x\mid c,x_{<t})
+$$
+
+例如模型当前给出：
+
+| Token | Probability |
+|---|---:|
+| `search` | 0.55 |
+| `answer` | 0.25 |
+| `ask` | 0.12 |
+| `other` | 0.08 |
+
+Greedy 会直接选择：
+
+```text
+search
+```
+
+然后基于这个新 prefix 继续生成。
+
+它的核心特征是：
+
+```text
+每一步
+↓
+选择当前局部概率最大的 token
+```
+
+优点：
+
+- 通常更稳定；
+- 无主动采样随机性；
+- 便于调试；
+- 适合作为 baseline；
+- 对机器接口和 tool calling 常常更容易复现。
+
+但一定要注意：
+
+> **Greedy 是 token-level 的局部最优，不保证最终 sequence 是全局概率最高，更不保证任务结果全局最优。**
+
+原因很简单。
+
+如果第一步存在：
+
+```text
+A: 0.51
+B: 0.49
+```
+
+Greedy 会选择 A。
+
+但后续可能出现：
+
+```text
+A → 很差的 continuation
+B → 很好的 continuation
+```
+
+所以：
+
+```text
+locally most likely next token
+≠
+best complete trajectory
+```
+
+这也是为什么 search、branching、candidate generation 等 test-time 方法可能优于单一路径 greedy。
+
+---
+
+#### 1.4.3 “Deterministic” 需要加一个限定
+
+面试里经常会说：
+
+> Greedy decoding 是 deterministic 的。
+
+这个说法在算法层面基本成立：如果同一个 logits 向量完全一致，`argmax` 的结果固定。
+
+但工程上不要把它扩大成：
+
+> “设置 greedy 以后，整个 Agent 每次运行一定字节级完全相同。”
+
+真实系统中还可能存在：
+
+- backend numerical differences；
+- model / serving version change；
+- dynamic context；
+- tool result change；
+- web/search result change；
+- database state change；
+- concurrent environment change；
+- tie-breaking / implementation detail。
+
+所以更严谨的说法是：
+
+> **Greedy 去除了显式 token sampling 带来的随机性，但整个 Agent system 是否可复现，还取决于模型服务、上下文和外部环境是否稳定。**
+
+这对 Agent evaluation 很重要。
+
+---
+
+#### 1.4.4 Temperature：改变概率分布的“尖锐程度”
+
+Temperature 并不是在模型已经输出概率以后随意加噪声，而通常是在 softmax 前对 logits 进行缩放：
+
+$$
+p_i(T)=\frac{\exp(z_i/T)}{\sum_j \exp(z_j/T)}
+$$
+
+其中 $T>0$。
+
+直觉上：
+
+```text
+T < 1
+↓
+分布更尖锐
+↓
+高概率 token 更占优势
+↓
+更保守 / 更集中
+
+T > 1
+↓
+分布更平坦
+↓
+低概率 token 获得更多机会
+↓
+更多样 / 更随机
+```
+
+例如原始分布近似是：
+
+```text
+A 0.60
+B 0.25
+C 0.10
+D 0.05
+```
+
+降低 temperature 后可能更像：
+
+```text
+A 0.82
+B 0.13
+C 0.04
+D 0.01
+```
+
+提高 temperature 后可能更像：
+
+```text
+A 0.40
+B 0.27
+C 0.19
+D 0.14
+```
+
+这里必须建立一个重要认知：
+
+> **Temperature 不会给模型增加新知识，也不会直接提高模型智力；它只是改变模型已有候选分布被采样的方式。**
+
+所以：
+
+```text
+higher temperature
+≠
+smarter model
+
+lower temperature
+≠
+more correct model
+```
+
+它改变的是探索与集中程度。
+
+---
+
+#### 1.4.5 Temperature 接近 0 和 Greedy 是什么关系？
+
+当 $T$ 趋近于 0 时，最大 logit token 的概率会越来越接近 1，因此行为会趋近 greedy。
+
+但工程上最好把两个概念分开：
+
+```text
+Greedy
+= 明确执行 argmax
+
+Very low temperature sampling
+= 分布极度集中后再 sampling
+```
+
+很多 API 会对 `temperature=0` 做特殊处理，具体实现依平台而异。
+
+因此面试中更安全的说法是：
+
+> **低 temperature 使 sampling 行为趋近 greedy，但 greedy 本身是明确的 argmax decoding policy。**
+
+---
+
+#### 1.4.6 Top-k Sampling：只在前 k 个 token 中采样
+
+虽然本章重点是 temperature 和 top-p，但理解 top-k 很有帮助。
+
+Top-k 的做法是：
+
+1. 将 token 按概率从高到低排序；
+2. 只保留概率最高的 $k$ 个 token；
+3. 将其余 token 概率置零；
+4. 在剩余候选中重新归一化并采样。
+
+例如：
+
+```text
+A 0.40
+B 0.25
+C 0.15
+D 0.10
+E 0.06
+F 0.04
+```
+
+若：
+
+```text
+top-k = 3
+```
+
+则只从：
+
+```text
+A, B, C
+```
+
+中采样。
+
+它解决的是：
+
+> 不让极低概率、明显离谱的 token 参与 sampling。
+
+但固定 $k$ 有一个问题：模型分布有时非常确定，有时很平坦，始终保留固定数量候选并不一定合理。
+
+这就引出了 top-p。
+
+---
+
+#### 1.4.7 Top-p / Nucleus Sampling：保留累计概率达到 p 的最小候选集合
+
+Top-p 不是固定保留多少个 token，而是动态选择候选集合。
+
+假设排序后的概率是：
+
+```text
+A 0.45
+B 0.25
+C 0.15
+D 0.08
+E 0.04
+F 0.03
+```
+
+如果：
+
+```text
+top-p = 0.80
+```
+
+则从最高概率开始累加：
+
+```text
+A              = 0.45
+A + B          = 0.70
+A + B + C      = 0.85
+```
+
+因此 nucleus 大致是：
+
+```text
+{A, B, C}
+```
+
+然后只在这个集合内部重新归一化并采样。
+
+所以：
+
+> **Top-p 根据当前分布的形状动态决定“合理候选集合”有多大。**
+
+当模型很确定时：
+
+```text
+A = 0.92
+```
+
+top-p 可能只留下很少候选。
+
+当模型很不确定时：
+
+```text
+A = 0.15
+B = 0.14
+C = 0.12
+...
+```
+
+就需要更多 token 才能达到累计概率阈值。
+
+这比固定 top-k 更自适应。
+
+---
+
+#### 1.4.8 Temperature 和 Top-p 有什么区别？
+
+这是高频问题。
+
+Temperature 主要改变：
+
+> **概率分布本身有多尖或多平。**
+
+Top-p 主要改变：
+
+> **哪些 token 有资格进入 sampling candidate set。**
+
+可以简单理解为：
+
+```text
+Temperature
+↓
+reshape probability distribution
+
+Top-p
+↓
+truncate candidate support
+```
+
+二者可以组合：
+
+```text
+logits
+  ↓
+temperature scaling
+  ↓
+softmax
+  ↓
+top-p filtering
+  ↓
+sampling
+```
+
+不同推理框架具体操作顺序可能存在实现差异，但概念边界如此。
+
+工程上通常不需要同时把多个随机参数调得非常激进，否则很难理解性能变化到底来自哪里。
+
+---
+
+#### 1.4.9 Sampling 的真正价值：探索其他可能轨迹
+
+假设模型在某个关键决策点给出：
+
+```text
+Strategy A: 0.52
+Strategy B: 0.43
+Strategy C: 0.05
+```
+
+Greedy 每次都选择 A。
+
+但如果 B 实际上在完整任务上更好，单一路径 greedy 永远不会发现它。
+
+Sampling 给了系统一个机会：
+
+```text
+same prefix
+   ├── candidate A
+   ├── candidate B
+   └── candidate C
+```
+
+随后可以：
+
+- 用 verifier 打分；
+- 用 reward model 打分；
+- 执行候选后比较结果；
+- majority vote；
+- self-consistency；
+- best-of-N；
+- search / tree exploration。
+
+所以 sampling 最重要的价值不是“让答案更有创意”，而是：
+
+> **为 test-time exploration 提供不同候选轨迹。**
+
+这在 reasoning agent 和 self-improving agent 中尤其重要。
+
+---
+
+#### 1.4.10 Sampling ≠ Search
+
+这个边界很重要。
+
+Sampling 只是：
+
+```text
+从概率分布中生成一个或多个候选
+```
+
+Search 则进一步包含：
+
+```text
+Generate
+   ↓
+Evaluate
+   ↓
+Select
+   ↓
+Expand / Continue
+```
+
+例如：
+
+```text
+Candidate generation
+        ↓
+Candidate scoring
+        ↓
+Keep best branch
+        ↓
+Continue generation
+```
+
+因此：
+
+```text
+Sampling
+= diversity mechanism
+
+Search
+= exploration + evaluation + selection mechanism
+```
+
+如果只是高 temperature 连续随机生成，却没有任何 evaluator / selection，不应该简单称为“搜索”。
+
+---
+
+#### 1.4.11 Self-Consistency 为什么依赖 Sampling？
+
+Self-consistency 的典型思路是：
+
+```text
+same problem
+   ↓
+Sample reasoning path 1 → answer A
+Sample reasoning path 2 → answer A
+Sample reasoning path 3 → answer B
+Sample reasoning path 4 → answer A
+Sample reasoning path 5 → answer C
+   ↓
+majority / aggregation
+   ↓
+answer A
+```
+
+它利用的是：
+
+> 模型可能有多条不同 reasoning trajectory 指向同一个正确答案。
+
+如果始终使用完全相同的 greedy 路径：
+
+```text
+run 1 = A
+run 2 = A
+run 3 = A
+```
+
+重复执行本身没有提供真正的路径多样性。
+
+因此候选生成、self-consistency、best-of-N 等方法通常需要一定程度的 stochastic decoding 或显式分支机制。
+
+---
+
+#### 1.4.12 Agent 中的 Exploration vs Exploitation
+
+Agent 场景里，decoding 可以放进经典的 exploration–exploitation 框架理解。
+
+**Exploitation：**
+
+```text
+选择模型当前最相信的路径
+```
+
+例如：
+
+- greedy；
+- very low randomness；
+- 已知稳定 tool procedure。
+
+**Exploration：**
+
+```text
+主动尝试其他可能路径
+```
+
+例如：
+
+- sample multiple plans；
+- generate alternative tool choices；
+- sample repair candidates；
+- branch reasoning trajectories。
+
+因此更成熟的 Agent 不一定全程使用同一个 decoding policy。
+
+可能采用：
+
+```text
+Stable execution phase
+→ low randomness
+
+Exploration / candidate generation phase
+→ controlled sampling
+
+Final structured action
+→ constrained / deterministic decoding
+```
+
+这比简单问：
+
+> “Agent temperature 应该设多少？”
+
+更接近真实系统设计。
+
+真正的问题是：
+
+> **这一阶段需要稳定执行，还是需要探索备选轨迹？**
+
+---
+
+#### 1.4.13 为什么 Tool Calling 往往更强调稳定性？
+
+自然语言中一个词换成同义词通常问题不大。
+
+但 Tool Calling 是机器接口。
+
+例如系统期待：
+
+```json
+{
+  "tool": "get_weather",
+  "city": "Tokyo"
+}
+```
+
+如果模型随机性很高，可能出现：
+
+```text
+选错 tool
+参数值漂移
+多调用一次
+过早回答而不调用
+调用顺序变化
+```
+
+而这些改变可能真实影响 Environment。
+
+所以对很多工具执行阶段，工程目标更倾向：
+
+```text
+reliability
+reproducibility
+schema correctness
+low unnecessary variance
+```
+
+而不是最大化语言多样性。
+
+但注意：
+
+> 这不等于“所有 Agent 一律 temperature=0”。
+
+例如计划探索、代码修复候选生成、复杂 reasoning candidate generation 可能恰恰需要多样性。
+
+更合理的原则是：
+
+> **对不可逆 Action 保守，对可评估候选探索开放。**
+
+---
+
+#### 1.4.14 Decoding 与 Structured Output 的关系
+
+自然语言 decoding 理论上可以生成任意词表 token。
+
+但 Agent 中常常希望输出满足某种 grammar / schema，例如：
+
+```json
+{
+  "action": "search",
+  "query": "..."
+}
+```
+
+如果系统支持 constrained decoding / structured output，它可以在生成过程中限制当前哪些 token 是合法的。
+
+抽象地说：
+
+```text
+Model probability distribution
+        ↓
+Structural constraints
+        ↓
+Allowed token set
+        ↓
+Decoding
+```
+
+因此 Structured Output 不只是写一句：
+
+```text
+Please output JSON.
+```
+
+更强的实现会直接缩小合法生成空间。
+
+这会在 1.5 节详细展开。
+
+---
+
+#### 1.4.15 Log Probability、Entropy 和 Margin 为什么和 Agent 有关系？
+
+Decoding 的输入本身是一个概率分布，因此系统可以从这个分布提取一些 uncertainty signal。
+
+##### Token Log Probability
+
+如果实际选择 token $x_t$：
+
+$$
+\log P(x_t\mid c,x_{<t})
+$$
+
+概率越低，log probability 越负。
+
+一个非常低的 chosen-token logprob 可能意味着：
+
+> 模型在这个局部位置没有特别确信当前选择。
+
+但它不是“这个 token 一定错”的证明。
+
+---
+
+##### Entropy
+
+概率分布的 entropy：
+
+$$
+H(p)=-\sum_i p_i\log p_i
+$$
+
+直觉：
+
+```text
+低 entropy
+→ 概率集中
+→ 模型局部更确定
+
+高 entropy
+→ 概率分散
+→ 多个候选竞争
+```
+
+---
+
+##### Top-1 / Top-2 Margin
+
+例如：
+
+```text
+p1 = 0.46
+p2 = 0.44
+```
+
+与：
+
+```text
+p1 = 0.91
+p2 = 0.04
+```
+
+即使 top-1 都会被 greedy 选中，两种局部状态显然不同。
+
+可以定义类似：
+
+$$
+\text{margin}=p_{(1)}-p_{(2)}
+$$
+
+margin 小意味着 top candidates 更接近。
+
+这些量可以用于：
+
+- uncertainty detection；
+- trigger exploration；
+- decide whether to sample alternatives；
+- route to verifier；
+- allocate more test-time compute。
+
+但必须保持边界：
+
+> **模型概率信号是内部置信信息，不等于外部事实正确率。**
+
+一个模型可以非常自信地错，也可以低置信地选中正确答案。
+
+---
+
+#### 1.4.16 Sequence Probability 与长度问题
+
+整个序列的 log probability 是：
+
+$$
+\log P(x_{1:T}\mid c)
+=
+\sum_{t=1}^{T}\log P(x_t\mid c,x_{<t})
+$$
+
+但直接比较不同长度候选的总 log probability 会天然偏向较短序列，因为每个 token 的 log probability 通常不大于 0，长度越长累计项越多。
+
+因此候选 scoring 中常见：
+
+```text
+average log probability
+length normalization
+reward / verifier score
+```
+
+例如平均 token logprob：
+
+$$
+\frac{1}{T}\sum_{t=1}^{T}\log P(x_t\mid c,x_{<t})
+$$
+
+但也不要把平均 logprob 当作“正确性分数”。
+
+它描述的是：
+
+> 模型对这条生成序列自身有多支持。
+
+模型偏好的答案和真实正确答案仍然可能不同。
+
+这对于 candidate selection 特别重要。
+
+---
+
+#### 1.4.17 Beam Search 放在哪里？
+
+Beam Search 不同于独立 sampling。
+
+它会在每个生成位置维护若干高分 partial sequences，例如 beam size = 3：
+
+```text
+prefix
+ ├── branch A
+ ├── branch B
+ └── branch C
+      ↓
+expand each
+      ↓
+score
+      ↓
+keep top 3
+      ↓
+continue
+```
+
+它试图在序列空间中保留多个高概率候选，而不是每步只留下 greedy 的一个分支。
+
+Beam Search 在传统 seq2seq / translation 中非常经典，但在现代开放式 LLM Agent 中并不一定是最常用的默认策略，因为：
+
+- 高 likelihood 不等于任务成功；
+- 分支执行真实 tools 成本高；
+- 环境 state 可能因 action 而变化；
+- Agent trajectory 的评价往往需要 task-level verifier，而非纯 token likelihood。
+
+所以 Agent search 更常见的是更高层的：
+
+```text
+plan candidate
+reasoning candidate
+tool-action candidate
+execution branch
+```
+
+然后使用任务相关 evaluator 做 selection。
+
+---
+
+#### 1.4.18 Seed 能不能保证 Agent 完全可复现？
+
+某些推理服务允许设置 random seed，使 sampling 的随机数流更稳定。
+
+但要注意：
+
+```text
+same seed
+≠
+necessarily identical Agent run forever
+```
+
+因为结果还依赖：
+
+- model version；
+- inference backend；
+- exact prompt / context；
+- tool outputs；
+- external APIs；
+- search index；
+- current files / database；
+- concurrency；
+- service implementation。
+
+所以 seed 更适合理解为：
+
+> **控制 sampling 随机性的一个实验变量。**
+
+而不是完整系统的强可复现保证。
+
+Agent benchmark 如果需要严谨比较，应尽量冻结：
+
+```text
+model
+prompt
+sampling config
+seed if supported
+tool versions
+input data
+environment
+```
+
+并记录 trajectory。
+
+---
+
+#### 1.4.19 Agent Evaluation 为什么不能只跑一次？
+
+一旦使用 stochastic decoding，同一个 case 就对应一个**结果分布**，而不是唯一结果。
+
+例如同一任务跑 10 次：
+
+```text
+success success fail success fail
+success success success fail success
+```
+
+那么真正值得关心的可能是：
+
+```text
+success rate
+variance
+cost distribution
+failure-mode distribution
+```
+
+而不是某一次恰好成功。
+
+对于 candidate generation，还可能使用：
+
+- pass@k；
+- best-of-k；
+- majority accuracy；
+- expected reward；
+- success under budget。
+
+所以：
+
+> **Sampling 把 Agent evaluation 从“测一个输出”变成了“估计一个策略产生的结果分布”。**
+
+这也是为什么 benchmark 设计必须记录 decoding config。
+
+---
+
+#### 1.4.20 常见 Failure Modes
+
+**1. Temperature Too High**
+
+概率分布被过度拉平，导致：
+
+- reasoning 漂移；
+- 工具选择不稳定；
+- 参数异常；
+- 无谓探索；
+- hallucination 增加。
+
+**2. Temperature Too Low**
+
+模型长期锁在最偏好的局部轨迹上，即使这条路径失败，也缺少替代方案。
+
+**3. Blind Sampling**
+
+生成很多候选，却没有 verifier / scoring / selection。
+
+结果只是：
+
+```text
+more compute
++
+more randomness
+```
+
+而不是可靠提升。
+
+**4. Sampling at High-risk Actions**
+
+在付款、删除、发送、数据库写入等 action 上直接允许高随机性，会扩大操作风险。
+
+**5. Evaluation Leakage from Lucky Runs**
+
+只挑一次随机成功结果汇报，而忽略整体成功率。
+
+**6. Unfair Baseline Comparison**
+
+一个方法采样多个候选并选优，却和只运行一次的 greedy baseline 比准确率，而不报告额外计算成本。
+
+**7. Probability–Correctness Confusion**
+
+把 high logprob / low entropy 当成事实正确性的充分证明。
+
+**8. Global-vs-Local Confusion**
+
+认为 greedy 每步取 top-1，因此最终轨迹一定是最优轨迹。
+
+---
+
+#### 1.4.21 Agent 工程中的 Decoding 原则
+
+**原则一：执行和探索最好分开设计。**
+
+```text
+Exploration
+→ allow diversity
+
+Execution
+→ emphasize stability
+```
+
+**原则二：高风险动作尽量降低随机决策空间。**
+
+可以通过：
+
+- constrained output；
+- deterministic validation；
+- permission；
+- human approval。
+
+**原则三：Sampling 必须和 Selection 配套。**
+
+有候选生成，没有选择机制，不等于 test-time optimization。
+
+**原则四：把计算预算算进去。**
+
+例如：
+
+```text
+1 greedy trajectory
+vs
+8 sampled trajectories + verifier
+```
+
+不能只比较最终 accuracy，还应该比较：
+
+- total tokens；
+- model calls；
+- tool calls；
+- latency；
+- cost。
+
+**原则五：decoding config 是实验协议的一部分。**
+
+至少记录：
+
+```text
+temperature
+top-p / top-k
+seed if applicable
+max tokens
+stop conditions
+number of samples
+selection rule
+```
+
+否则实验结果很难正确复现和解释。
+
+**原则六：不要迷信单一 temperature。**
+
+复杂 Agent 可以针对不同阶段使用不同的策略：
+
+```text
+planning      → controlled exploration
+candidate gen → sampling
+final tool API → constrained / stable
+final response → task-dependent
+```
+
+---
+
+#### 1.4.22 与相邻概念的边界
+
+| 概念 | 核心问题 | 与 Sampling / Decoding 的关系 |
+|---|---|---|
+| Logits | 模型对各 token 的未归一化分数 | Decoding 的原始输入 |
+| Softmax | 将 logits 转为概率分布 | 为 sampling 提供概率 |
+| Greedy | 每步选 top-1 | 一种 decoding policy |
+| Temperature | 调整分布尖锐程度 | 控制 sampling 的集中 / 分散程度 |
+| Top-k | 固定保留 k 个候选 | 截断 sampling support |
+| Top-p | 保留累计概率达到 p 的动态候选集合 | 自适应截断 sampling support |
+| Sampling | 从候选概率分布生成路径 | 提供多样性 / exploration |
+| Search | 生成 + 评估 + 选择 + 扩展 | 比 sampling 更高层 |
+| Self-Consistency | 多路径采样后聚合 | Sampling 的典型应用 |
+| Structured Output | 限制合法输出空间 | 可以和 decoding 组合 |
+| Verifier | 评价候选质量 | 将“多样性”转成“可选择性” |
+| Agent Harness | 决定什么时候采用哪种 decoding / exploration policy | 系统控制层 |
+
+---
+
+#### 1.4.23 面试掌握边界
+
+这一节至少需要稳定回答：
+
+1. **Greedy decoding 是什么？**  
+   每一步选择当前概率最高的 token；它是局部 top-1 策略，不保证最终 sequence 或任务结果全局最优。
+
+2. **Temperature 做了什么？**  
+   通过缩放 logits 改变 softmax 分布的尖锐程度；低温更集中，高温更平坦，它不增加模型知识或智力。
+
+3. **Top-p 是什么？**  
+   从高概率 token 开始累加，保留累计概率达到阈值 $p$ 的最小动态候选集合，再在其中采样。
+
+4. **Temperature 和 Top-p 有什么区别？**  
+   Temperature 重塑概率分布；top-p 截断允许参与采样的候选集合。
+
+5. **为什么 Agent 不一定永远使用 greedy？**  
+   Greedy 稳定但只探索单一路径；规划、修复、reasoning candidate generation 等阶段可能需要 sampling 探索替代轨迹。
+
+6. **为什么 Tool Calling 往往偏向低随机性？**  
+   因为 tool call 是机器 action，微小输出差异可能改变真实环境，通常更强调 schema correctness、可靠性和可复现性。
+
+7. **Sampling 和 Search 的区别？**  
+   Sampling 负责产生多样候选；Search 还包含 evaluator、selection 以及可能的进一步 expansion。
+
+8. **Logprob / entropy 能不能直接判断答案对错？**  
+   不能。它们反映模型内部概率结构，可作为 uncertainty signal，但模型可能高置信地错或低置信地对。
+
+9. **为什么随机 Agent benchmark 应该重复运行？**  
+   因为随机策略产生的是结果分布，应评价 success rate、variance、cost 等，而不能只看一次随机结果。
+
+10. **Greedy 是否等于系统完全 deterministic？**  
+    只表示 token selection 没有显式 sampling；真实 Agent 还受 backend、context、tools 和外部环境变化影响。
+
+如果继续追问“如何强制输出合法 JSON / schema”，进入 **1.5 Structured Output**；如果追问“模型如何把 tool name 和 arguments 交给程序”，进入 **1.6 Function Calling**；如果追问“什么时候应该触发多候选探索以及如何选优”，会在 **Agent Decision Loop、Evaluation、Agent Optimization** 中继续展开。
+
+---
+
+#### 1.4.24 本节一句话总结
+
+> **模型给出的是下一 token 的概率分布，decoding 决定实际走哪条生成轨迹：greedy 强调利用当前最高概率路径，sampling 提供受控探索，而 Agent 系统真正可靠的做法不是简单“调高或调低 temperature”，而是根据任务阶段把探索、候选评估、稳定执行和成本预算组织成明确的 decoding policy。**
 
 ### 1.5 Structured Output
 
@@ -2664,7 +3785,7 @@ Model
 
 | 层 | 章节 | 状态 |
 |---|---|---|
-| I | 1. LLM Foundation for Agents | 进行中：1.1–1.3 已完成 |
+| I | 1. LLM Foundation for Agents | 进行中：1.1–1.4 已完成 |
 | I | 2. Agent Decision Loop | 待写 |
 | II | 3. Tool Use & Action | 待写 |
 | II | 4. Context, Memory & Retrieval | 待写 |
@@ -2680,4 +3801,4 @@ Model
 | IV | 14. Recursive Self-Improvement | 待写 |
 | IV | 15. Harness RSI & Model–Harness Co-evolution | 待写 |
 
-下一步：继续 **I. Model & Decision Core → 1.4 Sampling & Decoding**。
+下一步：继续 **I. Model & Decision Core → 1.5 Structured Output**。
