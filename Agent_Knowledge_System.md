@@ -1351,7 +1351,805 @@ You are a helpful research agent.
 
 ### 1.3 Context Window
 
-待补充。
+#### 1.3.1 定义：Context 和 Context Window 分别是什么？
+
+这两个词经常被混在一起，但它们不是同一件事。
+
+**Context** 指的是：
+
+> **某一次模型 inference 时，模型实际能够条件化、能够“看到”的 token 序列。**
+
+例如一次 Agent 调用里的 context 可能包含：
+
+```text
+System / Agent Instructions
++
+User Request
++
+Conversation History
++
+Tool Definitions
++
+Retrieved Memory
++
+Retrieved Documents
++
+Previous Tool Calls
++
+Tool Observations
++
+Current State
+```
+
+而 **Context Window** 指的是：
+
+> **模型一次推理最多能够处理的上下文容量上限，通常以 token 数量表示。**
+
+因此：
+
+```text
+Context
+= 这一轮实际装进去的内容
+
+Context Window
+= 最多能装多少内容
+```
+
+可以类比成：
+
+```text
+Context Window = 桌子的大小
+Context        = 当前真正摆在桌面上的材料
+```
+
+这个边界非常重要，因为 Agent 工程真正要解决的通常不是“有没有桌子”，而是：
+
+> **有限的桌面上到底应该摆什么。**
+
+---
+
+#### 1.3.2 Context Window 是一个 Token Budget
+
+假设模型的最大上下文长度为 $W$，一次调用中各种信息所占 token 数分别为：
+
+- $N_s$：system / agent instructions；
+- $N_u$：user request；
+- $N_h$：conversation / trajectory history；
+- $N_t$：tool definitions；
+- $N_r$：retrieved documents / memory；
+- $N_o$：tool observations；
+- $N_{out}$：需要为模型输出预留的空间。
+
+则系统必须满足一个近似的预算约束：
+
+$$
+N_s + N_u + N_h + N_t + N_r + N_o + N_{out} \le W
+$$
+
+具体 API 可能对输入长度、最大输出长度采用不同限制方式，但从 Agent 设计角度，核心事实不变：
+
+> **Context Window 是有限资源，而且输入与未来输出会竞争这一资源。**
+
+因此如果把整个窗口全部塞满历史材料，却没有为模型留下足够的输出空间，任务仍然可能失败。
+
+---
+
+#### 1.3.3 Agent 为什么特别容易遇到 Context Growth？
+
+普通单轮问答通常只有：
+
+```text
+Prompt
++
+Answer
+```
+
+而 Agent 是一个循环：
+
+```text
+User Task
+   ↓
+Action 1
+   ↓
+Observation 1
+   ↓
+Action 2
+   ↓
+Observation 2
+   ↓
+Action 3
+   ↓
+Observation 3
+   ↓
+...
+```
+
+如果每一步都把完整历史保留下来，context 会不断增长：
+
+$$
+C_{t+1}=C_t + A_t + O_t
+$$
+
+其中 $A_t$ 是 Agent action，$O_t$ 是环境 observation。
+
+真实 Agent 中 Observation 往往尤其大，例如：
+
+- 搜索结果；
+- 长网页；
+- PDF；
+- 大段源代码；
+- terminal logs；
+- stack trace；
+- database rows；
+- 多 Agent message；
+- test output。
+
+所以一个 Coding Agent 即使只执行十几步，也可能很快累积出大量上下文。
+
+这就是为什么 Context Management 对 Agent 比普通 Chatbot 更重要。
+
+---
+
+#### 1.3.4 Context Window ≠ Memory
+
+这是整套 Agent 知识体系里必须牢牢记住的边界。
+
+**Context Window** 是：
+
+> 当前一次 inference 可以直接看到的信息容量。
+
+**Memory** 是：
+
+> 信息如何被保存，并在未来需要时重新取回。
+
+可以画成：
+
+```text
+                 External / Persistent Storage
+                 ┌──────────────────────────┐
+                 │         Memory           │
+                 │ conversation / facts /   │
+                 │ experience / state       │
+                 └────────────┬─────────────┘
+                              │ retrieve
+                              ↓
+                      ┌──────────────┐
+                      │   Context    │
+                      │   Window     │
+                      └──────┬───────┘
+                             ↓
+                            LLM
+```
+
+Memory 里的信息不一定正在 Context 中。
+
+只有当系统把某条 memory 检索出来并注入当前 context 时，模型这一轮才真正能够利用它。
+
+因此：
+
+```text
+Stored somewhere
+≠
+Model currently knows it
+```
+
+更准确地说：
+
+```text
+Memory
+→ Retrieve / Select
+→ Context
+→ Model inference
+```
+
+所以“大模型有很长 context”不能替代 Memory System。
+
+同样，“系统有长期 memory”也不代表模型每一轮自动看到全部 memory。
+
+---
+
+#### 1.3.5 Context Window ≠ Agent State
+
+另一个容易混淆的概念是 **State**。
+
+State 是 Agent Runtime / Harness 中持有的结构化运行状态，例如：
+
+```text
+current_task_id
+current_plan
+completed_steps
+retry_count
+files_modified
+pending_approval
+budget_remaining
+```
+
+这些状态可以存在程序变量、数据库或 checkpoint 中。
+
+它们不一定全部需要直接送进模型。
+
+所以：
+
+```text
+Agent State
+        ↓ select / serialize
+Model Context
+```
+
+而不是：
+
+```text
+Agent State = Context
+```
+
+例如 Runtime 知道：
+
+```text
+retry_count = 3
+```
+
+Harness 可以直接根据程序逻辑终止，而不一定要把全部历史重试文本继续塞给 LLM。
+
+这也是一个重要工程原则：
+
+> **能由系统结构化保存和确定性处理的状态，不应全部依赖自然语言 history 来保存。**
+
+---
+
+#### 1.3.6 长 Context ≠ 无限记忆
+
+一个模型即使支持很长的 Context Window，也不能得出：
+
+> “以后不需要 Memory、RAG、摘要或 Context Engineering 了。”
+
+原因至少有四类。
+
+**第一，窗口仍然有限。**
+
+长任务、长对话、代码库或文档集合可以远远超过任何固定窗口。
+
+**第二，输入更多信息有成本。**
+
+更多 token 往往意味着更高的计算成本、更大的 KV cache、更高的延迟或更低的吞吐。
+
+**第三，存在信号稀释问题。**
+
+把大量无关内容一起塞入 context，会增加模型识别真正相关信息的难度。
+
+**第四，“位于窗口内”不等于“被稳定利用”。**
+
+模型对长上下文中不同位置、不同形式信息的利用能力并不一定完全一致。工程上不能把：
+
+```text
+信息在 context 里
+```
+
+直接等同于：
+
+```text
+模型一定会正确关注、理解并使用它
+```
+
+因此真正的目标不是：
+
+> **maximize context length**
+
+而是：
+
+> **maximize useful signal per context budget。**
+
+---
+
+#### 1.3.7 为什么“把所有历史都塞进去”通常不是好策略？
+
+最简单的 Agent memory 实现经常是：
+
+```text
+每一轮都把所有历史消息重新发送给模型
+```
+
+短对话时这可以工作，但随着 trajectory 变长，会出现几个问题。
+
+**1. Token 成本持续增长**
+
+如果每一步都携带完整历史，长任务的累计输入成本可能快速上升。
+
+**2. 无关信息累积**
+
+早期已经失效的 tool output、旧计划、错误尝试继续占用 context。
+
+**3. 目标被稀释**
+
+真正重要的 user goal 和当前任务状态被大量历史内容包围。
+
+**4. 错误长期残留**
+
+一次错误 observation 如果一直留在 history 中，可能持续影响后续决策。
+
+**5. 安全攻击面扩大**
+
+来自网页、邮件、工具结果中的恶意内容可能在上下文中长期存活。
+
+因此 Context Engineering 的核心不是简单 append，而是：
+
+```text
+retain
+remove
+summarize
+retrieve
+compress
+reorder
+structure
+```
+
+---
+
+#### 1.3.8 Context Budgeting：窗口应该怎样分配？
+
+成熟 Agent 通常需要显式的 Context Budget。
+
+一个抽象例子：
+
+```text
+Context Window
+│
+├── System / Core Instruction      固定高优先级
+├── User Goal                      必须保留
+├── Current State                  高相关
+├── Tool Definitions               按需提供
+├── Relevant Memory                按需检索
+├── Relevant Documents             按需检索
+├── Recent Trajectory              保留近期关键步骤
+├── Compressed Old History         摘要化
+└── Output Reserve                 给新生成预留空间
+```
+
+重点不是具体比例，而是意识到不同信息拥有不同价值。
+
+可以把 Context Selection 抽象成一个优化问题：
+
+$$
+\max_{S \subseteq I} \text{Utility}(S)
+$$
+
+subject to：
+
+$$
+\text{Tokens}(S) \le B
+$$
+
+其中：
+
+- $I$ 是所有可用信息；
+- $S$ 是最终选入 context 的信息集合；
+- $B$ 是可用 token budget。
+
+也就是说：
+
+> **Context Engineering 本质上是有限预算下的信息选择与组织问题。**
+
+---
+
+#### 1.3.9 常见 Context Management 方法
+
+##### 1. Truncation
+
+最简单：超过长度后直接丢弃一部分历史。
+
+优点：简单。
+
+缺点：可能误删关键约束。
+
+---
+
+##### 2. Sliding Window
+
+只保留最近若干轮：
+
+```text
+old old old | recent recent recent
+    drop     |       keep
+```
+
+适合强局部性的对话，但不适合必须长期记住早期约束的任务。
+
+---
+
+##### 3. Summarization / Compaction
+
+把旧 trajectory 压缩为摘要：
+
+```text
+20k tokens history
+        ↓
+summary / structured state
+        ↓
+2k tokens
+```
+
+但摘要本身也可能丢信息、引入错误，所以 compaction 不是免费的。
+
+---
+
+##### 4. Retrieval
+
+不把所有材料常驻 Context，而是在需要时检索：
+
+```text
+Large Knowledge Store
+       ↓ query
+Relevant Chunks
+       ↓
+Context
+```
+
+这就是 RAG / Memory Retrieval 的核心思想之一。
+
+---
+
+##### 5. Structured State Extraction
+
+把自然语言 history 中的关键状态抽取成结构化信息：
+
+```text
+Goal: fix bug #123
+Files changed: [a.py, b.py]
+Tests passed: unit_a
+Tests failed: integration_b
+Retry count: 2
+```
+
+这样很多运行状态不必依赖完整对话历史保存。
+
+---
+
+##### 6. Tool-result Filtering
+
+工具输出往往很大，但模型通常只需要其中一部分。
+
+例如：
+
+```text
+10,000 行 test log
+        ↓ filter
+最后一个 error stack + relevant failure
+        ↓
+Context
+```
+
+这通常比原样塞入全部 stdout 更有效。
+
+---
+
+##### 7. External Artifact References
+
+大文件、完整日志、代码仓库可以保存在外部环境中，context 里只保留：
+
+```text
+文件路径
+摘要
+索引
+必要片段
+```
+
+需要时再通过工具读取。
+
+这也是 Coding Agent 能处理“大于 context window 的代码库”的关键思路：
+
+> **不是一次把整个 repo 放进 prompt，而是搜索、读取、丢弃、再读取。**
+
+---
+
+#### 1.3.10 RAG 的本质：把“存储容量”与“即时 Context”分开
+
+假设企业知识库有一百万篇文档。
+
+显然不能写成：
+
+```text
+1,000,000 documents
+        ↓
+全部塞入 Context
+        ↓
+LLM
+```
+
+RAG 做的是：
+
+```text
+Large External Corpus
+        ↓
+Retriever
+        ↓
+Relevant Small Subset
+        ↓
+Context Window
+        ↓
+LLM
+```
+
+因此 RAG 解决的一个核心问题就是：
+
+> **外部知识规模远大于 Context Window 时，怎样选择本轮最值得放进 Context 的信息。**
+
+Agentic RAG 又更进一步，让 Agent 动态决定：
+
+```text
+要不要检索？
+检索什么？
+结果够不够？
+是否改 query？
+是否继续检索？
+```
+
+这些会在第二层 Context, Memory & Retrieval 中详细展开。
+
+---
+
+#### 1.3.11 Context Window 与 KV Cache
+
+从推理系统角度，还有一个需要知道但不必过度深入的概念：**KV Cache**。
+
+自回归生成时，如果每生成一个 token 都重新计算所有历史 token 的 attention，会非常浪费。
+
+因此推理系统通常缓存历史 token 对应的 key / value 表示：
+
+```text
+Past tokens
+   ↓
+K / V representations
+   ↓
+KV Cache
+   ↓
+Next-token generation reuse
+```
+
+这使得增量解码更高效，但也意味着：
+
+> **上下文越长，KV Cache 往往越大，占用更多显存 / 内存。**
+
+所以 Context Window 不只是抽象的“模型能记多少字”，它还直接关联：
+
+- memory footprint；
+- throughput；
+- latency；
+- serving cost。
+
+Agent 如果不断积累历史 context，问题不只是 token 费用，还可能影响整个 serving efficiency。
+
+面试 Agent 应用岗位通常不要求推导 KV cache 的底层 kernel，但最好知道它为什么和长上下文成本相关。
+
+---
+
+#### 1.3.12 Context Engineering 与 Harness 的关系
+
+Context Engineering 回答：
+
+> **这一轮模型应该看到什么？**
+
+Harness 则负责把这种策略真正执行出来。
+
+例如一个 Coding Agent 的 Harness 可以规定：
+
+```text
+Always include:
+- core instructions
+- current user goal
+
+Include on demand:
+- tool definitions
+- repo instructions
+- relevant source files
+- retrieved memory
+
+Compress when long:
+- old trajectory
+- verbose test logs
+
+Never blindly include:
+- entire repository
+- every previous stdout
+- unrelated retrieved files
+```
+
+所以：
+
+```text
+Context Window
+= capacity constraint
+
+Context Engineering
+= information selection strategy
+
+Harness Context Policy
+= strategy 的系统实现
+```
+
+这三个概念必须区分。
+
+---
+
+#### 1.3.13 一个最小 Coding Agent 例子
+
+用户要求：
+
+```text
+修复这个大型仓库里的登录 bug。
+```
+
+仓库可能有几十万个 token，显然不能完整塞进模型上下文。
+
+Agent 更合理的过程是：
+
+```text
+User Goal
+    ↓
+Search "login" / auth related symbols
+    ↓
+Read 3 relevant files
+    ↓
+Context = goal + relevant files
+    ↓
+Model identifies likely bug
+    ↓
+Edit file
+    ↓
+Run tests
+    ↓
+Observation: long test log
+    ↓
+Filter / summarize failure
+    ↓
+Context = goal + changed diff + relevant error
+    ↓
+Next decision
+```
+
+这里真正重要的是：
+
+> Agent 的能力来自“反复访问外部环境并动态重建 context”，而不是“一次性拥有整个世界”。
+
+这句话对理解现代 Coding Agent 非常关键。
+
+---
+
+#### 1.3.14 常见 Failure Modes
+
+**1. Context Overflow**
+
+总 token 超过模型 / API 上限，导致请求失败或必须截断。
+
+**2. Blind Truncation**
+
+机械删除最老消息，把用户最早的关键约束一起删掉。
+
+**3. Context Dilution**
+
+大量低相关信息进入窗口，使重要信号变得难以利用。
+
+**4. Stale Context**
+
+旧计划、旧文件内容、已失效状态仍然保留，模型基于过时信息决策。
+
+**5. Contradictory Context**
+
+同时存在多个版本的事实，例如：
+
+```text
+old file content
++
+new file content
+```
+
+模型可能不知道哪个才是 authoritative state。
+
+**6. Summary Loss**
+
+压缩旧历史时丢失了关键细节。
+
+**7. Summary Hallucination**
+
+摘要不是简单压缩，而错误地加入了原历史中不存在的信息。
+
+**8. Retrieval Noise**
+
+检索出的文档虽然语义相似，但对当前任务并不真正有用。
+
+**9. Context Poisoning**
+
+恶意或错误外部内容被注入 context，影响后续 Agent 行为。
+
+**10. State–Context Mismatch**
+
+Runtime 的真实状态已经变化，但送给模型的 context 没有及时更新。
+
+例如文件已经修改，但模型仍看到旧 diff。
+
+---
+
+#### 1.3.15 工程原则
+
+**原则一：Context 是稀缺资源，不是垃圾桶。**
+
+不要默认“有信息就塞进去”。
+
+**原则二：相关性通常比总量更重要。**
+
+较短但高相关的 context，常常比巨量低相关材料更可靠。
+
+**原则三：保留目标，压缩过程。**
+
+长任务中 user goal、关键 constraints、authoritative state 通常应该稳定保留；冗余 trajectory 可以摘要化。
+
+**原则四：把 State 与 Narrative History 分开。**
+
+关键运行状态尽量结构化存储，不要只依赖“模型从聊天记录里自己找”。
+
+**原则五：大对象放外部，需要时读取。**
+
+代码库、PDF、数据库、日志应该通过 search / retrieval / tool access 按需读取。
+
+**原则六：Context Policy 要可评测。**
+
+Context compaction、retrieval top-k、history length 等改动都可能改变 Agent 成功率，应该通过 eval 验证，而不是只看 token 是否减少。
+
+**原则七：必须给输出留预算。**
+
+不要只计算输入，还需要考虑下一轮 reasoning、tool call 或最终回答需要的生成空间。
+
+---
+
+#### 1.3.16 与相邻概念的边界
+
+| 概念 | 核心问题 | 与 Context Window 的关系 |
+|---|---|---|
+| Context | 这一轮模型实际看到什么 | 实际内容 |
+| Context Window | 一轮最多能看到多少 token | 容量上限 |
+| Prompt | 哪些 instruction / task information 被放进 context | Context 的组成部分 |
+| Memory | 信息如何长期或跨轮保存 | 需要 retrieve 后才能进入 Context |
+| RAG | 如何从大规模外部知识中选择相关内容 | 用有限 Context 承载外部知识 |
+| Agent State | 系统当前真实运行状态 | 可选择性序列化进 Context |
+| Context Engineering | 有限预算下选择、压缩、排序信息 | Context Window 之上的策略层 |
+| Harness Context Policy | 系统怎样执行 Context Engineering | 负责动态 assembly / compaction / retrieval |
+| KV Cache | 推理时复用历史 token 的 K/V 表示 | 长 Context 的 serving 成本之一 |
+
+---
+
+#### 1.3.17 面试掌握边界
+
+至少需要稳定回答：
+
+1. **Context 和 Context Window 有什么区别？**  
+   Context 是某次 inference 实际提供给模型的信息；Context Window 是模型一次最多能处理的 token 容量上限。
+
+2. **Context Window 和 Memory 有什么区别？**  
+   Window 是即时工作容量，Memory 是跨时间保存信息的机制；Memory 必须被检索或注入当前 context，模型这一轮才能直接利用。
+
+3. **为什么长 Context 不能替代 RAG / Memory？**  
+   因为窗口仍有限，长输入有成本，而且放入窗口不等于信息会被稳定正确使用。RAG / Memory 解决的是大规模信息的外部存储、选择与按需加载。
+
+4. **Agent 为什么比普通 Chatbot 更容易 context overflow？**  
+   因为每一步 action、tool result、文件、日志、检索结果都会持续累积到 trajectory 中。
+
+5. **Context Engineering 是什么？**  
+   在有限 token budget 下决定哪些 information / instructions / memory / observations 应该进入模型，以及如何压缩、排序和更新。
+
+6. **Context Engineering 和 Harness 有什么关系？**  
+   Context Engineering 是策略；Harness 的 Context Policy 负责在真实 Agent loop 中执行选择、检索、compaction 和 assembly。
+
+7. **为什么不能把全部历史一直塞进去？**  
+   会导致成本增加、信息稀释、旧状态污染、错误持续传播以及最终超出窗口。
+
+8. **KV Cache 与 Context Window 有什么关系？**  
+   自回归 inference 会缓存历史 token 的 key/value 表示以避免重复计算；context 越长，缓存通常越大，因此影响内存占用和 serving efficiency。
+
+如果继续追问“温度为什么改变输出”“greedy 和 sampling 有何区别”，进入 **1.4 Sampling & Decoding**；如果追问 RAG / memory 的设计，则进入第二层 **Context, Memory & Retrieval**；如果追问长任务怎样自动做 compaction，则进入第三层 **Agent Harness → Context Policy**。
+
+---
+
+#### 1.3.18 本节一句话总结
+
+> **Context Window 只是模型一次 inference 的容量上限；真正的 Agent 能力取决于系统能否在有限预算内持续选择、检索、压缩并更新正确的 Context。长上下文不是长期记忆，更不是可靠性的替代品。**
 
 ### 1.4 Sampling & Decoding
 
@@ -1866,7 +2664,7 @@ Model
 
 | 层 | 章节 | 状态 |
 |---|---|---|
-| I | 1. LLM Foundation for Agents | 进行中：1.1–1.2 已完成 |
+| I | 1. LLM Foundation for Agents | 进行中：1.1–1.3 已完成 |
 | I | 2. Agent Decision Loop | 待写 |
 | II | 3. Tool Use & Action | 待写 |
 | II | 4. Context, Memory & Retrieval | 待写 |
@@ -1882,4 +2680,4 @@ Model
 | IV | 14. Recursive Self-Improvement | 待写 |
 | IV | 15. Harness RSI & Model–Harness Co-evolution | 待写 |
 
-下一步：继续 **I. Model & Decision Core → 1.3 Context Window**。
+下一步：继续 **I. Model & Decision Core → 1.4 Sampling & Decoding**。
