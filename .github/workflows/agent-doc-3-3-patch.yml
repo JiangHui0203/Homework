@@ -1,0 +1,40 @@
+name: Patch Agent Knowledge 3.3
+
+on:
+  push:
+    branches:
+      - agent-doc-3-3-tool-description
+    paths:
+      - .github/workflows/agent-doc-3-3-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent-doc-3-3-tool-description
+          fetch-depth: 0
+
+      - name: Apply section patch
+        run: python .tmp/patch_agent_3_3.py
+
+      - name: Validate diff
+        run: git diff --check
+
+      - name: Commit document update
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Agent_Knowledge_System.md
+          if git diff --cached --quiet; then
+            echo "No document change required."
+            exit 0
+          fi
+          git commit -m "docs: add Tool Description foundations"
+          git push origin HEAD:agent-doc-3-3-tool-description
