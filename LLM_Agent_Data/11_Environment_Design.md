@@ -1,99 +1,86 @@
-# 第 11 章 Environment Design：状态、转移、重置与可复现 Agent 世界
+# 第 11 章 Environment Design：状态、转移、观测、重置与可复现 Agent 世界
 
 > 所属体系：[`LLM_Agent_Data_Knowledge_System.md`](../LLM_Agent_Data_Knowledge_System.md)
 >
 > 前置章节：[`第 10 章 Agent Task Design`](./10_Agent_Task_Design.md)
 >
-> 关联章节：[`第 5 章 Tool-use Data 与 Agent Trajectory Data`](./05_Tool_Use_and_Agent_Trajectory_Data.md)、[`第 7 章 Synthetic Data`](./07_Synthetic_Data_Generation_and_Synthesis.md)
+> 关联章节：[`第 5 章 Tool-use Data 与 Agent Trajectory Data`](./05_Tool_Use_and_Agent_Trajectory_Data.md)、[`第 12 章 Agent Trajectory Anatomy`](./12_Agent_Trajectory_Anatomy.md)、[`第 15 章 Grader、Verifier 与 LLM-as-a-Judge`](./15_Grader_Verifier_and_LLM_as_a_Judge.md)、[`第 16 章 Benchmark Design 与 Evaluation Protocol`](./16_Benchmark_Design_and_Evaluation_Protocol.md)、[`第 19 章 Data Governance、Lineage 与 Reproducibility`](./19_Data_Governance_Lineage_and_Reproducibility.md)
 >
-> 本章目标：理解 Agent Environment 为什么不是“给模型几个 API”这么简单，而是一整套可执行、可重置、可验证、可隔离、可复现的外部世界；掌握 State、Transition、Snapshot、Reset、Time、Concurrency、Permissions、Failure Injection、Observability、Isolation 与 Sim-to-real Gap 的设计方法。
+> 编辑基础设施：[`Canonical Glossary`](./00_Glossary_and_Notation.md) · [`Canonical Casebook`](./00_Canonical_Casebook.md)
 >
-> 本章核心问题：**Agent 的能力只有放进一个定义清楚、状态真实、转移可靠、结果可验证的环境里才有意义。一个差的 Environment 会把模型能力、工具错误、Harness bug 和环境噪声混成一个不可解释的分数。**
+> 本章定位：**Tool / Harness / Environment、World State / Environment State / Observation / Agent-visible State 的 canonical chapter。** 后续 failure attribution、trajectory schema、benchmark freeze 与 production runtime 都应使用这里的系统边界。
+>
+> 本章核心问题：**Agent 的能力只有放进一个状态真实、转移明确、观测受控、可重置、可隔离、可复现、可验证的世界里才有意义。一个差的 Environment 会把 Model、Tool、Harness 与 Environment 的问题混成不可解释的分数。**
 
 ---
 
-# 11.0 为什么 Environment Design 是 Agent 数据的核心基础设施？
+# 11.0 Environment 到底是什么？
 
-普通 LLM 任务往往可以理解成：
+普通 LLM 常被抽象成：
 
 ```text
 Input
-  ↓
+ ↓
 Model
-  ↓
+ ↓
 Output
 ```
 
-而 Agent 是：
+Agent 则更像：
 
 ```text
-Current State
-    ↓
-Agent Decision
-    ↓
+World / Environment State
+        ↓
+Agent-visible Information
+        ↓
+Decision
+        ↓
 Action
-    ↓
+        ↓
 Environment Transition
-    ↓
+        ↓
 Observation
-    ↓
-New State
+        ↓
+Updated Agent-visible State
+        ↺
 ```
 
-因此 Agent 的行为质量不只取决于模型，还取决于：
+Environment 的核心不是“几个 API”，而是：
 
 ```text
-任务有没有定义清楚？
-工具是不是可用？
-环境状态是不是真实？
-工具执行后状态有没有真的改变？
-Observation 是否准确？
-环境能不能 reset？
-多条 episode 是否互相污染？
-失败能不能复现？
-最终状态能不能验证？
+State
+Action Semantics
+Transition
+Observation
+Exogenous Dynamics
+Permissions / Resource Rules
 ```
 
-一个最基本的环境可以抽象成：
+Task Contract 则在这个世界之上定义：
 
-$$
-E = (S, A, T, O, R, G)
-$$
-
-其中：
-
-- $S$：Environment State；
-- $A$：Allowed Actions；
-- $T$：State Transition Function；
-- $O$：Observation Function；
-- $R$：Reward / Feedback，可选；
-- $G$：Goal / Success Predicate。
-
-可以画成：
-
-```mermaid
-flowchart LR
-    S0[State s_t] --> A[Agent Action a_t]
-    A --> T[Environment Transition T]
-    T --> S1[State s_t+1]
-    S1 --> O[Observation o_t+1]
-    O --> M[Agent]
-    S1 --> V[Verifier / Success Predicate]
+```text
+Goal
+Constraints
+Success Predicates
+Forbidden Side Effects
+Termination
 ```
 
-所以 Environment 不是背景，它本身就是 Agent 任务的一部分。
+因此要先钉死一个边界：
+
+> **Environment 定义“世界如何运行”；Task 定义“在这个世界里要完成什么”。**
+
+两者相关，但不能混成同一层。
 
 ---
 
-# 11.1 Tool、Harness、Environment：三个系统层必须区分
+# 11.1 Tool、Harness、Environment：三个系统层必须分开
 
-这是 Agent 工程里最容易混淆的地方之一。
+这是整套 Agent 数据体系最重要的系统边界之一。
 
----
+## Tool
 
-## 11.1.1 Tool
-
-Tool 是 Agent 可调用的一个动作接口。
+Tool 是 Agent 可调用的动作接口 / action surface。
 
 例如：
 
@@ -105,523 +92,472 @@ read_file(path)
 run_python(code)
 ```
 
-它定义：
+通常定义：
 
 ```text
 name
 description
-arguments
+argument schema
 return schema
-permission
+permission requirement
 side-effect type
+idempotency metadata
 ```
 
-Tool 是 Agent 看到的 action surface。
+Tool 本身是“动作接口”。
 
 ---
 
-## 11.1.2 Environment
+## Environment
 
-Environment 是这些 action 实际作用的世界。
+Environment 是 Action 真正作用的外部世界及其状态转移机制。
 
 例如：
 
 ```text
 订单数据库
-日历数据库
+日历系统
 文件系统
-浏览器页面状态
+浏览器 / Web backend
 代码容器
 CRM
 邮件系统
 GUI desktop
 ```
 
-Tool 调用：
+调用：
 
 ```text
 cancel_order(1847)
 ```
 
-真正发生的是：
+可能导致：
 
 ```text
-orders[1847].status
-pending
-→
-cancelled
+orders[1847].status:
+pending → cancelled
 ```
 
-这个状态变化属于 Environment。
+这个真实状态变化属于 Environment。
 
 ---
 
-## 11.1.3 Harness
+## Harness
 
-Harness 是把模型、工具、环境和执行流程组织起来的运行框架。
+Harness 是把 Model、Tool、Environment 与执行流程组织起来的运行框架。
 
-它负责的可能包括：
+它可能负责：
 
 ```text
-把 Tool Schema 注入模型上下文
-解析 tool call
-调用对应 tool
-把 observation 放回 context
-控制最大步数
-retry
-parallel tool call
-memory
-context truncation
+将 Tool Schema 放进模型 context
+解析 model action / tool call
+调用 tool adapter
+把 observation 注入下一轮 context
+维护 message history / memory
+context truncation / summarization
+最大步数
+retry policy
+parallel action orchestration
 stop condition
 logging
 ```
 
-所以：
+因此：
 
 ```text
-Tool = Action Interface
-Environment = World State + Transition
-Harness = Runtime Orchestration
-```
+Tool
+= Action Interface
 
-三者不能混在一起。
+Environment
+= World State + Transition + Observation Semantics
+
+Harness
+= Runtime Orchestration
+```
 
 ---
 
-## 11.1.4 为什么这个区分对数据很重要？
+## 11.1.1 为什么区分它们？
 
-假设出现失败：
-
-```text
-Agent 选择 cancel_order(1847)
-```
-
-可能有四种完全不同的原因：
+同一个失败：
 
 ```text
-1. 模型选错工具
-2. Tool wrapper 参数映射错
-3. Environment 后端返回 500
-4. Harness 没把成功 observation 回传
+Agent 最终没有取消订单
 ```
 
-如果最后只记：
+可能来自：
+
+```text
+Model
+→ 选错 action
+
+Tool / Adapter
+→ 参数映射错误
+
+Environment
+→ 后端真实执行失败
+
+Harness
+→ observation 丢失 / retry 改变语义 / context 被截断
+```
+
+如果数据里只保存：
 
 ```text
 success = 0
 ```
 
-数据会失去归因能力。
+就失去了 attribution 能力。
 
-因此环境数据必须保存 failure provenance。
+这套边界将在第 14 章 Failure Taxonomy 中作为 failure owner 的基础。
 
 ---
 
-# 11.2 Environment State：Agent 世界里“现在发生了什么”
+# 11.2 四种 State：不要再裸写一个 “State”
 
-Environment 的核心不是 API，而是 State。
+全书后续尽量明确写是哪一种 state。
 
-例如订单环境可能有：
+## World State
+
+现实或任务定义层面的完整真相。
+
+例如：
+
+```text
+订单真实状态
+用户真实权限
+实际库存
+真实文件内容
+```
+
+在真实产品中，World State 可能无法被系统完整序列化。
+
+---
+
+## Environment State
+
+Benchmark / simulator / runtime 中，被环境系统实际维护、可用于转移和验证的状态表示。
+
+例如：
 
 ```json
 {
   "orders": {
     "1847": {
-      "status": "pending",
-      "amount": 89.9,
-      "customer_type": "regular"
+      "status": "shipped",
+      "amount": 79
     }
   }
 }
 ```
 
-日历环境可能有：
-
-```json
-{
-  "events": [
-    {
-      "id": "event_021",
-      "start": "2026-10-19T15:00",
-      "attendees": ["alice", "bob"]
-    }
-  ]
-}
-```
-
-Agent 的所有 action，本质上都是对 state 的：
-
-```text
-Read
-Write
-Transform
-Query
-```
+理想 benchmark 中，Environment State 应足够表达所有 task-relevant world truth。
 
 ---
 
-## 11.2.1 State 要分 Visible 与 Hidden
+## Observation
 
-### Visible State
+Environment 对某次 Action 返回给 Agent 的局部信息：
 
-Agent 可以直接观察。
+\[
+o_{t+1}\sim O(s_{t+1},a_t)
+\]
 
-例如：
-
-```text
-当前页面文本
-当前文件目录
-工具返回结果
-```
-
-### Hidden State
-
-真实存在，但 Agent 必须通过 action 才能知道。
-
-例如：
+它可能经过：
 
 ```text
-数据库里订单真实状态
-网页后端某字段
-客户权限等级
-未打开邮件正文
+pagination
+filtering
+ranking
+redaction
+permission check
+truncation
+serialization
 ```
 
 因此：
 
-> **Partial Observability 不是环境缺陷，而往往是 Agent 任务本身的核心。**
-
-如果把所有 hidden state 都直接塞进 prompt，工具使用能力就被绕开了。
+```text
+Observation ≠ Full Environment State
+```
 
 ---
 
-# 11.3 State Transition：Action 调用以后，世界到底怎么变化？
+## Agent-visible State
 
-一个环境必须定义：
+Agent 在某个时刻真正可用于决策的信息集合。
 
-$$
-s_{t+1}=T(s_t,a_t)
-$$
+它可能由：
+
+```text
+User / System Context
++
+Past Observations
++
+Current Tool Results
++
+Harness Memory / Summary
++
+Visible Intermediate State
+```
+
+构成。
+
+所以：
+
+```text
+World State
+≠ Environment State Representation
+≠ Observation
+≠ Agent-visible State
+```
+
+这四者必须长期保持区分。
+
+---
+
+# 11.3 Transition：Action 以后世界怎么变化？
+
+Environment 必须定义状态转移：
+
+\[
+s_{t+1}\sim T(s_t,a_t,\xi_t)
+\]
+
+其中 \(\xi_t\) 可以表示外部随机性、并发事件或时间推进。
 
 例如：
 
 ```text
-State:
+s_t:
 order.status = pending
 
-Action:
+a_t:
 cancel_order(1847)
 
-Transition:
+s_t+1:
 order.status = cancelled
 ```
-
-问题是：很多真实系统的 Transition 并不这么简单。
 
 ---
 
 ## 11.3.1 Deterministic Transition
 
-相同状态 + 相同 action：
+相同：
 
 ```text
-永远得到同样结果
+state + action + runtime
 ```
 
-例如模拟数据库。
+得到相同结果。
 
-优点：
+适合：
 
-- 容易复现；
-- 适合 benchmark；
-- 容易 debug。
+```text
+canonical benchmark
+unit test
+scientific comparison
+```
+
+优点是可复现、好 debug。
 
 ---
 
-## 11.3.2 Stochastic Transition
+## 11.3.2 Stochastic / Exogenous Transition
 
-例如：
+现实可能存在：
 
 ```text
 API timeout
 搜索结果排序变化
-网页推荐不同
+网页动态内容
+外部用户修改状态
 随机延迟
-外部服务状态改变
+服务波动
 ```
 
-同一个 action 可能得到不同 observation。
+这类环境更真实，但会增加 evaluation variance。
 
-这更真实，但会让 evaluation variance 上升。
-
-因此测试时必须记录：
+因此应记录：
 
 ```text
-random seed
+seed
+clock
 service version
 external snapshot
-time
+failure profile
 retry policy
 ```
 
-否则很难知道性能差异来自模型还是环境噪声。
+并区分：
+
+```text
+Canonical Deterministic Eval
+vs
+Stochastic / Robustness Eval
+```
+
+不要把两者无区分地混成一个总分。
 
 ---
 
-# 11.4 Observation：Environment State 不等于 Agent 看到的内容
+# 11.4 Observation Function：Agent 看到什么，本身就是实验变量
 
-Environment 真正状态是：
-
-```text
-State
-```
-
-Agent 收到的是：
+真实 state 有 100 条订单，search tool 可能只返回：
 
 ```text
-Observation = O(State)
+top 20
 ```
 
-这两者必须区分。
-
-例如数据库真实状态：
-
-```text
-100 个订单
-```
-
-search tool 返回：
-
-```text
-前 20 个结果
-```
-
-Agent 看不到剩余 80 个。
-
-所以 observation 可能存在：
+Agent 看到的 observation 可能受到：
 
 ```text
 pagination
-truncation
-ranking
-filtering
+sorting
+permission
 redaction
-permission-based visibility
+schema
+truncation
+error semantics
 ```
 
-这都会改变 Agent 的决策难度。
+影响。
+
+因此同一个 Environment State，改变 Observation Function 就可能改变任务难度。
 
 ---
 
 ## 11.4.1 Observation Grounding
 
-Agent 成功调用 tool 之后，不代表它真正利用了 observation。
+Tool call 成功不代表 Agent 正确使用了返回信息。
 
 例如：
 
 ```text
-Tool:
+Observation:
 order_status = shipped
 ```
 
-Agent 下一步却：
+下一步 Agent 却执行：
 
 ```text
-cancel_order(...)
+refund_order(...)
 ```
 
-如果业务规则规定已发货不能取消，则属于 Observation Grounding Failure。
+如果 shipped 应该阻止 refund，这就是典型：
 
-因此 trajectory data 应保留：
+```text
+Observation Grounding Failure
+```
+
+因此 trajectory 至少要保留：
 
 ```text
 Action
 Observation
-Next Action
+Next Decision / Action
 ```
 
-而不是只保存 tool call。
+完整 event schema 归第 12 章。
 
 ---
 
-# 11.5 Environment Reset：为什么每个 Episode 都必须回到可控起点？
+# 11.5 Snapshot 与 Reset：Benchmark 为什么必须回到同一起点？
 
-Agent benchmark 最基本的要求之一是：
-
-> 每条 task 开始前，环境应该处于预期 initial state。
-
-例如 Task A：
-
-```text
-cancel order 1847
-```
-
-运行一次后：
+如果 Task A 执行后：
 
 ```text
 order 1847 = cancelled
 ```
 
-如果不 reset，再跑第二次：
+下一次还从这个 mutated state 开始，就已经不是同一个 Case。
+
+因此标准流程应该是：
 
 ```text
-cancel order 1847
-```
-
-结果已经变了。
-
-因此：
-
-```text
-Episode 1
-↓
-Environment Mutation
-↓
-Reset
-↓
-Episode 2
-```
-
-必须成为标准流程。
-
----
-
-## 11.5.1 Reset 的几种方式
-
-### Full Rebuild
-
-每次重新构建整个环境。
-
-最干净，但成本可能很高。
-
-### Snapshot Restore
-
-```text
-Base Snapshot
+Load Frozen Snapshot
 ↓
 Run Episode
 ↓
-Restore Snapshot
+Capture Final State / Diff
+↓
+Reset / Restore
+↓
+Next Episode
 ```
 
-通常更高效。
-
-### Transaction Rollback
-
-数据库场景可以：
+常见实现：
 
 ```text
-BEGIN
-run episode
-ROLLBACK
+Full Rebuild
+Snapshot Restore
+Transaction Rollback
+Copy-on-write
+Disposable Container / VM
 ```
-
-适合确定性测试。
-
-### Copy-on-write
-
-文件系统 / VM / container 场景常见。
 
 ---
 
-# 11.6 Snapshot：环境版本控制的核心
+## 11.5.1 Snapshot 是 Environment Identity 的一部分
 
-一个可靠 benchmark 不能只说：
+不能只说：
 
 ```text
-“我们用了一个 CRM 环境。”
+“用了 CRM 环境。”
 ```
 
-而应该知道：
+至少应能定位：
 
 ```text
+environment_id
 environment_version
 snapshot_id
-data_seed
 schema_version
-fixture_version
+fixture / data seed
+clock
 ```
+
+同一个 Case 应绑定明确的 snapshot / initial state reference。
+
+---
+
+# 11.6 Episode Isolation：不同运行不能互相污染
 
 例如：
 
 ```text
-env_version = crm_v3
-snapshot = 2026-10-17_seed42
+Episode A 创建 file_x
+Episode B 意外看到 file_x
 ```
 
-这样同一个 task 才能在未来重新跑。
+那么 B 已经被前一条 trajectory 污染。
+
+需要：
+
+```text
+isolated database tenant
+isolated filesystem namespace
+isolated browser session
+isolated account / fixture
+```
+
+并验证：
+
+```text
+reset completeness
+snapshot integrity
+namespace isolation
+```
+
+Agent benchmark 里的 contamination 不只指 train/test leakage，还包括：
+
+> **跨 Episode 的状态污染。**
 
 ---
 
-## 11.6.1 Task 与 Snapshot 必须绑定
+# 11.7 Time：时间也是 Environment State
 
-一个 task 的正确答案可能依赖环境状态。
-
-例如：
-
-```text
-“取消金额低于 100 元且未发货的订单。”
-```
-
-如果订单数据库换了，ground truth 也会变。
-
-因此 Task ID 不应该只绑定 prompt，还应该绑定：
-
-```text
-Task Definition
-+
-Environment Snapshot
-+
-Verifier Version
-```
-
----
-
-# 11.7 Determinism：Agent Eval 为什么要尽量控制环境随机性？
-
-假设同一个 Agent 连续跑 10 次：
-
-```text
-7 次 success
-3 次 API timeout
-```
-
-这时 success rate 到底是在测：
-
-```text
-Agent 能力？
-还是 API 稳定性？
-```
-
-因此 benchmark 通常应该尽可能把不必要的随机性消掉。
-
-但真实产品 evaluation 又不能完全忽略随机失败。
-
-所以可以区分两类环境：
-
-```text
-Canonical Deterministic Environment
-用于模型能力比较
-
-Stress / Stochastic Environment
-用于 robustness evaluation
-```
-
-二者不要混成一个总分。
-
----
-
-# 11.8 Time：时间也是 Environment State
-
-时间经常被忽略，但对 Agent 非常重要。
-
-例如：
-
-```text
-“帮我订明天下午三点的会议室。”
-```
-
-正确行为依赖：
+相对时间任务依赖：
 
 ```text
 current_date
@@ -631,9 +567,15 @@ business hours
 holiday calendar
 ```
 
-如果环境中的时间不冻结，同一个 benchmark case 过几天可能就失效。
+例如：
 
-所以需要：
+```text
+“订明天下午三点的会议室。”
+```
+
+如果 clock 不冻结，同一 Case 几天后语义就变了。
+
+所以 benchmark 需要：
 
 ```text
 frozen clock
@@ -642,68 +584,36 @@ timezone
 calendar version
 ```
 
----
-
-## 11.8.1 Temporal Transition
-
-有些 action 会让时间推进：
-
-```text
-等待 1 小时
-任务超时
-预约未来事件
-定时触发
-```
-
-因此 Environment 可能需要支持：
+必要时还要支持：
 
 ```text
 advance_time(dt)
+event queue
+delayed event
 ```
-
-或者显式 event queue。
 
 ---
 
-# 11.9 Concurrency：多个事件同时发生时怎么办？
+# 11.8 Concurrency、Transaction 与 Atomicity
 
-真实环境里常出现：
-
-```text
-Agent 读取状态
-↓
-另一个用户修改状态
-↓
-Agent 根据旧状态继续写入
-```
-
-这就是 race condition。
-
-例如：
+真实世界可能发生：
 
 ```text
-Agent A:
-stock = 1
-
-Agent B:
-stock = 1
-
-两者都下单
+Agent read state
+↓
+external actor modifies state
+↓
+Agent writes based on stale state
 ```
 
-如果环境不考虑 concurrency，可能完全测不到这种问题。
+这就是 race condition / stale read。
 
----
-
-## 11.9.1 Benchmark 是否应该引入并发？
-
-分阶段。
-
-基础能力 benchmark 可以先冻结环境：
+基础 benchmark 可以先使用：
 
 ```text
 single-agent
 single-thread
+frozen external state
 ```
 
 高级 robustness benchmark 再加入：
@@ -711,243 +621,106 @@ single-thread
 ```text
 concurrent writes
 external state changes
-stale reads
-version conflicts
+version conflict
+resource contention
 ```
 
-否则基础实验会因为噪声难以解释。
+否则基础能力难以归因。
 
 ---
 
-# 11.10 Transaction 与 Atomicity：一半成功算什么？
+## 11.8.1 Partial Commit
 
-例如 Agent 要：
+例如任务要求：
 
 ```text
-给客户创建订单
-并扣减库存
+创建订单
++
+扣库存
 ```
 
-如果：
+如果只完成第一步，Environment 是否允许 partial write？
+
+需要明确：
 
 ```text
-订单创建成功
-库存扣减失败
-```
-
-环境进入不一致状态。
-
-因此真实系统经常需要：
-
-```text
-transaction
+transaction boundary
 atomic operation
-rollback
+rollback semantics
+partial success state
 ```
 
-Agent 数据设计中必须知道：
-
-```text
-action 是否原子？
-失败后会不会部分写入？
-是否可回滚？
-```
-
-否则 side-effect verifier 很难设计。
+因为这些都会影响 recovery 和 verifier。
 
 ---
 
-# 11.11 Idempotency：Retry 为什么可能非常危险？
+# 11.9 Idempotency：System Retry 为什么会改变实验语义？
 
-Read tool 通常可以重复调用：
-
-```text
-get_order(1847)
-get_order(1847)
-```
-
-但 Write tool 不一定。
+Read action 往往可以重复；Write action 不一定。
 
 例如：
 
 ```text
 send_email(...)
+charge_card(...)
+create_refund(...)
 ```
 
-retry 两次可能真的发送两封邮件。
+重复执行可能产生真实副作用。
 
-所以 Tool / Environment 应标注：
+因此 Tool / Environment metadata 应明确：
 
 ```text
 idempotent = true / false
+idempotency_key supported?
+verify-before-retry?
 ```
 
-常见：
+关键纪律：
 
-```text
-GET / search / read
-通常幂等
+> **Infrastructure Retry ≠ Agent Recovery。**
 
-send / charge / transfer / create
-通常需要特别处理
-```
+如果 Harness 在模型不知情时自动重试一个语义失败，可能会替 Agent 完成它本应被评测的 recovery。
 
-Harness retry policy 必须读取这个属性，而不是统一自动重试。
+这一点在第 22 章 Production System 还会进一步展开。
 
 ---
 
-# 11.12 Permissions 与 Identity：环境必须知道“谁在做”
+# 11.10 Identity、Authentication 与 Authorization
 
-Agent action 是否允许，不只取决于 tool 是否存在。
-
-环境还需要：
+Environment 必须知道：
 
 ```text
-user identity
-role
-permissions
-resource ownership
-scope
+谁在操作
+代表谁操作
+拥有哪些 role / permission
+资源属于谁
 ```
 
-例如：
-
-```text
-User A 可以查看自己的订单
-但不能看 User B 的订单
-```
-
-如果 benchmark 环境没有权限层，Agent 的安全能力根本测不出来。
-
----
-
-## 11.12.1 Authentication 与 Authorization 要区分
+区分：
 
 ```text
 Authentication
-你是谁？
+= 你是谁？
 
 Authorization
-你允许做什么？
+= 你允许做什么？
 ```
 
-一个 Agent 可能已经登录，但仍没有权限执行高风险操作。
+Tool 出现在 schema 里，不代表当前 Agent / User 被授权调用它完成任意操作。
 
----
-
-# 11.13 Sandbox 与 Isolation：为什么 Agent 不能直接操作真实世界？
-
-训练和 benchmark 常常会产生：
+所以：
 
 ```text
-删除文件
-发邮件
-修改数据库
-运行代码
-访问网页
-```
-
-如果没有隔离，很危险。
-
-所以需要：
-
-```text
-sandbox
-container
-VM
-mock service
-test account
-synthetic database
-```
-
-核心目标是：
-
-> **让 Agent 可以真实执行 action，但副作用被限制在受控环境里。**
-
----
-
-## 11.13.1 Episode Isolation
-
-不同 episode 之间不能互相污染。
-
-例如：
-
-```text
-Task A 创建了 file_x
-Task B 读到了 file_x
-```
-
-如果 Task B 本来不应该看到，就产生 leakage。
-
-所以每个 episode 需要：
-
-```text
-isolated namespace
-isolated filesystem
-isolated database tenant
-isolated browser session
+Tool Availability
+≠ Authorization
 ```
 
 ---
 
-# 11.14 Failure Injection：环境故障也可以成为训练数据
+# 11.11 Error Semantics：环境不能只返回一个 ERROR
 
-真实 Agent 必须处理失败。
-
-因此环境可以主动注入：
-
-```text
-API timeout
-rate limit
-permission denied
-empty result
-malformed response
-partial success
-stale data
-network error
-server 500
-```
-
-然后观察 Agent 是否：
-
-```text
-retry
-switch tool
-ask user
-rollback
-abort safely
-verify state
-```
-
-这就是 Failure Injection。
-
----
-
-## 11.14.1 但 Failure Injection 必须可控
-
-应该记录：
-
-```text
-failure_type
-injection_step
-probability / schedule
-seed
-expected recovery behavior
-```
-
-否则每次运行随机炸不同地方，会很难比较模型。
-
----
-
-# 11.15 Error Semantics：环境返回什么错误非常重要
-
-一个好的环境不能只有：
-
-```text
-ERROR
-```
-
-更合理的 observation 应区分：
+不同故障需要不同 recovery policy：
 
 ```text
 NOT_FOUND
@@ -960,43 +733,156 @@ PRECONDITION_FAILED
 SERVER_ERROR
 ```
 
-因为不同错误应该触发不同 recovery policy。
-
-如果环境把所有错误都压成一个字符串，Agent 学不到真正的错误处理。
-
----
-
-# 11.16 Environment Verifier：最终状态怎么判？
-
-前一章 Task Contract 定义了 success condition。
-
-这一章 Environment 要提供可执行 verifier。
-
-例如：
-
-```python
-success = (
-    order.status == "cancelled"
-    and other_orders_unchanged
-    and duplicate_refund_count == 0
-)
-```
-
-或者：
+如果全部压成：
 
 ```text
-calendar[event].start == target_time
-AND
-calendar[event].attendees == original_attendees
+ERROR
 ```
 
-理想情况下 verifier 直接读真实 environment state，而不是读 Agent 的 final message。
+Agent 无法学会条件化恢复。
+
+因此 observation schema 中，错误类型本身就是重要训练信号。
 
 ---
 
-## 11.16.1 State Diff
+# 11.12 Failure Injection：主动构造真实故障
 
-对于 write task，非常推荐保存：
+Environment 可以有控制地注入：
+
+```text
+API timeout
+rate limit
+permission denied
+empty result
+malformed response
+partial success
+stale data
+server 500
+conflict
+```
+
+然后观察 Agent 是否：
+
+```text
+retry safely
+verify state
+switch strategy
+ask user
+rollback
+escalate
+abort
+```
+
+但 Failure Injection 必须版本化：
+
+```text
+failure_type
+injection_step
+schedule / probability
+seed
+expected semantics
+```
+
+基础 capability eval 不应一开始就混入大量随机故障；Robustness eval 可以单独建立 failure profile。
+
+---
+
+# 11.13 Sandbox 与 Safety Boundary
+
+训练 / benchmark 可能包含：
+
+```text
+delete file
+send email
+modify database
+run code
+browse web
+transfer / purchase simulation
+```
+
+所以需要：
+
+```text
+sandbox
+container
+VM
+mock / test service
+synthetic database
+test account
+restricted network
+```
+
+核心目标：
+
+> **让 Agent 能真实执行行为，但副作用被限制在受控世界中。**
+
+高风险环境还可以支持：
+
+```text
+dry-run
+approval gate
+spending limit
+confirmation token
+restricted scope
+```
+
+---
+
+# 11.14 Dry-run 与 Commit 两阶段环境
+
+一种常见安全设计：
+
+```text
+Plan / Dry-run
+↓
+Preview State Diff
+↓
+Approval
+↓
+Commit
+```
+
+这类机制既是产品设计，也可以被作为 Agent task 的 action space / policy boundary。
+
+例如删除文件：
+
+```text
+Agent proposes 12 deletions
+↓
+preview diff
+↓
+approve
+↓
+commit
+```
+
+可以专门评测 Agent 是否知道什么时候应该先 preview / request approval。
+
+---
+
+# 11.15 Environment Verifier 与 State Diff
+
+Task Contract 定义 Success Predicate；Environment 提供真实 State Evidence。
+
+理想 verifier 直接读取环境状态，例如：
+
+```text
+order_1847.status == cancelled
+AND other_orders_unchanged
+AND duplicate_refund_count == 0
+```
+
+而不是读取：
+
+```text
+Agent final message contains “已完成”
+```
+
+---
+
+## 11.15.1 State Diff
+
+Write task 推荐保存：
 
 ```text
 Before State
@@ -1011,144 +897,177 @@ Diff
 + order_1847.status = cancelled
 ```
 
-同时检查有没有意外变化：
+同时检查：
 
 ```diff
 - order_1901.status = pending
-+ order_1901.status = cancelled   ← forbidden side effect
++ order_1901.status = cancelled  ← forbidden side effect
 ```
 
-State Diff 是 Agent eval 里非常强的证据。
+State Diff 是 Agent evaluation 最强的一类 execution evidence。
+
+完整 evaluator priority 归第 15 章。
 
 ---
 
-# 11.17 Observability：为了 Debug，环境要暴露哪些日志？
+# 11.16 Agent-visible Observation 与 Researcher-visible Evidence
 
-Benchmark 对 Agent 隐藏信息，不代表对研究者也应该隐藏。
+“对 Agent 隐藏”不代表“研究日志里也不能记录”。
 
-研究日志至少应包括：
+研究者可能需要看到：
 
 ```text
 episode_id
-task_id
-environment_snapshot
+case_id
+environment snapshot
 state before action
-action
-tool arguments
+action / args
 transition result
-observation
+raw observation
 state after action
 verifier result
 failure provenance
-latency
-cost
+latency / cost
 ```
 
-但给模型看的 observation 仍然只应该包含允许的信息。
+但 Agent 实际只能看到 policy 允许的 observation。
 
-因此需要区分：
+因此：
 
 ```text
 Agent-visible Observation
-vs
-Researcher-visible Trace
+≠ Evaluator / Researcher-visible Evidence
 ```
+
+这是避免信息泄漏同时保持可调试性的关键。
 
 ---
 
-# 11.18 Reproducibility：一个 Agent Episode 要怎么复现？
+# 11.17 Replay 与 Reproducibility
 
-理想情况下，应当可以通过下面的信息重放：
+一次 Episode 的 replay 至少需要：
 
 ```text
-Task Version
-Environment Snapshot
-Tool Version
+Case Version
+Environment Version / Snapshot
+Tool Schema / Adapter Version
 Harness Version
 Model Version
-Prompt Version
-Random Seed
+Prompt / System Version
+Seed
 Clock
 Failure Injection Config
+Budget / Stop Rules
 ```
 
-可以抽象成：
+可抽象为：
 
 ```text
-Episode =
-Task
+Episode
+=
+Case
 × Environment
-× Tools
+× Toolset
 × Harness
 × Model
-× Seed
+× Runtime Config
 ```
 
-缺任何一项，都可能导致 replay 不一致。
+这里是 replay identity，不是数学乘法。
+
+数据治理层面的完整 provenance / lineage 归第 19 章。
 
 ---
 
-# 11.19 Environment 类型一：Database / CRM Environment
+# 11.18 Frozen Runtime：比较模型时必须控制什么？
 
-这是最适合做 Agent benchmark 的环境之一。
-
-可以包含：
+如果目标是比较：
 
 ```text
-customers
-orders
-tickets
-opportunities
-inventory
-employees
+Model A vs Model B
 ```
 
-Agent 通过工具：
+或者：
+
+```text
+Selector A vs Selector B
+```
+
+应尽量冻结：
+
+```text
+Case Set
+Environment Snapshot
+Tool Schema
+Harness
+Clock
+Budget
+Verifier
+Failure Profile
+```
+
+只改变目标变量。
+
+否则 performance delta 可能来自 runtime drift。
+
+完整 Frozen Evaluation Protocol 在第 16 章展开。
+
+---
+
+# 11.19 State Leakage：环境真相不能提前泄漏
+
+常见 leakage：
+
+```text
+prompt 泄漏 hidden state
+tool description 泄漏 target entity
+filename 泄漏 label
+DOM hidden text 泄漏答案
+metadata 泄漏 verifier result
+```
+
+例如任务要求：
+
+```text
+“找出未付款订单。”
+```
+
+Tool description 却写：
+
+```text
+order_1847 is unpaid
+```
+
+原本的 information acquisition 能力已经被绕开。
+
+所以 benchmark Environment 需要专门做 leakage audit。
+
+---
+
+# 11.20 几类常见 Environment
+
+## Database / CRM
+
+适合：
 
 ```text
 search
+join
 create
 update
 delete
 aggregate
+permission
+transaction
 ```
 
-进行操作。
-
-优势：
-
-```text
-状态结构化
-可 snapshot
-可 reset
-可 verifier
-适合 task synthesis
-```
+优势：结构化、易 reset、易 verifier、易 synthetic state generation。
 
 ---
 
-## 11.19.1 Database Environment 的典型难点
+## Filesystem
 
-```text
-join 多张表
-foreign key
-权限
-事务
-唯一约束
-分页
-排序
-重复记录
-脏数据
-并发修改
-```
-
-这些都可以形成真实的 Agent decision complexity。
-
----
-
-# 11.20 Environment 类型二：Filesystem Environment
-
-文件系统可以测：
+适合：
 
 ```text
 read
@@ -1161,68 +1080,24 @@ grep
 archive
 ```
 
-适合：
+重点关注：
 
 ```text
-代码 Agent
-办公 Agent
-数据处理 Agent
-```
-
-关键问题：
-
-```text
-路径
-权限
+path
+permission
 symlink
-隐藏文件
-大文件
-重复文件
-编码
-文件依赖
+hidden file
+encoding
+large file
+dependency
+sandbox boundary
 ```
 
 ---
 
-## 11.20.1 文件环境必须防止越界
+## Code Sandbox
 
-例如 Agent 不应该从 sandbox：
-
-```text
-/workspace/task_01
-```
-
-访问宿主机：
-
-```text
-/etc
-/home/user
-```
-
-因此需要：
-
-```text
-path isolation
-permission boundary
-mount policy
-```
-
----
-
-# 11.21 Environment 类型三：Code Sandbox
-
-代码 Agent 需要：
-
-```text
-编辑代码
-运行程序
-跑测试
-读取错误
-修改
-重新运行
-```
-
-因此 Environment 至少需要：
+需要：
 
 ```text
 filesystem
@@ -1234,197 +1109,78 @@ resource limits
 network policy
 ```
 
----
-
-## 11.21.1 Code Environment 的 Ground Truth 很强
-
-可以通过：
+代码环境具有很强的 executable verifier：
 
 ```text
 unit tests
 integration tests
-static checks
-build success
+build
 runtime output
+static checks
 ```
-
-自动验证。
-
-所以代码领域很适合大规模 rollout + verifier。
 
 ---
 
-# 11.22 Environment 类型四：Browser / Web Environment
+## Browser / Web
 
-Web Agent 面临更多非结构化问题：
+状态包括：
 
 ```text
 DOM
-visual layout
+backend state
+session
+cookies
+authentication
 navigation
 forms
 pagination
 popups
-authentication
 dynamic content
 ```
 
-环境可以是：
-
-```text
-live web
-recorded web
-local cloned website
-synthetic website
-```
+Live Web 真实但不稳定；Snapshot / Synthetic Web 可复现但存在 sim-to-real gap。
 
 ---
 
-## 11.22.1 Live Web 的问题
+## Calendar / Email / Office / CRM
+
+特点：
 
 ```text
-网页随时间变化
-AB test
-cookie
-地区差异
-登录状态
-广告
-网络延迟
-第三方依赖
+multi-object
+long-lived state
+permissions
+irreversible side effects
+cross-tool dependency
+human communication
 ```
 
-因此 live web 很真实，但 benchmark reproducibility 差。
+非常适合真实 Agent benchmark。
 
 ---
 
-## 11.22.2 Synthetic / Snapshot Web
+## GUI / Computer-use
 
-可以固定：
-
-```text
-HTML
-backend state
-user account
-time
-```
-
-更适合 controlled benchmark。
-
-缺点是可能产生 sim-to-real gap。
-
----
-
-# 11.23 Environment 类型五：Calendar / Email / CRM
-
-这类办公环境特别适合测试真实 Agent。
-
-### Calendar
-
-```text
-create event
-update event
-invite attendee
-check conflicts
-reschedule
-cancel
-```
-
-### Email
-
-```text
-search
-read
-reply
-forward
-draft
-send
-```
-
-### CRM
-
-```text
-lookup customer
-update opportunity
-create note
-assign owner
-send follow-up
-```
-
-这些环境共同特点是：
-
-```text
-多对象
-长期状态
-权限
-不可逆 side effect
-跨工具依赖
-```
-
-非常适合 long-horizon task。
-
----
-
-# 11.24 Environment 类型六：GUI / Computer-use Environment
-
-Computer-use Agent 不直接调用语义 API，而可能执行：
+低层 action：
 
 ```text
 click
 scroll
 type
 drag
-keyboard shortcut
+shortcut
 window switch
 ```
 
-此时 environment state 包括：
+同一个高层 goal 会拆成大量机械 action，因此再次说明：
 
-```text
-screen
-window hierarchy
-focus
-cursor
-application state
-filesystem
-network state
-```
-
-难点显著增加。
+> **Action Count ≠ Decision Complexity。**
 
 ---
 
-## 11.24.1 GUI 的 Action Space 更低层
+# 11.21 Simulator 与 Sim-to-real Gap
 
-Function Calling：
-
-```text
-update_event(id, time)
-```
-
-GUI：
-
-```text
-click calendar
-click event
-click edit
-click time field
-type 15:00
-click save
-```
-
-同一个高层 goal，被拆成大量低层 action。
-
-所以 GUI trajectory length 很长，但其中很多步骤是机械执行，而不一定是高 decision complexity。
-
-这再次说明：
-
-> **Action Count ≠ Reasoning Difficulty。**
-
----
-
-# 11.25 Simulator：什么时候需要模拟环境？
-
-真实服务可能：
+真实系统可能：
 
 ```text
 昂贵
@@ -1435,24 +1191,9 @@ click save
 不可公开
 ```
 
-因此需要 simulator。
+因此经常需要 simulator。
 
-Simulator 可以模仿：
-
-```text
-API behavior
-state transition
-error code
-user response
-latency
-business rules
-```
-
----
-
-## 11.25.1 Simulator Fidelity
-
-需要考虑：
+Simulator fidelity 可以拆成：
 
 ```text
 State Fidelity
@@ -1463,247 +1204,73 @@ Temporal Fidelity
 Distribution Fidelity
 ```
 
-模拟器并不是越复杂越好，而是：
+原则不是“模拟得越复杂越好”，而是：
 
-> **必须在目标能力相关维度上足够真实。**
+> **在目标 capability 相关维度上足够真实。**
 
----
-
-# 11.26 Sim-to-real Gap：在模拟器里会做，不代表线上会做
-
-常见 gap：
+常见 sim-to-real gap：
 
 ```text
-模拟 API 永远稳定
+模拟 API 永不 timeout
 线上会 timeout
 
 模拟数据很干净
-线上有缺失字段
-
-模拟网页布局固定
-线上经常变化
+线上缺字段 / 脏值
 
 模拟权限简单
-线上权限层级复杂
+线上权限复杂
+
+模拟页面固定
+线上 UI 变化
 ```
 
-因此最好采用：
+一个更稳的验证链：
 
 ```text
-Simulator Training / Development
-        ↓
+Simulator Development
+↓
 Controlled Realistic Eval
-        ↓
+↓
 Limited Real-world Validation
 ```
 
-逐级验证。
-
 ---
 
-# 11.27 Environment Difficulty：环境本身也有难度
+# 11.22 Environment Difficulty 与 Environment Confound
 
-任务难度不仅来自 Task。
+同一个 Task，在不同 Environment 中难度可能完全不同。
 
-同一个目标：
-
-```text
-找出客户最近一次订单
-```
-
-在不同环境中可能非常不同。
-
-### Easy Environment
+例如“找到客户最近一次订单”：
 
 ```text
-search_customer(name)
-→ last_order 直接返回
-```
+Easy Env:
+search_customer → directly returns last_order
 
-### Hard Environment
-
-```text
+Hard Env:
 search_customer
 → customer_id
-↓
-list_orders(customer_id)
-→ pagination
-↓
-按时间排序
-↓
-读取最新订单
+→ list_orders with pagination
+→ sort / compare
+→ select latest
 ```
 
-所以整体 Agent 难度可以看成：
+所以：
 
-$$
-Difficulty = f(Task, Environment, Tools, Harness)
-$$
+\[
+Agent\ Difficulty=f(Task,Environment,Tools,Harness)
+\]
 
-而不是只由 prompt 决定。
+这同样不是固定公式，而是提醒：
+
+> **Task Difficulty 不是系统难度的全部。**
+
+比较模型时如果 Environment / Tool / Harness 不同，就是严重 confound。
 
 ---
 
-# 11.28 Environment Confound：为什么比较模型时必须冻结环境？
+# 11.23 Multi-agent 与 Human-in-the-loop Environment
 
-假设：
-
-```text
-Model A 在 toolset v1 上跑
-Model B 在 toolset v2 上跑
-```
-
-或者：
-
-```text
-A 用旧网页快照
-B 用新网页
-```
-
-最后得分差异无法解释。
-
-因此科学比较至少需要冻结：
-
-```text
-Task Set
-Environment Snapshot
-Tool Schema
-Harness
-Verifier
-Budget
-```
-
-只改变目标变量，例如：
-
-```text
-Model
-```
-
-这和受控实验完全一致。
-
----
-
-# 11.29 Frozen Runtime：研究里非常重要但经常被忽略
-
-如果目标是比较一个新的 selector、routing rule、memory mechanism 或 agent policy，最好维持：
-
-```text
-same model
-same prompt
-same toolset
-same environment
-same generation config
-same verifier
-```
-
-只改变目标组件。
-
-否则：
-
-```text
-performance change
-```
-
-无法归因。
-
-这套思路和 reasoning 实验中的 frozen protocol / frozen runtime 是一致的。
-
----
-
-# 11.30 Environment Versioning 与 Lineage
-
-一条环境版本最好至少记录：
-
-```json
-{
-  "environment_id": "crm_env",
-  "environment_version": "v4",
-  "schema_version": "v2",
-  "snapshot_id": "seed_42",
-  "toolset_version": "tools_v3",
-  "verifier_version": "verifier_v5",
-  "clock": "2026-10-17T09:00:00+08:00",
-  "failure_profile": "none"
-}
-```
-
-对应每条 episode：
-
-```text
-Task ID
-Environment Version
-Snapshot
-Model
-Harness
-Seed
-```
-
-都应可追溯。
-
----
-
-# 11.31 State Leakage：环境里的答案不能提前泄露给 Agent
-
-例如任务：
-
-```text
-找出还没有付款的订单
-```
-
-但 tool description 写：
-
-```text
-order_1847 is unpaid
-```
-
-那么工具查询能力根本没被测试。
-
-常见 leakage 包括：
-
-```text
-prompt 泄漏 hidden state
-文件名泄漏答案
-tool description 泄漏目标对象
-DOM hidden text 泄漏目标
-metadata 泄漏 gold label
-```
-
-因此 benchmark 环境必须做 leakage audit。
-
----
-
-# 11.32 Environment Contamination：不同 Episode 之间的状态污染
-
-除了训练测试 contamination，Agent 还有另一种 contamination：
-
-```text
-前一个 episode 修改了环境
-↓
-后一个 episode 继承修改
-```
-
-例如：
-
-```text
-Task 1 创建 customer note
-Task 2 搜索 customer
-```
-
-Task 2 看到了不应存在的信息。
-
-所以必须验证：
-
-```text
-reset completeness
-snapshot integrity
-namespace isolation
-```
-
----
-
-# 11.33 Multi-agent Environment
-
-更复杂场景可能有多个 Agent：
+复杂系统还可能包含：
 
 ```text
 Agent A
@@ -1712,19 +1279,18 @@ Human
 External Process
 ```
 
-共享同一个环境。
-
-这时会出现：
+共享环境会引入：
 
 ```text
 coordination
 competition
-communication
-race condition
+message ordering
 resource contention
+race condition
+shared-state conflict
 ```
 
-数据结构也要记录：
+Trajectory schema 应记录：
 
 ```text
 actor_id
@@ -1733,47 +1299,25 @@ shared state
 message channel
 ```
 
-Multi-agent 并不是简单多跑几个单 Agent。
-
----
-
-# 11.34 Human-in-the-loop Environment
-
-真实产品经常需要：
+Human-in-the-loop 场景则需要支持：
 
 ```text
-Agent asks user
+Agent asks
 ↓
-User clarifies
+Human clarifies / approves
 ↓
 Agent continues
 ```
 
-因此 Environment 可能包含一个 user simulator 或真人。
-
-例如：
-
-```text
-“帮我订周五的机票。”
-```
-
-Agent 应问：
-
-```text
-出发地？
-目的地？
-时间？
-```
-
-如果 benchmark 不支持 clarification interaction，就测不到这类能力。
+否则 benchmark 无法真实测试 clarification / escalation / approval behavior。
 
 ---
 
-# 11.35 Environment Cost Model
+# 11.24 Environment Cost Model
 
-Agent action 不是免费的。
+Action 不是免费的。
 
-不同 action 可能有：
+可能具有：
 
 ```text
 latency
@@ -1783,416 +1327,367 @@ risk cost
 human interruption cost
 ```
 
-因此环境可以定义：
+可以记录：
 
-$$
+\[
 C(\tau)=\sum_t c(a_t)
-$$
+\]
 
-最终评估：
+因此最终 evaluation 可以看：
 
 ```text
 Success
 vs
-Cost
+Tool Cost
+vs
+Latency
+vs
+Risk
 ```
 
 而不是只看成功率。
 
 ---
 
-# 11.36 Environment Safety：高风险操作需要特殊控制
+# 11.25 Canonical Case：C1 Order / Refund
 
-例如：
+沿用第 10 章 Case C1：
 
 ```text
-transfer_money
-delete_database
-send_external_email
-purchase_item
-publish_content
+用户：
+“如果订单 1847 还没发货，就帮我退款；已经发货就不要动。”
 ```
 
-环境设计应该支持：
+Environment Truth：
 
 ```text
-approval gate
-spending limit
-sandbox mode
-dry-run
-confirmation token
-restricted scope
+order_1847.status = shipped
+order_1847.amount = 79
 ```
 
-这样才能测试：
+Agent 初始只知道：
 
 ```text
-Agent 是否知道什么时候应该停下来请求授权
+order_id = 1847
 ```
 
----
-
-# 11.37 Dry-run 与 Commit 两阶段环境
-
-一种很实用的设计是：
+Tools：
 
 ```text
-Plan / Dry-run
-      ↓
-Preview State Diff
-      ↓
-Approve
-      ↓
-Commit
+order.get
+refund.create
+shipment.cancel
 ```
 
-例如删除文件：
+一次正确交互：
 
 ```text
-Agent 提议删除 12 个文件
+order.get(1847)
 ↓
-系统展示列表
+Observation: status = shipped
 ↓
-确认后真正删除
-```
-
-这类环境非常适合高风险 Agent。
-
----
-
-# 11.38 Environment Benchmark 应该测哪些层？
-
-可以分成：
-
-```text
-L1 Tool Invocation
-L2 State Tracking
-L3 Multi-step Execution
-L4 Recovery
-L5 Constraint Handling
-L6 Side-effect Control
-L7 Long-horizon Planning
-L8 Robustness to Environment Change
-```
-
-这样比单一 success rate 更容易解释。
-
----
-
-# 11.39 一个完整案例：订单环境
-
-假设任务：
-
-```text
-“取消所有未发货且金额低于 100 元的订单，
-但 VIP 客户的订单不要动。”
-```
-
----
-
-## Initial State
-
-```text
-order_1:
-amount = 80
-status = pending
-customer = regular
-
-order_2:
-amount = 70
-status = pending
-customer = VIP
-
-order_3:
-amount = 120
-status = pending
-customer = regular
-
-order_4:
-amount = 60
-status = shipped
-customer = regular
-```
-
----
-
-## Tools
-
-```text
-list_orders()
-get_customer(id)
-cancel_order(id)
-get_order(id)
-```
-
----
-
-## Expected Final State
-
-```text
-order_1 → cancelled
-order_2 → pending
-order_3 → pending
-order_4 → shipped
-```
-
----
-
-## Environment Requirements
-
-```text
-resettable
-snapshot-based
-state diff
-permission-aware
-idempotency metadata
-verifier
-```
-
----
-
-## Verifier
-
-```text
-order_1.status == cancelled
-AND
-order_2.status == pending
-AND
-order_3.status == pending
-AND
-order_4.status == shipped
-```
-
----
-
-## Possible Failure Injection
-
-```text
-第一次 cancel_order timeout
-```
-
-理想 Agent 应：
-
-```text
-检查实际状态
+Agent decides: no write action
 ↓
-若未取消，再安全 retry
+Final State unchanged
 ```
 
-而不是盲目重复写操作。
-
----
-
-# 11.40 从数据岗位视角，这一章实际在做什么？
-
-真实工作可能包括：
+这里可以清楚区分：
 
 ```text
-搭 sandbox / simulator
-设计 synthetic database
-构造 environment snapshot
-设计 tool backend
-实现 reset
-实现 state diff
-实现 verifier
-设计 permissions
-控制 side effect
-注入 API failure
-冻结 clock
-做 environment versioning
-维护 task-environment binding
-检查 state leakage
-做 episode isolation
-统计 latency / cost
-复现失败 trajectory
-区分 model / tool / harness / env failure
+World / Environment Truth
+→ status = shipped
+
+Observation
+→ tool returns shipped
+
+Agent-visible State
+→ context + this observation
+
+Action
+→ no refund
+
+Verifier Evidence
+→ before / after state diff = no forbidden write
 ```
 
-所以 Agent Data 工程并不是：
+如果 `refund.create` 第一次调用 timeout，还可以进一步测试：
 
-> “给模型接几个 API。”
+```text
+Environment failure semantics
+Idempotency
+Verify-before-retry
+Agent Recovery
+Harness Retry Boundary
+```
 
-而是：
-
-> **构造一个既足够真实，又足够可控、可验证、可复现的实验世界。**
+完整案例见 [`Canonical Casebook`](./00_Canonical_Casebook.md)。
 
 ---
 
-# 11.41 常见失败模式
+# 11.26 Environment Versioning 与 Lineage
 
-### 失败 1：Environment 没有 Reset
+建议记录：
 
-前一个 episode 污染后一个。
+```json
+{
+  "environment_id": "order_env",
+  "environment_version": "v5",
+  "schema_version": "v3",
+  "snapshot_id": "order_case_1847_s01",
+  "toolset_version": "tools_v4",
+  "clock": "2026-10-18T09:00:00+08:00",
+  "failure_profile": "none"
+}
+```
 
-### 失败 2：Tool 返回 Success 就当 Environment 已正确更新
+每个 Episode 再绑定：
 
-必须检查真实 state。
+```text
+case_id
+model_version
+harness_version
+runtime_config
+seed
+verifier_version
+```
 
-### 失败 3：真实网页直接作为唯一 benchmark
+系统级 lineage / reproducibility 统一归第 19 章。
 
-时间变化和随机因素导致不可复现。
+---
 
-### 失败 4：Simulator 太干净
+# 11.27 常见失败模式
 
-模型线上遇到 timeout / 脏数据就崩。
+### 失败 1：Tool、Harness、Environment 混在一起
 
-### 失败 5：把 Tool、Harness、Environment failure 都归模型
+Failure attribution 失真。
 
-导致错误归因。
+### 失败 2：Environment 没有 Reset / Isolation
 
-### 失败 6：没有 Snapshot Version
+前一个 Episode 污染后一个。
 
-历史实验无法 replay。
+### 失败 3：Tool 返回 Success 就当真实 State 已正确更新
 
-### 失败 7：隐藏状态泄漏
+必须检查 environment evidence。
 
-Agent 不需要查询就知道答案。
+### 失败 4：Observation 与 Full State 混淆
+
+Agent 被默认知道实际上不可见的信息。
+
+### 失败 5：Live Web 直接作为唯一 benchmark
+
+变化太多，纵向不可比。
+
+### 失败 6：Simulator 太干净
+
+线上 robustness 被高估。
+
+### 失败 7：没有 Snapshot / Clock / Version
+
+Episode 无法 replay。
 
 ### 失败 8：所有错误只返回 ERROR
 
-Agent 学不到 recovery semantics。
+Recovery semantics 学不到。
 
-### 失败 9：Write Tool 自动无脑 retry
+### 失败 9：Write Tool 被 Harness 无脑自动 Retry
 
-非幂等操作可能产生重复 side effect。
+可能改变实验语义并制造重复副作用。
 
-### 失败 10：只看最终值，不看 State Diff
+### 失败 10：只看 Final Value，不看 State Diff
 
 可能通过破坏其他对象达到目标。
 
-### 失败 11：同一 benchmark 不同模型跑在不同环境版本
+### 失败 11：不同模型运行在不同 Environment / Harness 上
 
-无法公平比较。
+性能不可归因。
 
-### 失败 12：时间没冻结
+### 失败 12：Hidden State 泄漏
 
-相对日期任务不可复现。
+Agent task 被降级。
 
 ### 失败 13：只测 deterministic happy path
 
 真实 robustness 被高估。
 
-### 失败 14：一开始就引入大量随机故障
+### 失败 14：基础 benchmark 一开始就混入大量随机故障
 
-基础能力结果反而不可解释。
+结果变成环境噪声测试。
 
-### 失败 15：Environment 只有 API，没有业务规则
+### 失败 15：Environment 没有业务规则 / Permission Boundary
 
-Agent 可以通过非法 shortcut 获得成功。
+Agent 可以走非法 shortcut。
+
+### 失败 16：Researcher Evidence 和 Agent Observation 不区分
+
+很容易发生 evaluator-only information leakage。
 
 ---
 
-# 11.42 本章关键词
+# 11.28 从数据岗位视角，这一章实际会做什么？
 
-| 术语 | 一句话理解 |
+```text
+搭 sandbox / simulator
+设计 environment state schema
+区分 world / environment / observation / agent-visible state
+实现 tool backend / adapter
+实现 transition
+实现 snapshot / reset
+实现 state diff
+设计 permission / identity
+控制 side effect
+定义 idempotency / transaction semantics
+注入 failure
+冻结 clock
+做 episode isolation
+实现 verifier evidence
+记录 latency / cost
+维护 environment version
+做 leakage audit
+复现 failure trajectory
+区分 model / tool / harness / environment failure
+```
+
+所以 Agent Data 工程不是：
+
+> “给模型接几个 API。”
+
+而是：
+
+> **构造一个足够真实，同时又可控、可验证、可复现的实验世界。**
+
+---
+
+# 11.29 本章关键词
+
+| 术语 | Canonical meaning |
 |---|---|
-| Environment | Agent action 实际作用的外部世界 |
-| State | 环境当前真实状态 |
-| Hidden State | 真实存在但 Agent 未直接观察的信息 |
-| Observation | Environment 暴露给 Agent 的信息 |
-| Transition | Action 导致的状态变化 |
-| Snapshot | 可恢复的环境状态版本 |
-| Reset | Episode 后恢复初始状态 |
-| Determinism | 同一 state/action 是否产生同一结果 |
-| Stochasticity | 环境随机性 |
-| Isolation | 不同 episode / agent 之间的状态隔离 |
-| Idempotency | 重复执行同一 action 是否保持相同效果 |
-| Atomicity | 一个操作是否全部成功或全部失败 |
-| Transaction | 一组操作的原子状态变化机制 |
-| Failure Injection | 主动构造 timeout、权限等故障 |
+| Tool | Agent 可调用的动作接口 |
+| Harness | 组织 Model / Tool / Environment 交互的 runtime |
+| Environment | Action 真正作用的外部世界与转移机制 |
+| World State | 任务相关的完整真实世界状态 |
+| Environment State | Runtime / benchmark 中维护的状态表示 |
+| Observation | Environment 暴露给 Agent 的局部信息 |
+| Agent-visible State | Agent 当前可用于决策的信息集合 |
+| Transition | Action 导致 Environment State 变化的机制 |
+| Snapshot | 可定位 / 恢复的 Environment State 版本 |
+| Reset | 恢复 Case 规定的初始状态 |
+| Isolation | 防止 Episode / Agent 相互污染 |
+| Idempotency | 重复执行 Action 是否产生额外效果 |
+| Atomicity | 操作是否全部成功或全部失败 |
+| Failure Injection | 受控构造环境故障 |
 | State Diff | 执行前后环境状态差异 |
-| Sandbox | 将 Agent 副作用限制在受控空间 |
-| Sim-to-real Gap | 模拟环境与真实世界的分布差异 |
-| Frozen Runtime | 固定除研究变量之外的运行条件 |
-| Environment Lineage | 环境版本、snapshot、schema 等可追溯信息 |
+| Sandbox | 将副作用限制在受控空间 |
+| Sim-to-real Gap | 模拟环境与真实世界差异 |
+| Frozen Runtime | 固定非研究变量的运行条件 |
+
+更完整定义见 [`Canonical Glossary`](./00_Glossary_and_Notation.md)。
 
 ---
 
-# 11.43 面试 / 自检问题
+# 11.30 面试 / 自检问题
 
-1. **Tool、Harness、Environment 有什么区别？**
-2. **为什么 Agent Benchmark 必须支持 Reset？**
-3. **Snapshot 和 Reset 分别解决什么问题？**
-4. **State 与 Observation 有什么区别？**
-5. **什么是 Partial Observability？为什么它对 Agent 很重要？**
-6. **为什么 Tool Success 不等于 Environment State 正确？**
-7. **Deterministic Environment 和 Stochastic Environment 各适合什么？**
-8. **为什么 benchmark 要冻结 clock？**
-9. **什么是 Race Condition？**
-10. **什么是 Idempotency？为什么 retry 需要知道它？**
-11. **Transaction / Atomicity 对 Agent 有什么意义？**
-12. **为什么要保存 Before / After State Diff？**
-13. **Failure Injection 能测试什么能力？**
-14. **为什么错误码应该细分？**
-15. **什么是 Episode Isolation？**
-16. **真实网页为什么难做可复现 benchmark？**
-17. **Synthetic Web / Simulator 的优势与风险是什么？**
-18. **什么是 Sim-to-real Gap？怎么缓解？**
-19. **为什么比较两个模型必须冻结 Environment / Tool / Harness？**
-20. **Environment Versioning 应记录哪些信息？**
-21. **什么是 State Leakage？**
-22. **多 Agent 环境会新增哪些问题？**
-23. **Human-in-the-loop environment 为什么重要？**
-24. **为什么 success rate 之外还要记录 latency / action cost？**
-25. **如何设计一个既真实又可控的 Agent Environment？**
+1. Tool、Harness、Environment 有什么区别？
+2. World State、Environment State、Observation、Agent-visible State 有什么区别？
+3. 为什么 Agent Benchmark 必须支持 Reset？
+4. Snapshot 与 Reset 分别解决什么问题？
+5. Partial Observability 为什么是 Agent capability 的核心？
+6. 为什么 Tool Success 不等于 Environment State 正确？
+7. Deterministic 与 Stochastic Environment 应如何分工？
+8. 为什么 benchmark 要冻结 clock？
+9. Race Condition / Stale Read 是什么？
+10. Idempotency 为什么决定 Retry 是否安全？
+11. Infrastructure Retry 与 Agent Recovery 为什么必须区分？
+12. Transaction / Atomicity 对 Agent 有什么意义？
+13. 为什么 Before / After State Diff 很重要？
+14. Failure Injection 测什么？
+15. 为什么 Error Semantics 需要细分？
+16. Episode Isolation 是什么？
+17. Live Web 为什么难做稳定 benchmark？
+18. Simulator Fidelity 应重点保证什么？
+19. Sim-to-real Gap 怎么缓解？
+20. 为什么比较模型必须冻结 Environment / Tool / Harness？
+21. State Leakage 有哪些形式？
+22. Multi-agent Environment 新增了什么问题？
+23. Human-in-the-loop 为什么需要环境支持？
+24. 为什么 Environment 还要记录 cost / latency？
+25. 如何设计一个既真实又可控的 Agent Environment？
 
 ---
 
-## 11.43.1 通用回答框架：如果让你搭一个 Agent Benchmark Environment
-
-可以这样回答：
+## 11.30.1 通用回答框架：搭一个 Agent Benchmark Environment
 
 ```text
-1. 先明确目标能力和 task family
+1. 明确 target capability / Task Family
    ↓
-2. 定义环境真实 state schema
+2. 定义 Environment State Schema
    ↓
-3. 区分 visible / hidden state
+3. 区分 World Truth / Agent-visible Information
    ↓
-4. 设计 tool/action interface
+4. 设计 Tool / Action Interface
    ↓
-5. 实现真实 state transition
+5. 实现 State Transition
    ↓
-6. 实现 observation function
+6. 实现 Observation Function
    ↓
-7. 设计 snapshot / reset
+7. 实现 Snapshot / Reset / Isolation
    ↓
-8. 加权限、side-effect、idempotency 等语义
+8. 加 Identity / Permission / Side-effect / Idempotency Semantics
    ↓
-9. 实现 environment-state verifier
+9. 实现 State Evidence / Verifier
    ↓
-10. 做 episode isolation
+10. 冻结 Clock / Seed / Version
    ↓
-11. 冻结 clock / seed / version
+11. 先做 Deterministic Capability Eval
    ↓
-12. 基础 deterministic eval
+12. 再加 Failure Injection / Stochastic Robustness
    ↓
-13. 再加入 failure injection / stochastic robustness
-   ↓
-14. 保存完整 lineage 与 replay 信息
+13. 保存完整 Replay / Lineage 信息
 ```
 
-这比“写几个 mock API”完整得多。
+---
+
+# 11.31 与后续章节的关系
+
+```text
+第 12 章 Trajectory Anatomy
+→ 把 Environment 交互记录成 typed event log
+
+第 13 章 Credit Assignment
+→ 哪些 Action / State Transition 真正导致最终 Outcome
+
+第 14 章 Failure Taxonomy
+→ Model / Tool / Harness / Environment failure 如何归因
+
+第 15 章 Evaluator
+→ Environment Evidence 怎样变成可信判分
+
+第 16 章 Benchmark Protocol
+→ Environment / Harness / Tool 如何被冻结以保证可比
+
+第 19 章 Governance
+→ Snapshot / Version / Replay / Provenance 如何长期治理
+```
 
 ---
 
-# 11.44 本章最终应该形成的认识
+# 11.32 本章最终要形成的认识
 
-可以把 Agent Environment 压缩成：
+把 Environment 压缩成：
 
 ```text
-World State
-   ↓
+World / Environment State
+        ↓
 Allowed Action
-   ↓
-State Transition
-   ↓
+        ↓
+Transition
+        ↓
 Observation
-   ↓
-Verification
+        ↓
+Agent-visible State
+        ↺
 ```
 
-真正可靠的环境还必须具备：
+一个可信环境还必须具备：
 
 ```text
 Resettable
@@ -2204,16 +1699,16 @@ Verifiable
 Safe
 ```
 
-所以：
+最终要记住两句话：
 
-> **一个 Agent benchmark 的可信度，上限往往不是由题目数量决定，而是由 environment fidelity、state control 与 verification quality 决定。**
+> **Task 定义“要完成什么”；Environment 定义“世界如何变化”。**
 
-下一章将进一步进入：
+> **Tool 是动作接口，Environment 是世界，Harness 是把模型与世界连接起来的运行机制。**
 
-> **第 12 章 Agent Trajectory Anatomy：State、Decision、Action、Observation、Memory、Branching 与 Backtracking**
+下一章进入：
 
-也就是开始真正拆解：
+> [`第 12 章 Agent Trajectory Anatomy`](./12_Agent_Trajectory_Anatomy.md)
 
-```text
-一条完整 Agent 轨迹内部到底发生了什么？
-```
+开始回答：
+
+> **当 Agent 真正在这个世界里跑起来后，一条可用于训练、评测和诊断的 Trajectory 到底应该记录什么？**
