@@ -1,115 +1,113 @@
-# 第 8 章 Rollout、Rejection Sampling 与 Candidate Selection
+# 第 8 章 Rollout、Rejection Sampling 与 Candidate Selection：有候选以后，怎样真正选得更好
 
 > 所属体系：[`LLM_Agent_Data_Knowledge_System.md`](../LLM_Agent_Data_Knowledge_System.md)
 >
-> 前置章节：[`第 7 章 Synthetic Data：模型生成数据、任务演化与环境合成`](./07_Synthetic_Data_Generation_and_Synthesis.md)
+> 前置章节：[`第 7 章 Synthetic Data`](./07_Synthetic_Data_Generation_and_Synthesis.md)
 >
-> 关联章节：[`第 4 章 Reasoning Data 与 Process Supervision`](./04_Reasoning_Data_and_Process_Supervision.md)、[`第 5 章 Tool-use Data 与 Agent Trajectory Data`](./05_Tool_Use_and_Agent_Trajectory_Data.md)
+> 关联章节：[`第 4 章 Reasoning Data`](./04_Reasoning_Data_and_Process_Supervision.md)、[`第 5 章 Agent Trajectory Data`](./05_Tool_Use_and_Agent_Trajectory_Data.md)、[`第 13 章 Credit Assignment`](./13_Task_Success_and_Credit_Assignment.md)、[`第 15 章 Grader / Verifier / Judge`](./15_Grader_Verifier_and_LLM_as_a_Judge.md)、[`第 16 章 Benchmark Design`](./16_Benchmark_Design_and_Evaluation_Protocol.md)、[`第 20 章 Quality / Filtering / Mixture`](./20_Data_Quality_Filtering_Deduplication_and_Mixture.md)
 >
-> 本章目标：理解为什么现代大模型 / Agent 数据生产经常不是“生成一条答案就结束”，而是 **生成多个候选 → 评分 / 验证 → 选择 / 拒绝 → 转换成训练信号**；并掌握 Best-of-N、Rejection Sampling、Self-consistency、Verifier-guided Selection、Reward-guided Selection 与 Candidate Diversity 之间的关系。
+> 编辑基础设施：[`Canonical Glossary`](./00_Glossary_and_Notation.md) · [`Canonical Casebook`](./00_Canonical_Casebook.md)
 >
-> 本章核心问题：**生成多个候选只是扩大搜索空间；真正决定数据价值的，是候选之间是否有有意义的差异，以及选择器能否稳定地把“更值得学习 / 更值得执行”的候选选出来。**
+> 本章定位：**Rollout Pool / Candidate Generation / Oracle / Selector / Rejection / Abstention / Dynamic N 的 canonical chapter。`Rescue / Harmful / Recoverability / Selectability` 的语义定义分别回到第 4、13 章；总体 Benchmark Protocol、Population Accounting 与统计检验归第 16 章。**
+>
+> 本章核心问题：**生成多个候选只是在扩大搜索空间；真正决定价值的是：候选池里有没有更好的路、候选之间有没有真实决策差异，以及在线可用的 selector 能不能稳定地把更好的 candidate 选出来。**
 
 ---
 
-# 8.0 先看总图：Candidate Pipeline 的四个阶段
+# 8.0 Candidate Pipeline：先把四个阶段拆开
 
-一套最常见的流程可以抽象成：
+最常见的 candidate-based pipeline 是：
 
 ```mermaid
 flowchart LR
-    A[Task / Prompt / State] --> B[Candidate Generation]
+    A[Task / State] --> B[Candidate Generation]
     B --> C1[c1]
     B --> C2[c2]
-    B --> C3[c3]
     B --> CN[cN]
     C1 --> D[Scoring / Verification]
     C2 --> D
-    C3 --> D
     CN --> D
     D --> E[Selection / Rejection]
-    E --> F1[Chosen Data]
-    E --> F2[Rejected / Negative Data]
-    F1 --> G[SFT / Preference / RL / Online Decision]
-    F2 --> G
+    E --> F[Chosen / Rejected Views]
 ```
 
-从数据角度看，应该把这四件事分开：
+从数据与实验角度，必须分开：
 
 ```text
-1. Candidate Generation
-   候选怎么产生？
+1. Generation
+   候选怎么来？
 
-2. Candidate Evaluation
-   每个候选怎么被评分 / 验证？
+2. Evaluation
+   候选怎么被验证 / 评分？
 
-3. Selection Rule
-   根据什么规则选、拒绝、保留多个？
+3. Selection
+   什么时候选、换、拒绝或继续探索？
 
-4. Data Conversion
-   最终选中的和没选中的，分别变成什么训练数据？
+4. Routing
+   winner / loser 最后变成什么数据？
 ```
 
-很多系统把这四步写成一个“Best-of-N”，但如果不拆开，就很难定位提升或失败来自哪里。
+如果把四步压成一句：
+
+```text
+“我们做了 Best-of-N”
+```
+
+就很难知道真正的瓶颈在哪。
 
 ---
 
 # 8.1 什么是 Rollout？
 
-在大模型 / Agent 语境里，rollout 通常指：
+Rollout 指：
 
-> **从某个 prompt / state 出发，让当前 policy 或某个 generator 实际生成一段 response / reasoning / trajectory，并观察其结果。**
+> **从某个 Task / State 出发，让当前 policy 或 generator 实际生成行为，并观察 downstream outcome。**
 
-例如：
+Reasoning：
 
 ```text
-Math Problem
+Problem
 ↓
-Model Rollout
-↓
-Reasoning Trace
+Reasoning Rollout
 ↓
 Final Answer
 ↓
-Verifier: correct / wrong
+Verifier
 ```
 
-Agent 场景则是：
+Agent：
 
 ```text
-Task + Initial Environment State
+Task + Initial State
 ↓
 Agent Rollout
 ↓
-Tool Calls / Observations / State Changes
+Actions / Observations / State Changes
 ↓
 Final Environment State
 ↓
-Task Success / Failure
+Verifier
 ```
 
-Rollout 的数据价值在于：
+它与 Human-written demonstration 最大的不同是：
 
-```text
-它反映模型“真的会做什么”
-而不是我们希望模型做什么
-```
+> **Rollout 反映当前 policy 真正会做什么，而不是我们希望它做什么。**
 
-这和 Human-written demonstration 不同。
+因此 current-policy rollout 对 failure discovery 和 post-training 尤其重要。
 
 ---
 
-## 8.1.1 Single Rollout 与 Multiple Rollouts
+# 8.2 Single Rollout 与 Candidate Pool
 
-### Single Rollout
+Single rollout：
 
 ```text
 x → y1
 ```
 
-优点是便宜，但你只看到一个 realization。
+只能看到一个 realization。
 
-### Multiple Rollouts
+Multiple rollout：
 
 ```text
 x
@@ -119,742 +117,631 @@ x
 └── ... yN
 ```
 
-这样可以研究：
+可以观察：
 
 ```text
-输出多样性
-模型不确定性
 不同 reasoning path
-不同 tool path
-correct / wrong 分布
+不同 action choice
+不同 final outcome
 candidate disagreement
-可修复性
-selector 上限
+success density
+failure modes
 ```
 
-所以 Multiple Rollouts 不只是“多采几个答案”，而是把单一轨迹扩展成一个局部 outcome distribution。
+Candidate Pool 的价值不只是“多几个答案”，而是得到一个局部 action / continuation distribution。
 
 ---
 
-## 8.1.2 On-policy Rollout 为什么特别重要？
+# 8.3 Candidate Generation：目标是 Useful Diversity
 
-如果候选来自当前模型：
+如果：
 
 ```text
-Current Policy
-↓
-Current-policy Rollouts
+c1 ≈ c2 ≈ c3
 ```
 
-那么这些候选更接近当前模型真实错误分布。
+selector 再强也没有东西可选。
 
-这比完全来自强 teacher 的样本更适合回答：
+候选生成的核心目标应该是：
 
-> **当前模型到底缺什么？**
+> **在保持相关性和基本质量的前提下，制造有意义的 decision diversity。**
 
-因此很多 post-training / agent data pipeline 会强调 current-policy rollout。
+常见方法：
+
+```text
+Greedy
+Temperature / Top-p Sampling
+Prompt Variation
+Multi-model Generation
+Same-prefix Branching
+Same-state Alternative Action
+```
 
 ---
 
-# 8.2 Candidate Generation：N 个候选应该怎么生成？
+# 8.4 Candidate Diversity：不要只看文字差异
 
-候选质量决定 selection 的上限。
+至少分四层：
 
-如果 N 个候选本质一样：
+### Surface Diversity
+
+表达不同，但决策完全相同。
+
+### Semantic Diversity
+
+解释方式不同。
+
+### Structural Diversity
+
+推理结构 / tool sequence 不同。
+
+### Decision Diversity
+
+关键 state 上采取了不同 action。
+
+对于 reasoning / Agent，通常最重要的是：
+
+> **Decision Diversity。**
+
+例如：
 
 ```text
-c1 ≈ c2 ≈ c3 ≈ ...
+Same State
+├── keep hypothesis
+├── verify assumption
+├── backtrack
+└── call tool
 ```
 
-那么再强的 selector 也没有东西可选。
-
-因此 candidate generation 的目标不是单纯“多”，而是：
-
-> **在保持任务相关性的前提下，制造足够有意义的 decision diversity。**
+这样的 pool 才真正给 selector 留出决策空间。
 
 ---
 
-## 8.2.1 常见生成方式
+# 8.5 Same-prefix / Same-state Candidate 为什么特别有价值？
 
-### Greedy
+如果比较：
 
 ```text
-temperature = 0
+A 来自 Prefix P1
+B 来自 Prefix P2
 ```
 
-得到当前最直接的高概率路径。
+最终差异可能由很早以前的历史造成。
 
-优势：
-
-- 稳定；
-- 可复现；
-- 适合作 baseline。
-
-问题：
-
-- 缺乏多样性；
-- 一旦局部进入错误路径，后面容易一直沿同一模式继续。
-
-### Temperature Sampling
-
-通过提高随机性产生多样候选。
+如果控制成：
 
 ```text
-same prompt
-→ sample 1
-→ sample 2
-→ sample 3
-```
-
-但 temperature 过高可能产生大量低质量噪声。
-
-### Top-p / Top-k Sampling
-
-通过限制采样候选空间控制多样性和质量。
-
-### Prompt / Role Variation
-
-改变 generation instruction：
-
-```text
-直接求解
-反向验证
-使用另一种方法
-先列约束再求解
-```
-
-### Multi-model Generation
-
-不同模型产生候选。
-
-优点是 diversity 可能更高；缺点是候选分布和成本都更复杂。
-
-### Same-prefix Branching
-
-从完全相同的 state / prefix 开始生成不同 continuation：
-
-```text
-Prefix P
+Same Prefix / State S
 ├── c1
 ├── c2
 └── c3
 ```
 
-这种设计对研究局部 decision 特别有价值，因为它控制了历史前缀。
+那么差异更集中在当前 decision。
+
+这种数据特别适合：
+
+```text
+Local Counterfactual Analysis
+Action Preference
+Branch Value
+Recoverability Analysis
+Selector Training
+```
+
+严格的 `Recoverability / Repairability / Selectability` 定义见第 4 章；局部 credit 见第 13 章。
 
 ---
 
-# 8.3 Candidate Diversity：不是“文本不同”就够了
+# 8.6 Best-of-N：核心不是 N，而是 Score 的语义
 
-Candidate Diversity 可以至少分四层。
-
-## 1. Surface Diversity
-
-文字表达不同：
-
-```text
-A：因此答案为 12。
-B：所以最终结果是 12。
-```
-
-信息价值很低。
-
-## 2. Semantic Diversity
-
-解释方式不同，但核心推导一致。
-
-## 3. Structural Diversity
-
-推理结构 / 工具序列不同。
-
-例如：
-
-```text
-A: search → compare → answer
-B: search → verify → compare → answer
-```
-
-## 4. Decision Diversity
-
-在关键状态采取不同动作：
-
-```text
-A: keep current hypothesis
-B: backtrack
-C: verify assumption
-D: use tool
-```
-
-对于 reasoning / Agent，Decision Diversity 通常比 surface diversity 更重要。
-
----
-
-# 8.4 Best-of-N：最直观的 Candidate Selection
-
-Best-of-N 的基本形式是：
-
-```text
-Generate N candidates
-↓
-Score each candidate
-↓
-Choose highest-scoring candidate
-```
-
-形式化地：
+Best-of-N：
 
 $$
-\hat{y} = \arg\max_{y_i \in \mathcal{C}} S(x, y_i)
+\hat{y}=\arg\max_{y_i\in\mathcal{C}}S(x,y_i)
 $$
 
 其中：
 
-- $\mathcal{C}$：候选集合；
-- $S$：评分函数；
-- $\hat{y}$：最终选择。
+- $\mathcal{C}$：candidate pool；
+- $S$：scoring function；
+- $\hat y$：最终选择。
 
-关键不是 `N`，而是：
+真正要问的是：
 
-> **Score 是否和真实目标一致。**
+```text
+S 到底测什么？
+```
 
-如果 scorer 错，N 越大反而可能给它更多机会选中“高分但错误”的 candidate。
+可能是：
+
+```text
+Exact correctness
+Reward
+Process quality
+Model likelihood
+Rule compliance
+Cost-adjusted utility
+```
+
+如果 scorer 的语义和最终目标错位，N 越大甚至可能越危险，因为搜索空间越大，越容易找到“高分但错误”的 exploit。
 
 ---
 
-## 8.4.1 Best-of-N 的三个上限
+# 8.7 Oracle Analysis：先问“有没有好候选”
 
-Best-of-N 是否有效，至少受三件事限制。
+在训练 selector 前，应该先计算 candidate pool 的 Oracle 上限。
 
-### Candidate Oracle Upper Bound
-
-如果 N 个候选里至少有一个正确，那么理论上一个完美 selector 可以选到它。
-
-记：
+例如：
 
 ```text
-oracle@N = P(候选集合中至少有一个正确)
+Oracle@N
+= N 个候选里至少存在一个成功候选的比例
 ```
 
-它是 generation quality 的上限指标。
-
-### Selector Accuracy
-
-有正确 candidate 不代表 selector 能认出来。
-
-### Compute Cost
-
-N 越大，生成和评分成本越高。
-
-因此真实目标往往是：
+如果：
 
 ```text
-Expected Utility
-=
-Quality Gain
--
-lambda × Compute Cost
+Oracle@8 很低
 ```
 
-而不是单纯最大化 accuracy。
+说明问题首先在：
+
+```text
+Generation
+```
+
+如果：
+
+```text
+Oracle@8 很高
+Selected@8 很低
+```
+
+说明主要瓶颈在：
+
+```text
+Selection
+```
+
+因此：
+
+> **先看 Oracle Gap，再决定是否值得继续调 selector。**
+
+这是 Candidate System 最重要的诊断纪律之一。
 
 ---
 
-# 8.5 Rejection Sampling：Generate → Filter → Keep
+# 8.8 Oracle ≠ Online Selectability
 
-在 LLM post-training 里，“Rejection Sampling”常被宽泛地用于描述：
+Oracle 可以使用：
 
 ```text
-生成多个 candidate
-↓
-根据 reward / verifier / heuristic
-拒绝不合格样本
-↓
-保留高质量样本
-↓
-作为训练数据
+最终 outcome
+昂贵 verifier
+完整 future rollout
+人工 gold
 ```
 
-需要注意：这里的术语使用往往比经典统计学中的 rejection sampling 更宽松。
+在线 selector 却只能使用：
 
-在数据工程语境里，更重要的是理解流程，而不是纠结名称。
+```text
+当前可观测信息
+```
+
+所以：
+
+```text
+Oracle says good candidate exists
+≠
+Online selector can identify it
+```
+
+这正是：
+
+```text
+Recoverability
+≠
+Selectability
+```
+
+在 candidate system 中的直接体现。
 
 ---
 
-## 8.5.1 一个简单例子
+# 8.9 Rejection Sampling：Reject 不一定等于 Delete
 
-数学题：
-
-```text
-每题采 8 个 reasoning solutions
-```
-
-然后：
+在 LLM 数据工程语境中，常见流程：
 
 ```text
-Final answer verifier
+Generate N
 ↓
-正确的留下
-错误的拒绝
+Verifier / Reward / Rule
+↓
+Accept / Reject
+↓
+Training Data
 ```
 
-最终得到：
-
-```text
-Problem → Verified Correct Solution
-```
-
-用于 SFT。
-
-这是一种典型的 rejection-sampling-style data construction。
-
----
-
-## 8.5.2 只保留正确答案有什么问题？
-
-如果只做：
+但更成熟的做法不是：
 
 ```text
 Correct → keep
-Wrong → drop
+Wrong → delete
 ```
-
-会损失大量信息。
-
-错误 candidate 可能用于：
-
-```text
-Preference pair
-Hard negative
-Critique data
-Correction data
-Error taxonomy
-Reward model data
-Recovery training
-```
-
-所以更成熟的 pipeline 往往不是：
-
-> rejection = 删除
 
 而是：
 
-> **根据候选类型，把它路由到不同数据用途。**
+```text
+Correct + clean
+→ SFT Positive
 
----
+Correct + inefficient
+→ Preference / process analysis
 
-# 8.6 Positive Filtering 与 Negative Retention
+Wrong + informative
+→ Hard Negative / Critique / Recovery
 
-可以把 candidate routing 设计成：
-
-```mermaid
-flowchart TD
-    A[Candidate] --> B{Verified?}
-    B -->|Correct| C{High Quality?}
-    C -->|Yes| D[SFT Positive]
-    C -->|No| E[Low-priority / Repair]
-    B -->|Wrong| F{Useful Failure?}
-    F -->|Yes| G[Preference / Hard Negative / Critique]
-    F -->|No| H[Discard]
+Wrong + useless noise
+→ Drop
 ```
 
-这比一刀切的 positive-only filtering 更充分利用 rollout。
+所以：
+
+> **Rejection 更像 Routing，而不是垃圾桶。**
 
 ---
 
-# 8.7 Self-consistency：多数答案不等于最优候选
+# 8.10 Self-consistency：多数意见只是一个 selector
 
-Self-consistency 常用于 reasoning：
+Self-consistency：
 
 ```text
-同一道题采样多条 reasoning path
+多条 reasoning rollout
 ↓
-得到多个 final answer
+final answers vote
 ↓
-多数投票
+choose majority
 ```
 
-例如：
+优点：
 
 ```text
-A, A, A, B, C
-→ choose A
+简单
+不需要额外 reward model
 ```
 
-直觉是：如果不同推理路径独立支持同一答案，这个答案更可信。
+局限：
+
+```text
+Majority Can Be Wrong
+Samples Highly Correlated
+Only Final-answer Signal
+Not natural for open-ended Agent actions
+```
+
+所以 self-consistency 只是 Candidate Selection 的一个特例，不是通用 ground truth。
 
 ---
 
-## 8.7.1 Self-consistency 的优势
+# 8.11 Verifier-guided Selection
 
-- 不需要额外训练 reward model；
-- 对有明确 final answer 的任务简单有效；
-- 可以利用模型自身 stochasticity。
-
-## 8.7.2 局限
-
-### Majority Can Be Wrong
-
-如果模型有系统偏差：
+如果有客观 evidence，优先使用：
 
 ```text
-8 条都走同一个错误套路
-```
-
-多数票只会放大错误共识。
-
-### Path Correlation
-
-不同 sample 并不一定独立。
-
-### 只看 Final Answer
-
-无法判断哪条 reasoning path 更可靠。
-
-### 不适合开放 Agent Action
-
-Agent 轨迹很难简单按“最终文本答案”多数投票。
-
-因此 self-consistency 是一种 selector，但不是通用解决方案。
-
----
-
-# 8.8 Verifier-guided Selection
-
-如果任务有可靠 verifier，可以直接用客观条件选候选。
-
-例如：
-
-```text
-数学 → exact / symbolic verifier
-代码 → unit tests
-Agent → final environment state
-SQL → query result
-结构化输出 → schema validation
+Math → symbolic / exact verifier
+Code → tests
+Agent → environment state
+SQL → execution result
+Structured Output → schema / rule
 ```
 
 常见策略：
 
 ```text
-先 hard filter correctness
-再在通过者里比较 style / efficiency / cost
+Hard correctness gate
+↓
+在通过者中比较 efficiency / style / cost
 ```
 
-这种层级式选择比“一个 LLM judge 决定所有事情”更稳健。
+这比一个总 Judge 包办所有维度更稳定。
+
+Verifier / Grader / Judge 的边界统一见第 15 章。
 
 ---
 
-## 8.8.1 Binary Verifier 与 Graded Verifier
+# 8.12 Reward-guided Selection
 
-Binary：
-
-```text
-pass / fail
-```
-
-Graded：
-
-```text
-partial credit
-coverage
-number of tests passed
-constraint satisfaction score
-```
-
-Agent 中 graded verifier 特别有用，因为很多任务存在 partial completion。
-
----
-
-# 8.9 Reward-guided Selection
-
-如果没有完全客观 verifier，可以使用 reward model / grader：
+如果没有完全客观 verifier，可以用：
 
 $$
-\hat{y}=\arg\max_i r_\theta(x,y_i)
+\hat y=\arg\max_i r_\theta(x,y_i)
 $$
 
-但要记住第 3 章的结论：
+但 Reward / Judge 并不是 Ground Truth。
 
-> Reward Model 不是 ground truth。
-
-如果 reward model 存在 verbosity bias、style bias、self-preference，那么 Best-of-N 会主动搜索并放大这些漏洞。
-
-这可以理解为：
+尤其要警惕：
 
 ```text
-Candidate Generator
-        ↓
-不断探索 scorer 的高分区域
-        ↓
-如果 scorer 有漏洞
-        ↓
-Selection Amplifies Reward Hacking
+Verbosity Bias
+Style Bias
+Self-preference
+Reward Hacking
 ```
 
-所以 N 越大，不一定越安全。
+Best-of-N 会主动搜索 scorer 的高分区域，因此：
+
+> **scorer 的小偏差可能被大 N 放大成系统性选择偏差。**
 
 ---
 
-# 8.10 Hybrid Selection：Verifier + Reward + Heuristic
+# 8.13 Hybrid Selection：一个系统不必只有一个 scorer
 
-真实系统往往使用多层 selector。
-
-例如代码 candidate：
+现实里经常是：
 
 ```text
-Step 1: syntax valid?
-Step 2: unit tests pass?
-Step 3: no forbidden dependency?
-Step 4: runtime / memory cost?
-Step 5: style / maintainability?
+Syntax / Schema Gate
+↓
+Executable / Environment Verifier
+↓
+Policy / Safety Rule
+↓
+Reward / Judge
+↓
+Cost / Efficiency Tie-breaker
 ```
 
-Agent trajectory：
-
-```text
-Step 1: task success?
-Step 2: no forbidden side effect?
-Step 3: all required constraints satisfied?
-Step 4: observation grounded?
-Step 5: tool cost acceptable?
-Step 6: final communication quality?
-```
-
-这是一种 lexical / rubric / executable signal 的组合。
+这样的层级式 selector 往往比一个黑箱 scalar 更可解释。
 
 ---
 
-# 8.11 Candidate Selection 不一定是“必须选一个”
+# 8.14 Selection 不一定必须选一个
 
-很多时候应该允许：
+合理动作空间可以包含：
 
 ```text
-select one
-select multiple
-reject all
-abstain
-request more candidates
-fall back to baseline
+Choose(ci)
+KeepBaseline
+RejectAll
+ExploreMore
+Abstain
 ```
 
 如果所有 candidate 都差：
 
 ```text
-c1 bad
-c2 bad
-c3 bad
+强制选一个
 ```
 
-强制选一个只是在错误中挑一个。
+只是错误中选错误。
 
-因此 selector 的动作空间可以写成：
+所以 selector 也应该有：
 
-```text
-Choose(ci)
-RejectAll
-KeepBaseline
-ExploreMore
-Abstain
-```
-
-这和第 3 章 preference 中的 `Tie / Both Bad / Cannot Judge` 是同一个思想：
-
-> **不要为了覆盖率强行制造高置信决策。**
+> **Abstention / Fall-back 能力。**
 
 ---
 
-# 8.12 Thresholding：评分高不代表一定值得替换
+# 8.15 Baseline Candidate：Replacement 是相对决策
 
-假设 baseline candidate 是 $u_0$，替代 candidate 是 $c$。
+很多在线 candidate system 并不是：
 
-即使：
+```text
+从零挑一个最优答案
+```
+
+而是：
+
+```text
+已有 baseline continuation u0
+↓
+是否有足够证据替换？
+```
+
+此时要特别关注：
+
+```text
+Replacement Rate
+Beneficial Replacement
+Harmful Replacement
+Keep Precision
+```
+
+`Rescue / Harmful / Neutral` 的正式 outcome transition 定义归第 4、13 章，本章只把它们作为 candidate intervention 的分析接口。
+
+---
+
+# 8.16 Threshold / Margin：什么时候值得偏离 baseline？
+
+如果：
 
 $$
-S(c) > S(u_0)
+S(c)>S(u_0)
 $$
 
-也不一定应该替换。
-
-因为 score difference 很小可能只是噪声。
+但差距非常小，可能只是 scorer noise。
 
 可以要求：
 
 $$
-S(c)-S(u_0) > \delta
+S(c)-S(u_0)>\delta
 $$
 
-才替换。
+再 replacement。
 
-这相当于 margin / confidence threshold。
-
-它控制的是：
+低阈值：
 
 ```text
-coverage
-vs
-precision of intervention
+Coverage 高
+Rescue 机会多
+Harm 风险也高
 ```
 
-阈值低：
-
-```text
-更多 intervention
-更多 potential rescue
-也更多 harmful replacement
-```
-
-阈值高：
+高阈值：
 
 ```text
 更保守
-更少 harmful
-但可能错过 rescue
+Harm 少
+也可能错过 Rescue
 ```
 
-这是非常典型的 risk-coverage trade-off。
+完整 Coverage / Risk-Coverage / Denominator reporting 统一见第 16 章。
 
 ---
 
-# 8.13 Candidate Selection 的四类 Outcome
+# 8.17 Selector Accuracy 为什么经常没意义？
 
-对于 baseline $u_0$ 和 replacement $c$，离线可以得到：
-
-| Baseline | Replacement | 类型 | 含义 |
-|---|---|---|---|
-| Wrong | Right | Rescue | 替换有益 |
-| Right | Wrong | Harmful | 替换有害 |
-| Right | Right | Neutral-positive | 最终都对 |
-| Wrong | Wrong | Neutral-negative | 最终都错 |
-
-真正决定净收益的是：
-
-$$
-Net = Rescue - Harmful
-$$
-
-而不是：
+假设：
 
 ```text
-selector 选了多少 replacement
+90% state 不应该替换
+10% state 值得替换
 ```
 
-所以 Candidate Selection 的 eval 必须同时报告 positive intervention 和 harmful intervention。
+永远：
+
+```text
+Keep Baseline
+```
+
+就有：
+
+```text
+Accuracy = 90%
+```
+
+但：
+
+```text
+Rescue = 0
+```
+
+所以真正有价值的 evaluation 应该看：
+
+```text
+Oracle Gap
+Coverage
+Replacement Rate
+Beneficial / Harmful Replacement
+End-to-end Outcome
+Cost
+```
+
+指标公式和总体统计协议统一交给第 16 章，本章只强调：
+
+> **Selector 的价值是改变 downstream decision outcome，不是把 classification accuracy 做漂亮。**
 
 ---
 
-# 8.14 Selector Accuracy 不是最重要的指标
+# 8.18 Candidate Pool 应该作为原始数据资产长期保存
 
-假设数据高度不平衡：
-
-```text
-90% case 不该替换
-10% case 值得替换
-```
-
-一个永远 keep baseline 的 selector：
+不要只保存：
 
 ```text
-accuracy = 90%
+winner = c1
 ```
 
-但完全没有 utility。
-
-因此更重要的指标包括：
+最好保存：
 
 ```text
-rescue rate
-harm rate
-net gain
-coverage
-precision among replacements
-oracle gap
-compute cost
-task-level accuracy after selection
+state_id
+baseline_id
+all candidates
+raw scores
+verifier outputs
+selector decision
+selector version
+final downstream outcomes
 ```
 
-如果是 Agent：
+这样以后可以：
 
 ```text
-task success gain
-side-effect rate
-API cost
-latency
+换 selector
+换 corrected labels
+重算 oracle
+构造 preference
+做 failure analysis
 ```
+
+Candidate Pool 比 Winner 更接近 raw asset；Winner 只是一个 Derived View。
+
+Governance / versioning 见第 19 章。
 
 ---
 
-# 8.15 Oracle Analysis：先判断“有没有东西可选”
+# 8.19 Candidate Pool Schema 示例
 
-在训练 selector 之前，最好先做 oracle analysis。
-
-给定 candidate set：
-
-```text
-如果任何 candidate 正确，就假设 oracle 总能选到正确的
+```json
+{
+  "task_id": "task_001",
+  "state_id": "state_031",
+  "baseline_candidate_id": "u0",
+  "generator_version": "gen_v3",
+  "candidates": [
+    {
+      "id": "u0",
+      "text": "...",
+      "raw_scores": {
+        "mean_logprob": -0.42
+      },
+      "offline_outcome": "fail"
+    },
+    {
+      "id": "c1",
+      "text": "...",
+      "raw_scores": {
+        "mean_logprob": -0.55
+      },
+      "offline_outcome": "success"
+    }
+  ],
+  "selector": {
+    "version": "selector_v3",
+    "chosen_id": "c1"
+  }
+}
 ```
 
-得到：
+关键是：
 
-```text
-oracle performance
-```
+> **Raw Candidate / Score / Historical Decision / Offline Outcome 分层保存。**
 
-如果 oracle 提升都很小：
-
-> selector 再复杂也不可能带来大提升。
-
-此时问题在：
-
-```text
-candidate generation
-```
-
-而不是：
-
-```text
-candidate scoring
-```
-
-这一步非常重要，因为它能避免在错误瓶颈上反复训练 selector。
+不要为了方便，把它们压成一个 winner label。
 
 ---
 
-# 8.16 Candidate Diversity 与 Oracle Upper Bound 的关系
+# 8.20 Offline Selection 与 Online Selection
 
-候选越多样，理论上越可能出现至少一个正确分支。
-
-但 diversity 不是无限增加越好。
-
-过高随机性会造成：
+离线分析可以使用：
 
 ```text
-大量明显错误 candidate
-增加 scoring 成本
-增加 reward hacking 搜索空间
-降低有效 candidate density
+Future Outcome
+Expensive Verifier
+Human Annotation
+Multiple Continuations
 ```
 
-因此需要优化的是：
-
-> **Useful Diversity，而不是 Maximum Diversity。**
-
-可以定义一些分析量：
+在线决策必须遵守：
 
 ```text
-unique final answers
-unique reasoning patterns
-unique tool sequences
-pairwise semantic distance
-oracle@N
-correct-candidate density
+Only Current Observable Evidence
 ```
+
+因此：
+
+```text
+Offline best selector
+```
+
+不能直接当作部署可实现方法。
+
+这与第 4 章的 Future-information discipline 完全一致。
 
 ---
 
-# 8.17 Rejection Sampling Data 的 Distribution Shift
+# 8.21 Selection Bias：筛选过程本身会改写训练分布
 
-这是一个很容易被忽略的问题。
-
-假设原始模型 rollout 分布是：
+如果原始 rollout：
 
 ```text
 70% mediocre
@@ -862,947 +749,440 @@ correct-candidate density
 10% excellent
 ```
 
-经过强 reward filter 后，只保留：
+只保留 top 5%，最终训练数据已经是被 selector 强烈重塑的 distribution。
+
+可能带来：
 
 ```text
-top 5%
+Style Collapse
+Length Bias
+Mode Collapse
+Over-specialization to Scorer
 ```
 
-最终训练集分布已经不再代表模型真实行为。
+因此 Rejection Sampling 同时是：
 
-这会产生两个问题。
+```text
+Quality Filter
++
+Distribution Transformer
+```
 
-### 1. Selection Bias
-
-训练数据是被 selector 挑过的。
-
-### 2. Diversity Collapse
-
-高分候选可能集中在同一种风格。
-
-因此 Rejection Sampling 不只是质量过滤，还会重塑训练分布。
+详细 Filtering / Mixture / Distribution Audit 归第 20 章。
 
 ---
 
-## 8.17.1 如何缓解？
+# 8.22 Multi-stage Selection
 
-可以考虑：
-
-```text
-按 domain / difficulty 分桶选择
-保留多种 high-quality modes
-限制每个 seed 的重复数
-做 semantic dedup
-保留部分中等难度样本
-混入 human / real data
-监控 length / style / language distribution
-```
-
----
-
-# 8.18 Selector-induced Bias：选择器会把自己的偏好写进数据
-
-如果 selector 偏爱：
-
-```text
-更长回答
-更多步骤
-某种固定格式
-高 confidence 风格
-```
-
-那么最终训练数据就会越来越像 selector 喜欢的样子。
-
-形成闭环：
-
-```text
-Selector bias
-↓
-Selected Data
-↓
-Model learns bias
-↓
-New Rollouts reflect bias
-↓
-Selector sees even more similar candidates
-```
-
-这是一种 data flywheel 的负反馈风险。
-
-因此需要：
-
-```text
-selector audit
-human gold
-cross-selector comparison
-style-controlled evaluation
-outcome-based verification
-```
-
----
-
-# 8.19 Multi-stage Candidate Selection
-
-有些任务适合分层筛选。
-
-例如生成 64 个 reasoning candidates：
+为了降低成本，可以：
 
 ```text
 64 candidates
-↓
-cheap heuristic filter
-↓
-16 candidates
-↓
-verifier / PRM
-↓
-4 candidates
-↓
-expensive judge / execution
-↓
-1 candidate
+↓ cheap filter
+16
+↓ verifier / PRM
+4
+↓ expensive judge / execution
+1
 ```
 
-这样可以降低总成本。
+但必须检查：
 
-但必须验证：
+> **早期 cheap stage 有没有把真正好的 candidate 误杀。**
 
-> 早期 cheap filter 有没有误杀真正好的 candidate？
+否则后面的强 evaluator 已经无法挽回。
 
-否则后面的强 selector 已经无能为力。
+这类 cascade 的关键指标之一就是 early-stage recall。
 
 ---
 
-# 8.20 Candidate Selection 与 Search 的关系
+# 8.23 Candidate Selection 与 Search 的关系
 
-Best-of-N 是“一次生成完再选”。
+一次性：
 
-更复杂的方法会把 selection 放进生成过程中：
+```text
+Generate N → Select One
+```
+
+是 Best-of-N。
+
+如果把 selection 嵌进生成过程：
 
 ```text
 State
 ↓
-Generate branches
+Expand Branches
 ↓
-Score branches
+Score
 ↓
-Keep promising branches
+Prune
 ↓
-Expand again
+Expand Again
 ```
 
-这就进入：
+就进入：
 
 ```text
-beam search
-Tree-of-Thought-like search
-MCTS-like search
-verifier-guided tree search
+Beam Search
+Tree Search
+MCTS-like Search
+Verifier-guided Search
 ```
 
-从数据视角看，本质仍然是：
+从数据角度，本质仍然是：
 
 ```text
-state
-→ candidate actions
-→ value estimate
-→ pruning / expansion
+State
+→ Candidate Actions
+→ Value Evidence
+→ Selection / Expansion
 ```
-
-因此第 4 章的 process supervision 会直接决定 search quality。
 
 ---
 
-# 8.21 Candidate Selection 与 Agent 的关系
+# 8.24 Agent 场景：Candidate 可以是“下一步 Action”
 
-Agent 场景中 candidate 可以不是“多个完整回答”，而是：
+例如 C1：
 
 ```text
-当前 state 下的多个 action
+Current State:
+订单状态未知，用户要求“未发货则取消”
 ```
 
-例如：
+Candidate Actions：
 
 ```text
-State:
-订单状态未知，用户要求“未发货则取消”
-
-Candidates:
-A. search_order
+A. get_order_status
 B. cancel_order
 C. ask_user
 D. answer directly
 ```
 
-此时 selector 在做的是：
+此时 Candidate Selection 已经不是“答案 reranking”，而是：
 
 > **Next-action selection。**
 
-如果进一步 rollout 每个 action：
-
-```text
-State
-├── A → future trajectory A
-├── B → future trajectory B
-├── C → future trajectory C
-└── D → future trajectory D
-```
-
-就可以训练 action value / trajectory preference。
+如果从每个 action 继续 rollout，就能得到 trajectory-level preference / credit。
 
 ---
 
-# 8.22 Same-prefix / Same-state Candidate Data 为什么特别有价值？
+# 8.25 Preference Pair：不要把 N 个 candidate 全组合
 
-如果比较：
-
-```text
-Candidate A 来自 Prefix P1
-Candidate B 来自 Prefix P2
-```
-
-两者最终差异可能来自很早以前。
-
-但如果控制为：
-
-```text
-Same Prefix P
-├── c1
-├── c2
-└── c3
-```
-
-差异就集中在当前 decision。
-
-因此 same-prefix / same-state candidate data 特别适合：
-
-```text
-local causal analysis
-branch value estimation
-preference construction
-candidate selector training
-recoverability analysis
-```
-
-这和因果实验里的“控制其他变量，只改变一个 decision”非常类似。
-
----
-
-# 8.23 研究实例：RoTFuse / K17 作为 Same-prefix Candidate Selection
-
-> 下面是一个与你现有研究直接对应的实例，用于说明 Candidate Generation、Trigger 与 Selector 应如何分开分析。这里不把阶段性实验上升为已证明的普遍结论。
-
-RoTFuse / K17 当前主线可以抽象成：
-
-```text
-Authoritative Prefix P
-        ↓
-Greedy provisional unit u0
-        ↓
-Risk / suspicion trigger
-       / \
-     No   Yes
-     ↓     ↓
-   keep   Generate same-prefix candidates c1, c2
-  u0            ↓
-             Candidate scoring
-                  ↓
-             choose one unit
-                  ↓
-             commit to prefix
-```
-
-这里实际上包含三个完全不同的问题：
-
-```text
-Trigger Problem
-“什么时候值得探索？”
-
-Generation Problem
-“从同一 prefix 能不能生成有价值的 alternative？”
-
-Selection Problem
-“如果有 alternative，能不能选对？”
-```
-
-不能把它们合成一个指标。
-
----
-
-## 8.23.1 Trigger 与 Selector 的目标不同
-
-Trigger 关注：
-
-```text
-是否值得付出额外 compute
-```
-
-Selector 关注：
-
-```text
-已经产生多个 candidate 后，应该提交哪个
-```
-
-因此即使 trigger 很准：
-
-```text
-总能找到“危险 state”
-```
-
-如果 candidate 没有更好路径，或者 selector 选不出来，最终也不会提升。
-
-反过来，即使 selector 很强，如果 trigger 几乎从不在有 rescue potential 的 state 上启动，也无法发挥作用。
-
----
-
-## 8.23.2 Greedy u0 的角色
-
-在该框架中，$u_0$ 不是普通随机 candidate，而是：
-
-```text
-baseline local continuation
-```
-
-所以 candidate selection 不是从零选一个，而是：
-
-> **是否有足够证据偏离 baseline。**
-
-这使问题天然带有 conservative intervention 的性质。
-
-因此要特别关注：
-
-```text
-replacement precision
-harmful replacement
-coverage
-net gain
-```
-
-而不是只看 selector classification accuracy。
-
----
-
-## 8.23.3 平均 Log-likelihood 选择的含义
-
-如果 candidate 使用自身平均 token log-probability 评分：
+N=32 时，pair 数量：
 
 $$
-S(c)=\frac{1}{|c|}\sum_{t=1}^{|c|}\log P(c_t\mid P,c_{<t})
+\binom{32}{2}=496
 $$
 
-它反映的是：
+大部分 pair 高度重复、信息量低。
 
-> **当前模型自身对这段 continuation 的平均支持程度。**
-
-但它不是外部 correctness verifier。
-
-因此：
+更高价值的 pair：
 
 ```text
-High average log-likelihood
-≠ Final answer correct
+winner vs hardest negative
+near-score discordant pair
+correct vs plausible-wrong
+same-state rescue vs harmful
+success-efficient vs success-inefficient
 ```
 
-它更像一个 model-internal plausibility / fluency signal。
+目标不是 pair 数量，而是：
 
-这正好说明一个通用原则：
-
-> **Candidate Score 的语义必须说清楚，不能把“模型更喜欢”自动解释成“更正确”。**
+> **Decision Boundary Information。**
 
 ---
 
-## 8.23.4 K17 能对应到本章哪些通用概念？
-
-| K17 组件 | 本章概念 |
-|---|---|
-| frozen prefix P | controlled current state |
-| greedy u0 | baseline candidate |
-| sampled c1/c2 | alternative candidates |
-| low-confidence trigger | compute allocation / exploration gating |
-| mean log-likelihood | candidate scoring heuristic |
-| final correctness | downstream outcome verifier |
-| rescue / harmful | intervention utility |
-
-所以这个项目可以作为一个非常完整的 Candidate Selection case 来讲。
-
----
-
-# 8.24 Candidate Selection 的数据结构
-
-一条完整 candidate-group 数据可以设计为：
-
-```json
-{
-  "task_id": "task_001",
-  "state_id": "state_031",
-  "prefix": "...",
-  "generator": {
-    "model": "...",
-    "temperature": 0.7,
-    "top_p": 0.95
-  },
-  "baseline_candidate_id": "u0",
-  "candidates": [
-    {
-      "id": "u0",
-      "text": "...",
-      "generation_logprob": -0.42,
-      "verifier_result": false,
-      "reward": 0.31
-    },
-    {
-      "id": "c1",
-      "text": "...",
-      "generation_logprob": -0.55,
-      "verifier_result": true,
-      "reward": 0.88
-    }
-  ],
-  "selector": {
-    "version": "selector_v3",
-    "chosen_id": "c1",
-    "confidence": 0.71
-  },
-  "oracle_best_id": "c1"
-}
-```
-
-建议保留：
-
-```text
-所有 candidate
-所有 raw score
-最终 chosen
-baseline identity
-verifier result
-selector version
-oracle label
-```
-
-不要只保存最终 winner，否则后面无法重新研究 selector。
-
----
-
-# 8.25 为什么必须保留完整 Candidate Pool？
-
-假设以后发现旧 selector 有问题。
-
-如果只保存：
-
-```text
-winner = c1
-```
-
-就没法重新分析。
-
-但如果保存：
-
-```text
-u0, c1, c2
-+ raw scores
-+ final outcomes
-```
-
-就可以：
-
-```text
-换 selector
-换 label
-做 oracle analysis
-重新计分
-分析 pairwise preference
-```
-
-这和第 6 章的 label versioning / experiment immutability 是同一套数据治理思想。
-
----
-
-# 8.26 Offline Selection 与 Online Selection
-
-需要严格区分。
-
-### Offline Selection
-
-候选全部生成后：
-
-```text
-可以用完整 outcome
-可以跑昂贵 verifier
-可以人工标注
-可以重放分析
-```
-
-### Online Selection
-
-真实推理时：
-
-```text
-只能使用当前可获得的信息
-```
-
-不能使用：
-
-```text
-未来 final answer correctness
-未来 environment outcome
-人工离线标签
-```
-
-因此：
-
-> **Offline oracle 能选对，不代表 Online selector 可实现。**
-
-这和第 4 章的 future leakage 原则一致。
-
----
-
-# 8.27 Selection Bias 与 Evaluation Leakage
-
-如果用同一个 grader：
-
-```text
-生成训练数据时选 candidate
-```
-
-又用它：
-
-```text
-评估训练后模型
-```
-
-可能出现 evaluator overfitting。
-
-模型只是越来越符合该 grader 的偏好。
-
-因此最好区分：
-
-```text
-training selector / reward
-vs
-held-out evaluator
-```
-
-并尽量保留：
-
-```text
-human gold
-objective verifier
-independent benchmark
-cross-judge evaluation
-```
-
----
-
-# 8.28 Candidate Selection 的成本账本
-
-如果一个方法 accuracy 提升 1%，但推理成本增加 20 倍，是否值得？
-
-需要记录：
-
-```text
-number of generated candidates
-generated tokens
-scoring tokens
-verifier calls
-judge calls
-tool calls
-latency
-GPU time
-API cost
-```
-
-可以计算：
-
-$$
-CostPerRescue = \frac{Additional\ Compute}{Number\ of\ Additional\ Correct\ Cases}
-$$
-
-或者：
-
-$$
-Utility = AccuracyGain - \lambda \cdot Cost
-$$
-
-这对 test-time scaling 特别重要。
-
----
-
-# 8.29 Dynamic N：不是每个 Task 都值得采一样多 Candidate
+# 8.26 Dynamic N：Compute 也应该 state-dependent
 
 固定：
 
 ```text
-每题 N=16
+N=16 for every case
 ```
 
-简单，但浪费资源。
+简单但浪费。
 
-更合理的是：
+可以动态分配：
 
 ```text
-easy / high confidence
+easy / stable state
 → N = 1
 
 uncertain / high-value state
 → N = 4
 
-very ambiguous / high-stakes
-→ N = 8 or 16
+high-risk / ambiguous state
+→ N = 8+
 ```
 
-这就是 adaptive compute allocation。
+本质是：
 
-它和 More Thinking 的核心思想相同：
+> **把额外候选预算投到 expected marginal value 更高的 state。**
 
-> **计算预算应该跟 current state 的 expected marginal value 绑定。**
+这和第 4 章 Continue / Stop 以及后续 Data Strategy 的思想一致。
 
 ---
 
-# 8.30 Candidate Pair Construction：Preference Data 怎么从 Rollout 来？
+# 8.27 Cost：Candidate System 不能脱离预算讨论
 
-有多个 candidate 后，可以自动构造 pair。
-
-例如：
+至少记录：
 
 ```text
-verified correct > verified wrong
+Generated Candidates
+Generation Tokens
+Scoring Tokens
+Verifier Calls
+Judge Calls
+Tool Calls
+Latency
+GPU / API Cost
 ```
 
-或：
+Candidate 方法真正要回答的是：
 
-```text
-success-efficient > success-inefficient
-```
+> **额外 compute 是否换来了足够多的额外正确 / 安全结果。**
 
-但不要随便全组合。
-
-如果 N=32：
-
-```text
-pair 数量 = 496
-```
-
-大量 pair 高度重复。
-
-更好的策略包括：
-
-```text
-winner vs hardest negative
-near-score pair
-correct vs plausible wrong
-same-state discordant pair
-high-reward vs low-reward pair
-```
-
-目标是提高每一个 pair 的信息密度。
+Success@Budget、Pareto、budget-matched baseline 等正式 protocol 统一见第 16 章。
 
 ---
 
-# 8.31 Hard Negative 在 Candidate Selection 中为什么重要？
+# 8.28 研究实例：RoTFuse / K17 的结构映射
 
-Hard Negative 是：
-
-```text
-看起来合理
-但在关键点上失败
-```
-
-例如数学：
+这一类方法很适合作为本章 canonical research case：
 
 ```text
-推导流畅
-只错一个隐蔽符号
+Authoritative Prefix P
+↓
+Baseline local continuation u0
+↓
+Risk / Suspicion Trigger
+├── No → keep u0
+└── Yes
+    ↓
+    Same-prefix candidates c1 / c2
+    ↓
+    Candidate scoring
+    ↓
+    Select / Commit
 ```
 
-Agent：
+这里必须拆开三个问题：
 
 ```text
-工具和参数都正确
-但漏了最终 verification
+Trigger
+什么时候值得探索？
+
+Generation
+探索以后有没有更好的 local continuation？
+
+Selection
+有好 candidate 时能不能选出来？
 ```
 
-Hard Negative 比乱码更能帮助：
-
-```text
-reward model
-verifier
-preference optimization
-selector
-```
-
-学会真正的 decision boundary。
+一个 stage 的成功不能替代另一个 stage。
 
 ---
 
-# 8.32 Candidate Pool 本身也是一种数据资产
+## 8.28.1 Baseline u0 的意义
 
-很多团队只把 winner 当训练集。
+`u0` 是当前 baseline local policy 的 continuation。
 
-其实 candidate pool 可以支持：
+所以 selector 不是在做：
 
 ```text
-SFT
-Preference
-Reward Modeling
-Verifier Training
-Failure Analysis
-Oracle Study
-Calibration
-Hard-case Mining
-Synthetic Data Seed
-Regression Testing
+“哪个 candidate 绝对最好？”
+```
+
+而是在做：
+
+> **“是否有足够证据偏离 baseline？”**
+
+这天然是 conservative intervention 问题。
+
+---
+
+## 8.28.2 Model Likelihood Score 的语义
+
+若使用平均 token log-likelihood：
+
+$$
+S(c)=\frac{1}{|c|}\sum_t \log P(c_t\mid P,c_{<t})
+$$
+
+它表达的是：
+
+```text
+模型自身对这段 continuation 的平均支持程度
+```
+
+而不是：
+
+```text
+外部 correctness
 ```
 
 因此：
 
-> **Candidate Pool 比单独 Winner 更接近原始资产，Winner 只是其中一种派生数据。**
+```text
+High Likelihood
+≠
+Correct
+```
 
-这和“原始日志 vs 清洗后训练集”的区别类似。
-
----
-
-# 8.33 常见失败模式
-
-### 失败 1：N 很大，但候选几乎一样
-
-增加的是 token，不是 information。
-
-### 失败 2：Oracle@N 很低却一直调 selector
-
-瓶颈其实在 candidate generation。
-
-### 失败 3：Reward Model 有 bias，却用超大 N 做 Best-of-N
-
-会放大 reward hacking。
-
-### 失败 4：只保留 winner，删除所有 loser
-
-丢失 preference / hard-negative / failure-analysis 价值。
-
-### 失败 5：强制必须选一个 candidate
-
-所有候选都差时应允许 reject all / keep baseline。
-
-### 失败 6：只看 selector accuracy
-
-类别不平衡时 accuracy 可能毫无意义。
-
-### 失败 7：没有 baseline candidate identity
-
-无法判断 replacement 到底是 rescue 还是 harmful。
-
-### 失败 8：离线用 final outcome 选得很好，就认为线上可实现
-
-这是 future leakage。
-
-### 失败 9：同一 grader 同时做 selection 和 final evaluation
-
-容易产生 evaluator overfitting。
-
-### 失败 10：只报告 accuracy gain，不报告 compute
-
-test-time method 的结论不完整。
-
-### 失败 11：候选越多就默认越好
-
-有效 candidate density 可能下降，scoring cost 和 reward hacking 风险上升。
-
-### 失败 12：Rejection Sampling 只看正确性，不看 diversity
-
-最终训练集可能高度模式坍缩。
-
-### 失败 13：Pair Construction 随机全组合
-
-产生大量低信息、重复 pair。
-
-### 失败 14：selector 变了但历史 chosen decision 也被重写
-
-如果是在做历史实验重计分，应保持 frozen decision，不要产生 retrospective decision leakage。
+这是 Candidate Score interpretation 的典型例子。
 
 ---
 
-# 8.34 从数据岗位视角，这一章实际在做什么？
+# 8.29 常见失败模式
 
-对应工作可能包括：
+1. N 很大，但 candidate 几乎一样。
+2. Oracle 很低却一直调 selector。
+3. Scorer 有 bias，却用超大 N 放大它。
+4. Loser 全删，浪费 hard negative / preference 价值。
+5. 所有 candidate 都差时仍强制选一个。
+6. 只报 selector accuracy。
+7. 不保留 baseline identity，无法判断 intervention transition。
+8. 离线用 future outcome 选得很好，就声称线上可实现。
+9. Selection 和 final evaluation 共用同一盲点 scorer。
+10. 只报告质量增益，不报告额外 compute。
+11. 认为 candidate 越多越好。
+12. 只保留 top-style mode，造成 distribution collapse。
+13. Pair 全组合，制造大量低信息 pair。
+14. 只保存 winner，不保存完整 pool。
+15. 把 corrected label 后重新选出来的结果冒充历史 selector decision。
+
+---
+
+# 8.30 从数据岗位视角，这一章实际会做什么？
 
 ```text
-设计 rollout 配置
-控制 sampling temperature / top-p
-批量生成 N candidates
-统计 candidate diversity
-跑 verifier / grader / reward model
-做 rejection sampling
+设计 rollout config
+控制 sampling / branching
+构建 candidate pool
+分析 candidate diversity
+跑 verifier / reward / judge
+计算 Oracle@N
+做 rejection / routing
+训练 / 校准 selector
+做 threshold / abstention policy
 构造 chosen / rejected pair
 挖 hard negatives
-做 oracle@N 分析
-训练 / 校准 selector
-做 threshold / coverage sweep
-统计 rescue / harmful / net
-做 cost accounting
-保留完整 candidate pool
-做 selector versioning
-做 offline / online consistency audit
-分析 selection bias
+做 same-state counterfactual
+设计 dynamic N
+保存完整 candidate pool
+做 online / offline information audit
+统计 end-to-end utility 与 compute
 ```
 
-这已经非常接近很多大模型数据岗位写的：
+真正成熟的 Candidate Selection 工作不是：
 
-> “搭 Agent、做数据实验，让模型自己完成数据生产策略的执行与验证。”
+> “多采样几个，然后挑分最高的。”
 
-因为工作重点已经不是人工写数据，而是：
+而是：
 
-```text
-让模型产生经验
-↓
-设计评价信号
-↓
-把经验筛成有价值的数据
-↓
-证明筛选策略确实有用
-```
+> **知道搜索空间有没有价值、scorer 在测什么、selector 能否在线实现，以及额外计算最终有没有转化成真实 outcome gain。**
 
 ---
 
-# 8.35 本章关键词
+# 8.31 本章关键词
 
 | 术语 | 一句话理解 |
 |---|---|
-| Rollout | 从当前 prompt / state 让 policy 实际生成行为与结果 |
-| Candidate | 同一任务 / 状态下的一个备选 response、reasoning 或 action |
-| Best-of-N | 生成 N 个候选并选最高分者 |
-| Rejection Sampling | 生成后按规则 / reward / verifier 过滤并保留部分样本 |
-| Self-consistency | 多个 reasoning sample 按 final answer 共识做选择 |
-| Verifier-guided Selection | 用客观验证信号筛候选 |
-| Reward-guided Selection | 用 learned reward / grader 排候选 |
-| Oracle@N | N 个候选中至少存在一个正确解时的理论上限 |
-| Candidate Diversity | 候选在语义、结构、决策层面的差异 |
-| Hard Negative | 看起来合理但关键处错误的负例 |
-| Rescue | baseline 错、replacement 对 |
-| Harmful | baseline 对、replacement 错 |
-| Coverage | selector 实际干预的样本比例 |
-| Margin | 候选评分差距 |
-| Selection Bias | 选择机制改变训练数据分布 |
-| Selector-induced Bias | selector 的偏好被写入后续数据 |
-| Dynamic N | 根据当前 state 动态分配候选数量 |
-| Same-prefix Candidate | 在完全相同 reasoning prefix 下产生不同局部 continuation |
-| Candidate Pool | 同一 state 下所有原始候选及其元数据集合 |
+| Rollout | 从当前 Task / State 实际生成行为与 outcome |
+| Candidate Pool | 同一 state 下完整候选及其元数据集合 |
+| Best-of-N | 生成 N 个候选并按 scorer 选择 |
+| Rejection Sampling | 生成后按 evidence / score 路由候选 |
+| Oracle@N | 候选池中存在成功候选的理论上限 |
+| Selector Gap | Oracle 与实际选择表现之间的差距 |
+| Same-state Candidate | 从相同决策状态产生的 alternative |
+| Decision Diversity | 关键 state 上不同 action / continuation 的差异 |
+| Abstention | selector 证据不足时不强制选择 |
+| Keep Baseline | 不偏离现有 baseline policy |
+| Margin | candidate 与 baseline / alternative 的 score 差 |
+| Selection Bias | selection mechanism 改写最终数据分布 |
+| Dynamic N | 根据 state 动态分配 candidate budget |
+| Hard Negative | 合理但关键 decision 错误的 candidate |
+| Online Selectability | 仅用当前可观测证据能否选到更好 candidate |
 
 ---
 
-# 8.36 面试 / 自检问题
+# 8.32 面试 / 自检问题
 
-学完这一章至少应该能够回答：
-
-1. **Rollout 与 Synthetic Data 有什么关系？**
-2. **Best-of-N 的提升上限由哪些因素决定？**
-3. **为什么 Oracle@N 应该在训练 selector 前先做？**
-4. **Rejection Sampling 为什么不应该简单理解成“错误样本删除”？**
-5. **Self-consistency 在什么任务上有效，局限是什么？**
-6. **Verifier-guided Selection 和 Reward-guided Selection 有什么区别？**
-7. **为什么 N 越大不一定越好？**
-8. **什么是 Candidate Diversity？哪一层 diversity 最重要？**
-9. **为什么 selector accuracy 可能是误导指标？**
-10. **Rescue / Harmful / Neutral 如何定义？**
-11. **为什么 candidate selector 应允许 reject all / keep baseline？**
-12. **什么是 selection bias？**
-13. **为什么用同一个 judge 做 selection 和 evaluation 有风险？**
-14. **如何把 candidate pool 转换成 preference data？**
-15. **Hard Negative 为什么比 obvious negative 更有价值？**
-16. **为什么 same-prefix candidate 特别适合做局部因果分析？**
-17. **Offline oracle selection 与 online selector 的边界是什么？**
-18. **如何评价一个 test-time candidate selection 方法的成本收益？**
-19. **Dynamic N 的核心思想是什么？**
-20. **RoTFuse/K17 中 trigger、generation、selection 为什么必须分开评估？**
-21. **平均 log-likelihood 高为什么不等于 candidate correctness 高？**
-22. **为什么完整 candidate pool 应该长期保存，而不是只留 winner？**
+1. Rollout 与普通 synthetic response 有什么区别？
+2. Candidate Pool 为什么比 winner 更有数据价值？
+3. Best-of-N 真正的瓶颈有哪些？
+4. Oracle@N 为什么应该先于 selector optimization？
+5. Recoverability 与 Selectability 在 candidate system 中如何区分？
+6. Same-state candidate 为什么适合局部比较？
+7. Self-consistency 的适用边界是什么？
+8. Verifier-guided 与 Reward-guided Selection 有什么区别？
+9. 为什么 N 越大不一定越好？
+10. Selector 为什么应该允许 Keep Baseline / Reject All？
+11. 为什么 score margin 有决策价值？
+12. Selector Accuracy 为什么可能误导？
+13. Offline oracle 与 online selector 的信息边界是什么？
+14. Selection Bias 怎样改变训练分布？
+15. Multi-stage selector 最重要的早期指标是什么？
+16. Candidate pair 为什么不应该随机全组合？
+17. Dynamic N 的核心思想是什么？
+18. 为什么 test-time candidate method 必须做 cost accounting？
+19. RoTFuse/K17 中 Trigger / Generation / Selection 为什么不能混成一个“方法效果”？
+20. High model likelihood 为什么不等于 candidate correctness？
 
 ---
 
-## 8.36.1 一个通用回答框架：如何设计 Candidate Selection 数据实验？
-
-如果面试官问：
-
-> “给一个模型生成多个回答，你怎么证明筛选策略有用？”
-
-可以回答：
+## 8.32.1 一个通用回答框架：如何证明 Candidate Selection 有用？
 
 ```text
-1. 冻结 task set / model / generation config
+1. 冻结 Task / State / Generator 条件
    ↓
-2. 每个 task 生成 N candidates
+2. 生成 N candidates，并保留完整 pool
    ↓
-3. 建立可靠 outcome verifier / gold
+3. 建立可靠 offline outcome evidence
    ↓
-4. 先算 candidate oracle@N
+4. 先算 Oracle@N
    ↓
-5. 判断瓶颈在 generation 还是 selection
+5. 判断 bottleneck 在 Generation 还是 Selection
    ↓
-6. 设计 scorer / selector
+6. 设计只依赖 online-observable evidence 的 selector
    ↓
-7. 保留 baseline candidate
+7. 保留 baseline / abstention policy
    ↓
-8. 统计 rescue / harmful / net / coverage
+8. 做 margin / threshold / dynamic-N analysis
    ↓
-9. 做 threshold sweep 与 calibration
+9. 用 Ch16 protocol 报 end-to-end outcome、coverage 和 cost
    ↓
-10. 计算 token / latency / API 成本
-   ↓
-11. 用 held-out tasks 验证泛化
-   ↓
-12. 保存完整 candidate pool 和版本 lineage
+10. 把 winner / loser 路由成不同 training views
 ```
 
 核心不是：
 
-> “selector accuracy 有 80%。”
+> “selector 分数很高。”
 
 而是：
 
-> **这个 selector 是否在可实现的信息条件下，把有限额外计算转化成了稳定的任务收益。**
+> **在一个真实可实现的信息条件和预算约束下，它能不能把 candidate pool 中已有的潜在价值兑现出来。**
 
 ---
 
-# 8.37 本章最终要形成的一个认识
+# 8.33 本章最终要形成的认识
 
-把整章压缩成一句话：
-
-> **Candidate Selection 的本质不是“多生成然后挑最好”，而是在有限计算预算下，设计一个从搜索空间、评价信号到干预策略的完整决策系统。**
-
-更具体地说：
+Candidate System 可以压成四句话：
 
 ```text
-Candidate Generation
-决定“有没有更好的路”
+Generation
+决定有没有更好的路。
 
-Scoring / Verification
-决定“能不能认出更好的路”
+Oracle
+告诉我们理论上还有多少上限。
 
-Selection / Threshold
-决定“什么时候值得偏离 baseline”
+Selection
+决定在线能不能把上限兑现。
 
-Data Routing
-决定“winner 和 loser 分别变成什么学习信号”
+Routing
+决定好 / 坏候选怎样变成下一轮数据。
 ```
 
-下一章将继续解决一个更上游的问题：
+下一章第 9 章继续往上游走：
 
-> **哪些 task / state 最值得拿来生成这些候选？**
-
-也就是：
-
-# 第 9 章 Hard Case Mining 与 Curriculum
-
-它会系统讨论：
-
-```text
-error-driven sampling
-uncertainty sampling
-disagreement mining
-adversarial generation
-model-specific hard case
-capability frontier
-curriculum
-active data selection
-```
-
-换句话说，第 8 章研究“有候选以后怎么挑”，第 9 章研究“下一批最值得生成的数据到底应该从哪里来”。
+> **哪些 Task / State 最值得投入 rollout、annotation 和 synthetic budget？**
