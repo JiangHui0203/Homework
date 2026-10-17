@@ -1,105 +1,83 @@
-# 第 12 章 Agent Trajectory Anatomy：状态、事件、记忆、分支与可审计轨迹
+# 第 12 章 Agent Trajectory Anatomy：把一次 Agent 运行表示成可回放、可归因的数据资产
 
 > 所属体系：[`LLM_Agent_Data_Knowledge_System.md`](../LLM_Agent_Data_Knowledge_System.md)
 >
-> 前置章节：[`第 11 章 Environment Design`](./11_Environment_Design.md)
+> 前置章节：[`第 10 章 Agent Task Design`](./10_Agent_Task_Design.md)、[`第 11 章 Environment Design`](./11_Environment_Design.md)
 >
-> 关联章节：[`第 5 章 Tool-use Data 与 Agent Trajectory Data`](./05_Tool_Use_and_Agent_Trajectory_Data.md)、[`第 10 章 Agent Task Design`](./10_Agent_Task_Design.md)、[`第 4 章 Reasoning Data 与 Process Supervision`](./04_Reasoning_Data_and_Process_Supervision.md)
+> 关联章节：[`第 5 章 Tool-use Data 与 Agent Trajectory Data`](./05_Tool_Use_and_Agent_Trajectory_Data.md)、[`第 13 章 Task Success 与 Credit Assignment`](./13_Task_Success_and_Credit_Assignment.md)、[`第 14 章 Agent Failure Taxonomy`](./14_Agent_Failure_Taxonomy.md)、[`第 19 章 Data Governance、Lineage 与 Reproducibility`](./19_Data_Governance_Lineage_and_Reproducibility.md)
 >
-> 本章目标：把 Agent trajectory 从“一串聊天消息”提升为一套可以训练、评测、回放、归因和审计的**结构化事件轨迹**；掌握 State、Decision、Action、Observation、Memory、Context、Branch、Backtrack、Termination、Trace Schema、Replay 与 Lineage 的设计方法。
+> 编辑基础设施：[`Canonical Glossary`](./00_Glossary_and_Notation.md) · [`Canonical Casebook`](./00_Canonical_Casebook.md)
 >
-> 本章核心问题：**一条 Agent trajectory 的价值，不在于它有多长，而在于我们能否准确恢复“当时 Agent 看到了什么、做了什么、环境发生了什么、下一步为什么变化，以及最终结果由哪些关键决策导致”。**
+> 本章定位：**Agent Trajectory Representation 的 canonical chapter。它负责 typed event log、state lineage、context / memory lineage、branch / retry / backtrack / replay 以及由 Raw Trace 派生不同 Data View 的表示方法；system-wide provenance / dataset governance 归第 19 章。**
+>
+> 本章核心问题：**一次 Agent 运行到底应该怎样记录，才能准确恢复“当时 Agent 看到了什么、决定了什么、真正执行了什么、环境发生了什么、上下文如何变化、分支从哪里产生，以及后来还能不能重放和重新派生监督信号”。**
 
 ---
 
-# 12.0 为什么 Trajectory 不能只保存成 Chat Transcript？
+# 12.0 Trajectory 不是聊天记录，而是执行事实
 
-最简单的 Agent 日志可能长这样：
+最简单的日志可能只是：
 
 ```text
 User: 取消订单 1847
-Assistant: 我先查询一下订单。
-Assistant tool_call: search_order(1847)
-Tool: status=pending
-Assistant tool_call: cancel_order(1847)
-Tool: success=true
-Assistant: 已经取消。
+Assistant: 我先查一下。
+Tool Call: get_order_status(1847)
+Tool Result: pending
+Tool Call: cancel_order(1847)
+Tool Result: success
+Assistant: 已取消。
 ```
 
-人眼看起来已经足够。
+这足够人类大致理解发生了什么，却不足以支持严谨的数据工作。
 
-但如果要真正做：
+如果要做：
 
 ```text
-训练
-错误分析
-离线回放
-候选比较
-step-level grading
-failure attribution
-regression test
-数据重标
+step-level evaluation
+failure localization
+counterfactual branching
+replay
+credit assignment
+SFT / preference / eval view reconstruction
+context-truncation audit
 ```
 
-这段文本远远不够。
-
-你还需要知道：
+至少还需要知道：
 
 ```text
-每条消息的 event type 是什么？
-tool call 的 schema version 是什么？
-Agent 当时看到了哪些 context？
-有没有隐藏掉的旧 observation？
-工具调用前的 environment state 是什么？
-调用后 state diff 是什么？
-这个 call 是第一次还是 retry？
-如果 retry，为什么 retry？
-最终 success 是谁判的？
-使用的是哪个 verifier version？
-中间有没有 context truncation？
-Harness 有没有自动插入系统消息？
+这个 Tool Call 是模型主动产生的，还是 Harness 自动重试？
+Agent 当时真正可见的 Observation 是什么？
+World State 与 Agent-visible State 是否一致？
+Tool Call 前后环境发生了什么 State Diff？
+这次动作是不是上一动作的 retry？
+分支是否真的来自同一个 authoritative state？
+结束是 Model Stop 还是 Harness 达到 max_steps？
+哪些字段只对研究者可见，哪些在线模型真的能看到？
 ```
 
-所以成熟的 trajectory 应该被理解成：
+因此本章采用一个核心定义：
 
-> **typed event log + state lineage + execution evidence**
+> **Agent Trajectory = Typed Event Log + State Lineage + Execution Evidence。**
 
-而不是自然语言 transcript。
-
-可以画成：
-
-```mermaid
-flowchart LR
-    S0[State s0] --> D0[Decision d0]
-    D0 --> A0[Action a0]
-    A0 --> E0[Environment Transition]
-    E0 --> O1[Observation o1]
-    O1 --> S1[State s1]
-    S1 --> D1[Decision d1]
-    D1 --> A1[Action a1]
-    A1 --> E1[Environment Transition]
-    E1 --> O2[Observation o2]
-    O2 --> S2[State s2]
-    S2 --> T[Termination / Final Response]
-```
+而不是简单的 transcript。
 
 ---
 
-# 12.1 一条 Agent Trajectory 的最小数学结构
+# 12.1 从经典序列到 Typed Event Log
 
-经典形式可以写成：
+经典 Agent trajectory 可以写成：
 
-$$
-\tau = (s_0,a_0,o_1,s_1,a_1,o_2,\ldots,s_T)
-$$
+\[
+\tau=(s_0,a_0,o_1,s_1,a_1,o_2,\ldots,s_T)
+\]
 
-但真实 Agent 系统往往需要更丰富的表示：
+这个形式很适合理论分析，但真实系统通常需要更细的 event 表示：
 
-$$
-\tau = (e_0,e_1,\ldots,e_n)
-$$
+\[
+\tau=(e_0,e_1,\ldots,e_n)
+\]
 
-其中每个 $e_i$ 是一个 typed event，例如：
+其中 event 可以是：
 
 ```text
 USER_MESSAGE
@@ -107,173 +85,173 @@ SYSTEM_MESSAGE
 MODEL_DECISION
 TOOL_CALL
 TOOL_RESULT
+ENVIRONMENT_EVENT
 STATE_UPDATE
-MEMORY_WRITE
 MEMORY_READ
+MEMORY_WRITE
 RETRY
 BACKTRACK
-VERIFICATION
+VERIFY
 FINAL_RESPONSE
 TERMINATION
 ```
 
-这个 event-log 表达比简单 `(state, action, observation)` 更适合真实工程。
+Event-based schema 的价值在于：
+
+```text
+谁产生了这个事件？
+它影响了什么？
+是否对 Agent 可见？
+它和前一个事件是什么关系？
+它属于逻辑动作、执行尝试，还是评价结果？
+```
+
+都可以被显式记录。
 
 ---
 
-## 12.1.1 为什么 Event-based Schema 更好？
+# 12.2 五类状态必须拆开
 
-因为它允许明确区分：
+本书不鼓励裸写 `State`。在 Agent trajectory 中至少要区分：
 
 ```text
-模型主动做的
-Harness 自动做的
-Tool 执行产生的
-Environment 自己变化的
-Evaluator 后处理产生的
+World State
+Environment State
+Agent-visible State
+Working State
+Persistent Memory
 ```
+
+完整定义与 Environment 语义见第 11 章，这里只讨论它们在 trajectory 中如何被记录。
+
+## 12.2.1 World State
+
+真实世界中此刻成立的事实。
 
 例如：
 
 ```text
-TIMEOUT
+order_1847.status = shipped
 ```
 
-如果不记录 source，你可能不知道它来自：
+Agent 未必能直接访问。
+
+## 12.2.2 Environment State
+
+当前受控任务环境中被系统显式建模、可快照和验证的状态。
+
+例如：
 
 ```text
-Model timeout
-Tool timeout
-Network timeout
-Harness deadline
-Environment simulation timeout
+DB row
+filesystem tree
+calendar entries
+permission map
 ```
 
-不同来源对应完全不同的 failure attribution。
+## 12.2.3 Agent-visible State
 
----
-
-# 12.2 State：Agent 决策时到底“知道什么”？
-
-State 是 trajectory 分析里最容易被模糊化的词。
-
-一个更严谨的拆法是：
+模型做决策时实际能使用的信息：
 
 ```text
-World State
-Agent-visible State
-Internal Working State
-Persistent Memory
-Execution Metadata
-```
-
----
-
-## 12.2.1 World State
-
-真实环境状态。
-
-例如订单系统：
-
-```json
-{
-  "order_1847": {
-    "status": "pending",
-    "amount": 79.0,
-    "customer": "C142"
-  }
-}
-```
-
-Agent 通常不能直接看到全部 world state。
-
----
-
-## 12.2.2 Agent-visible State
-
-Agent 当前能够使用的信息。
-
-包括：
-
-```text
-当前 user request
-system / developer instructions
-tool descriptions
-最近若干 messages
-tool observations
-retrieved memory
-当前计划 / structured scratch state
+User request
+System / Developer instruction
+Tool schemas
+Visible history
+Tool observations
+Retrieved memory
+Structured working state
 ```
 
 所以：
 
-> **World State ≠ Agent-visible State。**
+> **World State ≠ Environment State ≠ Agent-visible State。**
 
-这是 partial observability 的来源。
+## 12.2.4 Working State
 
----
-
-## 12.2.3 Internal Working State
-
-这里指系统显式保存、且允许用于后续决策的中间结构，例如：
+系统显式维护、允许进入后续决策的结构：
 
 ```text
-current plan
+resolved entities
 open subgoals
 known facts
-resolved entities
 uncertainties
 pending verification
+current plan
 ```
 
-注意：不要把它和模型不可见的私有内部神经状态混为一谈。
+它不是模型不可见的内部神经状态。
 
-Agent 数据工程通常关心的是**可记录、可复现、可用作决策输入的 working state**。
+## 12.2.5 Persistent Memory
+
+跨较长时间甚至跨 episode 保存的信息，例如：
+
+```text
+user preference
+project context
+confirmed entity mapping
+historical task state
+```
+
+Memory 必须通过显式 read / write event 进入 trajectory，否则模型行为会显得“凭空知道”。
 
 ---
 
-## 12.2.4 Persistent Memory
+# 12.3 Context 与 State 不是一回事
 
-跨 episode 或跨较长时间保留的信息。
-
-例如：
+系统可能拥有很多信息，但模型只会看到被 Harness 选进 context 的那一部分。
 
 ```text
-用户偏好
-历史任务状态
-长期项目背景
-已确认实体映射
+Full System State
+      ↓
+Context Construction Policy
+      ↓
+Actual Model Context
+      ↓
+Decision
 ```
 
-Memory 会在第 12.10 节单独展开。
+因此 trajectory 应该能够恢复：
+
+```text
+context_version
+visible_event_ids
+retrieved_memory_ids
+summarized_ranges
+truncated_event_ids
+```
+
+这对于区分下面两种情况尤其重要：
+
+```text
+模型明明看到了关键事实却没用
+```
+
+与：
+
+```text
+Harness 根本没有把关键事实放进 context
+```
+
+后者不能简单归因成模型忘记。
 
 ---
 
-# 12.3 Decision 与 Action：不要把“想做什么”和“真正执行了什么”混成一层
+# 12.4 Decision Intent、Planned Action、Executed Action 必须分层
 
-假设 Agent 输出：
+Agent 可能说：
 
 ```text
-我应该先查询订单状态。
+“我应该先查询订单状态。”
 ```
 
-随后调用：
+但真正执行：
 
 ```text
 cancel_order(1847)
 ```
 
-此时：
-
-```text
-Decision / Plan
-≠
-Executed Action
-```
-
-如果日志只保存最终 tool call，你会丢掉 plan-action inconsistency；如果只保存自然语言 reasoning，又无法确认真正执行了什么。
-
-因此建议区分：
+所以至少要区分：
 
 ```text
 Decision Intent
@@ -282,100 +260,65 @@ Executed Action
 Execution Result
 ```
 
----
-
-## 12.3.1 Action 可以有哪些类型？
-
-不仅是 tool call。
-
-可以包括：
+这能揭示：
 
 ```text
-TOOL_CALL
-FINAL_RESPONSE
-ASK_USER
-WAIT
-RETRY
-ABORT
-DELEGATE
-WRITE_MEMORY
-READ_MEMORY
-CHANGE_PLAN
-VERIFY
-BACKTRACK
+plan-action inconsistency
+serialization bug
+harness dispatch bug
+policy override
 ```
 
-所以 Agent action space 比 function calling 更广。
+Action 也不只包括 Tool Call，还可以是：
+
+```text
+ASK_USER
+WAIT
+ABORT
+DELEGATE
+VERIFY
+BACKTRACK
+WRITE_MEMORY
+READ_MEMORY
+FINAL_RESPONSE
+```
+
+因此 function calling 只是 action space 的一个子集。
 
 ---
 
-# 12.4 Observation：Tool Result 不是唯一 Observation
+# 12.5 Observation 不等于 Tool Result
 
-Observation 是 Agent 从环境获得的新信息。
-
-来源可能包括：
+Observation 指 Agent 获得的新信息，它可能来自：
 
 ```text
 Tool Result
 User Reply
 Environment Event
-Execution Error
-File Change
-Page Change
-Timeout
 Permission Error
-Another Agent Message
-Verifier Feedback
+Timeout
+File Change
+Another Agent
+Human Approval
 ```
 
-所以最好把 observation schema 做成统一 event：
+一个规范 Observation 至少应记录：
 
 ```json
 {
   "event_type": "observation",
   "source": "tool",
-  "source_id": "search_order",
+  "source_id": "get_order_status",
   "status": "ok",
   "payload": {
-    "order_id": 1847,
+    "order_id": "1847",
     "status": "pending"
-  }
+  },
+  "visible_to_agent": true
 }
 ```
 
----
-
-## 12.4.1 Observation Grounding
-
-最关键的问题不是：
-
-> Agent 有没有收到 observation？
-
-而是：
-
-> **下一步决策有没有真正被 observation 约束？**
-
-例如：
-
-```text
-Tool: order 1847 status = shipped
-```
-
-Agent 下一步却调用：
-
-```text
-cancel_order(1847)
-```
-
-如果业务规则禁止取消已发货订单，则说明：
-
-```text
-Observation exists
-but
-Observation was not grounded into decision
-```
-
-因此数据中最好区分：
+进一步还要区分：
 
 ```text
 observation_received
@@ -383,335 +326,220 @@ observation_parsed
 observation_used
 ```
 
+因为 Agent “收到”一个 Observation，并不代表它真的 grounding 到下一步决策中。
+
 ---
 
-# 12.5 Message、Action、Observation Boundary 为什么重要？
+# 12.6 Raw Message、Normalized Event、Decision Transition 三层表示
 
-很多数据集直接把所有东西塞进 `messages`：
+真实系统通常先得到 API messages：
 
 ```json
-[
-  {"role":"user", ...},
-  {"role":"assistant", ...},
-  {"role":"tool", ...}
-]
+{"role":"assistant", ...}
+{"role":"tool", ...}
 ```
 
-这对训练很方便，但对分析不一定够。
-
-例如 Assistant message 可能同时包含：
+但一个 message 可能同时包含：
 
 ```text
-自然语言解释
-+
-tool call
-+
-结构化 reasoning tag
-+
-final answer fragment
+自然语言说明
+Tool Call
+结构化状态
+Final answer fragment
 ```
 
-于是一个 message 内包含多个 decision event。
-
-因此成熟的数据层通常需要：
+所以推荐三层表示：
 
 ```text
-Raw Message Layer
+L0 Raw Message / Runtime Log
         ↓
-Normalized Event Layer
+L1 Normalized Typed Events
         ↓
-Decision / Transition Layer
+L2 Decision / Transition Representation
 ```
 
-这样可以兼容不同模型 API，同时保持统一分析语义。
+其中：
+
+```text
+L0
+保留原始事实
+
+L1
+统一不同模型和工具 API
+
+L2
+服务分析、训练和 credit assignment
+```
+
+这是 trajectory-local representation；更广义的数据治理层级见第 19 章。
 
 ---
 
-# 12.6 一个推荐的 Trajectory Event Schema
+# 12.7 推荐的 Event Schema
 
-一个较实用的 schema 可以是：
+一个事件至少应该有下面几组字段。
 
-```json
-{
-  "trajectory_id": "traj_001",
-  "task_id": "task_1847",
-  "episode_id": "ep_20261017_001",
-  "events": [
-    {
-      "event_id": 0,
-      "timestamp": "...",
-      "event_type": "user_message",
-      "actor": "user",
-      "content": "取消订单 1847",
-      "visible_to_agent": true
-    },
-    {
-      "event_id": 1,
-      "event_type": "tool_call",
-      "actor": "agent",
-      "tool_name": "search_order",
-      "arguments": {"id": 1847},
-      "parent_event_id": 0,
-      "call_id": "call_001"
-    },
-    {
-      "event_id": 2,
-      "event_type": "tool_result",
-      "actor": "environment",
-      "call_id": "call_001",
-      "status": "ok",
-      "payload": {"status": "pending"}
-    }
-  ],
-  "final_outcome": {
-    "task_success": true,
-    "verifier_version": "v3"
-  }
-}
-```
-
-这只是示意，真正关键的是以下字段族。
-
----
-
-## 12.6.1 Identity
+## Identity
 
 ```text
 trajectory_id
 episode_id
 task_id
+event_id
 run_id
 candidate_id
 branch_id
 ```
 
----
+## Event Semantics
 
-## 12.6.2 Lineage
+```text
+event_type
+actor
+action_type
+source
+payload
+status
+```
+
+## Local Lineage
 
 ```text
 parent_event_id
 parent_state_id
-source_trajectory_id
 branch_from_event_id
-retry_of_call_id
-replay_of_episode_id
+retry_of_attempt_id
+backtrack_to_state_id
+call_id
+logical_action_id
 ```
 
----
+## Visibility
 
-## 12.6.3 Runtime
+```text
+visible_to_agent
+visible_to_researcher
+included_in_context
+```
+
+## Runtime Reference
 
 ```text
 model_version
 prompt_version
 toolset_version
 harness_version
-environment_version
-verifier_version
-generation_config
+environment_snapshot_id
 ```
 
----
-
-## 12.6.4 Timing / Cost
+## Cost / Timing
 
 ```text
-start_time
-end_time
+timestamp
 latency_ms
 input_tokens
 output_tokens
-tool_latency
-API cost
+tool_cost
 ```
 
----
-
-## 12.6.5 Evaluation
+## Evaluation Reference
 
 ```text
-step_label
-failure_type
-reward
 verifier_result
-human_annotation
-judge_score
-confidence
+judge_result
+human_label
+failure_label
+reward
 ```
+
+注意：这里保存的是与 trajectory 关联的局部引用。Dataset-level lineage、version history 和 audit trail 的 canonical owner 是第 19 章。
 
 ---
 
-# 12.7 Step 到底怎么切？Trajectory Segmentation
+# 12.8 Step 怎么切？Segmentation 必须服务下游问题
 
-和 Reasoning Data 一样，Agent trajectory 也存在 segmentation 问题。
+Trajectory 可以按不同粒度切分。
 
-可以有四种常见粒度。
-
----
-
-## 12.7.1 Message-level
+### Message-level
 
 ```text
-一条 message = 一个 step
+一条 message = 一步
 ```
 
-简单，但容易把多个行为塞在一起。
+适合简单日志，但经常太粗。
 
----
-
-## 12.7.2 Tool-call-level
+### Tool-call-level
 
 ```text
-一次 tool call + result = 一个 step
+Tool Call + Result = 一步
 ```
 
-适合 tool-use analysis。
+适合 function calling / tool accuracy。
 
-但会漏掉：
-
-```text
-ask user
-stop
-memory read
-plan update
-```
-
----
-
-## 12.7.3 Decision-level
-
-一个 step 表示：
+### Decision-level
 
 ```text
-State
+Agent-visible State
 → Decision
 → Action
 → Observation
 ```
 
-这是最适合 credit assignment 的粒度之一。
+最适合 process analysis 和 credit assignment。
+
+### Subgoal-level
+
+```text
+定位目标
+判断条件
+执行写操作
+验证结果
+```
+
+最适合 long-horizon planning，但自动切分困难。
+
+因此：
+
+> **Segmentation 不是日志格式选择，而是 supervision design。**
+
+要研究 tool selection，就不必强行做 subgoal segmentation；要研究 long-horizon recovery，仅按 message 切又远远不够。
 
 ---
 
-## 12.7.4 Subgoal-level
+# 12.9 Sequence 不够时，要用 Graph
 
-例如：
-
-```text
-Step A: 找到目标订单
-Step B: 判断是否可取消
-Step C: 执行取消
-Step D: 验证状态
-```
-
-语义最好，但自动切分最困难。
-
----
-
-## 12.7.5 一个原则：切分粒度要和下游决策一致
-
-如果你要训练：
-
-```text
-tool selector
-```
-
-那么 tool-call-level 足够。
-
-如果你要研究：
-
-```text
-long-horizon planning / recovery
-```
-
-那么 subgoal-level 或 decision-level 更合适。
-
-所以：
-
-> **Segmentation 不是纯粹的日志格式问题，而是 supervision design。**
-
----
-
-# 12.8 Trajectory 是 Sequence，还是 Graph？
-
-很多数据默认 trajectory 是线性的：
+线性轨迹：
 
 ```text
 A → B → C → D
 ```
 
-但真实 Agent 经常不是。
+只适用于没有分支、回退、并行的简单 episode。
 
----
-
-## 12.8.1 Branching
-
-例如从同一 state：
+真实 Agent 可能出现：
 
 ```text
-State S
-├── search by email
-├── search by user_id
-└── ask user clarification
+Branching
+Backtracking
+Parallel Actions
+Delegation
+Join
 ```
-
-如果做 candidate generation，就天然形成分支。
-
----
-
-## 12.8.2 Backtracking
-
-```text
-A → B → C
-        ↓
-      failure
-        ↓
-      backtrack to B
-        ↓
-        D
-```
-
-如果强行存成简单线性日志，就会看起来像：
-
-```text
-A B C B D
-```
-
-却不知道第二个 B 是“回退到历史状态”，还是重新生成的相似文本。
-
----
-
-## 12.8.3 Parallel Actions
 
 例如：
 
 ```text
-同时查询库存
-同时查询价格
-同时查询配送时间
+State S
+├── Query Inventory
+├── Query Price
+└── Query Shipping
+       ↓
+      Join
+       ↓
+Next Decision
 ```
 
-之后 join：
-
-```text
-三个结果都回来以后再决策
-```
-
-这实际上更接近 DAG：
-
-```mermaid
-flowchart LR
-    S[State] --> A1[Inventory Query]
-    S --> A2[Price Query]
-    S --> A3[Shipping Query]
-    A1 --> J[Join]
-    A2 --> J
-    A3 --> J
-    J --> D[Next Decision]
-```
-
-因此复杂 Agent trace 最好支持：
+因此复杂 trace 最好支持：
 
 ```text
 parent_event_ids
@@ -719,33 +547,22 @@ branch_id
 join_id
 ```
 
-而不是假设事件永远只有一个 parent。
+而不是强行把并行事件解释成因果顺序。
 
 ---
 
-# 12.9 Branch Lineage：同状态候选为什么必须精确记录？
+# 12.10 Same-state Branch Lineage 是局部比较的前提
 
-假设从同一个 state 生成：
-
-```text
-Candidate A
-Candidate B
-Candidate C
-```
-
-如果想比较它们的 downstream outcome，必须确认它们确实来自**同一个 authoritative state**。
-
-否则：
+若从同一个 state 产生多个 candidate：
 
 ```text
-A 的 prefix 不同
-B 的 memory 不同
-C 的 tool observation 不同
+Authoritative State S
+├── Candidate A
+├── Candidate B
+└── Candidate C
 ```
 
-最后 outcome 差异就无法归因到当前 action。
-
-因此 candidate trajectory 至少要保存：
+至少要固定：
 
 ```text
 branch_from_state_id
@@ -755,350 +572,76 @@ world_snapshot_id
 memory_snapshot_id
 ```
 
-这和 reasoning 中 same-prefix candidate 的原则完全一致。
+否则所谓 same-state comparison 可能偷偷混入：
+
+```text
+不同 context
+不同 memory
+不同 environment snapshot
+```
+
+此时 outcome 差异就不能再归因给当前 action。
+
+这与第 4 / 8 章的 same-prefix / same-state discipline 完全一致。
 
 ---
 
-# 12.10 Memory：Trajectory 中最容易被漏掉的一层
+# 12.11 Retry 与 Backtracking 是两种不同事件
 
-很多 Agent 看起来是：
-
-```text
-Task → Tool → Tool → Answer
-```
-
-但实际系统可能有 Memory：
+Retry：
 
 ```text
-Short-term Context
-Long-term Memory
-Retrieved Memory
-User Profile
-Task Memory
-External Notes
+同一个 logical action 再尝试一次
 ```
 
-如果 trajectory 不记录 memory read/write，很多行为无法解释。
-
----
-
-## 12.10.1 Memory Read
-
-例如 Agent 在当前任务中读到：
+Backtracking：
 
 ```text
-用户偏好：不要周五下午安排会议
+返回更早 decision state，改选另一条路径
 ```
 
-然后拒绝周五三点。
-
-如果日志没有 memory read，你会误以为模型“凭空知道”。
-
----
-
-## 12.10.2 Memory Write
-
-例如 Agent 执行后保存：
-
-```text
-订单 1847 已取消
-```
-
-如果这个 memory 后续跨任务被使用，那么它就是环境的一部分。
-
-因此 trajectory 最好显式记录：
-
-```text
-MEMORY_READ
-MEMORY_WRITE
-MEMORY_DELETE
-MEMORY_UPDATE
-```
-
-以及：
-
-```text
-memory source
-memory version
-visibility
-retention scope
-```
-
----
-
-## 12.10.3 Memory Contamination
-
-如果 benchmark episode 之间共享 memory：
-
-```text
-Episode A
-↓
-写入答案
-↓
-Episode B
-↓
-读取
-```
-
-那么测试集可能被前一个 episode 污染。
-
-所以 benchmark 必须明确：
-
-```text
-memory reset policy
-cross-episode persistence policy
-```
-
----
-
-# 12.11 Context 与 State 不完全相同
-
-State 是语义概念；Context 是模型真正收到的 token / message 输入。
-
-可以写成：
-
-```text
-Full Agent State
-        ↓
-Context Construction Policy
-        ↓
-Model Context Window
-```
-
-也就是说：
-
-> **Agent 知道什么，不仅取决于系统存了什么，还取决于 Harness 决定把什么塞进 context。**
-
----
-
-## 12.11.1 Context Truncation
-
-长任务中可能发生：
-
-```text
-早期 observation 被截掉
-```
-
-于是模型后来做错，不一定是推理能力差，而可能是：
-
-```text
-关键证据已不在 context
-```
-
-因此 trajectory 要记录：
-
-```text
-context_window
-context_length
-truncation_policy
-which events were dropped
-which events were summarized
-```
-
-否则无法区分：
-
-```text
-model forgot
-vs
-harness removed information
-```
-
----
-
-## 12.11.2 Context Compression / Summarization
-
-很多长 Agent 会对历史进行压缩：
-
-```text
-Raw history
-↓
-Summary
-↓
-Continue
-```
-
-此时 summary 本身就是一个新的信息瓶颈。
-
-必须记录：
-
-```text
-summary input range
-summary output
-summary model/version
-summary timestamp
-```
-
-否则后续错误可能其实是 summary corruption。
-
----
-
-# 12.12 Hidden Reasoning 与 Observable Decision State
-
-Agent trace 不应该依赖“保存模型全部内部思维”。
-
-真正可操作的数据应优先记录：
-
-```text
-observable messages
-structured plans
-subgoals
-selected actions
-tool results
-memory operations
-verification results
-state transitions
-```
-
-也就是说：
-
-> **Trajectory audit 应建立在可观察行为和状态证据上，而不是假设自然语言 CoT 完整代表模型内部计算。**
-
-这和 Reasoning Data 章节的原则一致。
-
----
-
-# 12.13 Retry：一次失败以后重新做，究竟算新 action 还是同一个 action？
-
-Retry 很常见。
-
-例如：
-
-```text
-send_email
-→ timeout
-→ retry
-→ success
-```
-
-如果只看 tool call count：
-
-```text
-2 calls
-```
-
-但语义上是：
-
-```text
-1 logical action + 1 retry
-```
-
-因此建议保存：
+因此 Retry 建议记录：
 
 ```text
 logical_action_id
 attempt_id
 retry_of_attempt_id
 retry_reason
-retry_policy
 ```
+
+Backtracking 建议记录：
+
+```text
+backtrack_from_event_id
+backtrack_to_state_id
+invalidated_event_ids
+replacement_branch_id
+```
+
+需要特别注意：**Production System 的 infrastructure retry 与 Agent policy 的 recovery 不是同一件事**。前者见第 22 章，后者才应该进入 Agent behavior trajectory。
 
 ---
 
-## 12.13.1 Retry 是否合理取决于错误类型
+# 12.12 Loop 不能只靠“重复次数”判断
+
+重复行为可能是：
 
 ```text
-TIMEOUT
-→ maybe retry
-
-RATE_LIMIT
-→ backoff + retry
-
-PERMISSION_DENIED
-→ retry usually useless
-
-INVALID_ARGUMENT
-→ modify args, not identical retry
-```
-
-对于非幂等写操作，还需要确认：
-
-```text
-第一次到底有没有成功
-```
-
-否则 retry 可能产生 duplicate side effect。
-
----
-
-# 12.14 Backtracking：失败后恢复到哪个状态？
-
-Backtracking 比 retry 更高级。
-
-Retry 是：
-
-```text
-同一个 action 再试
-```
-
-Backtracking 是：
-
-```text
-回到更早的 decision state
-重新选择另一条 path
-```
-
-例如：
-
-```text
-Search by name
-↓
-找到两个同名客户
-↓
-错误选择 customer A
-↓
-后续发现 email 不匹配
-↓
-backtrack
-↓
-改选 customer B
-```
-
-数据中最好记录：
-
-```text
-backtrack_from_event
-backtrack_to_state
-backtrack_reason
-invalidated_events
-replacement_branch
-```
-
-这使 recovery trajectory 可以被专门学习。
-
----
-
-# 12.15 Loop：重复行为到底是“坚持”还是“卡死”？
-
-Agent 常出现：
-
-```text
-search
-search
-search
-search
-```
-
-但并非所有重复都是坏的。
-
-可能是：
-
-```text
-分页
+合法分页
 polling
-逐个对象处理
-正常 retry
+对多个对象逐个处理
+合理 retry
 ```
 
 也可能是：
 
 ```text
 dead loop
-stuck planning
-repeated identical tool call
-no state progress
+same tool + same args + same observation
+planning stuck
 ```
 
-所以 Loop Detection 应考虑：
+所以 Loop Detection 更适合检查：
 
 ```text
 Action Similarity
@@ -1108,7 +651,7 @@ Goal Progress
 Retry Semantics
 ```
 
-一个实用指标是：
+一个较强信号是：
 
 ```text
 同一 action signature 重复
@@ -1118,150 +661,104 @@ observation 基本不变
 goal progress = 0
 ```
 
-这比单纯“调用超过 3 次”更合理。
+而不是机械设置“超过三次就是 loop”。
 
 ---
 
-# 12.16 Progress：如何判断 trajectory 有没有向目标推进？
+# 12.13 Memory 必须进入事件流
 
-这和 reasoning 中的 “step correctness ≠ progress” 很像。
-
-一个 action 可以完全正确，但对目标没帮助。
-
-例如：
+至少支持：
 
 ```text
-用户要取消订单 1847
-Agent 查询天气
+MEMORY_READ
+MEMORY_WRITE
+MEMORY_UPDATE
+MEMORY_DELETE
 ```
 
-weather tool call 本身可能执行成功，但 goal progress 为零。
-
-因此可以给 event / subgoal 增加：
+并记录：
 
 ```text
-progress_label
-resolved_subgoal
-new_information_gain
-constraint_satisfaction_delta
+memory_id
+scope
+source
+version
+visibility
+retention_scope
 ```
 
-这对 efficiency 和 credit assignment 都很有价值。
+否则：
+
+```text
+Agent 为什么知道这个用户偏好？
+为什么下一次 episode 还记得上次结果？
+```
+
+都无法解释。
+
+Benchmark 中尤其要记录：
+
+```text
+memory reset policy
+cross-episode persistence policy
+```
+
+否则可能出现 cross-episode contamination。
 
 ---
 
-# 12.17 Trajectory Compression：长轨迹到底该保留什么？
+# 12.14 Hidden Reasoning 不是 Trajectory Audit 的必要前提
 
-真实 Agent trace 可能很大：
+Agent 数据不应该依赖“保存完整内部思维”才能分析。
 
-```text
-几十轮消息
-大量 HTML
-大文件内容
-重复工具返回
-截图
-日志
-```
-
-训练和分析不能无限保存所有内容。
-
-因此需要区分：
+更稳的 evidence 是：
 
 ```text
-Raw Trace
-Normalized Trace
-Compressed Trace
-Training View
-Evaluation View
+observable message
+structured plan
+selected action
+tool result
+memory operation
+state transition
+verification result
 ```
+
+因此：
+
+> **Trajectory audit 建立在可观察行为和可复现状态证据上，而不是假设自然语言 CoT 等于模型真实内部计算。**
+
+Reasoning state supervision 的边界见第 4 章。
 
 ---
 
-## 12.17.1 Raw Trace
+# 12.15 Agent-visible Trace 与 Researcher-visible Trace 必须分开
 
-尽可能完整保存原始事实：
+### Agent-visible Trace
 
-```text
-原始 tool input/output
-原始 timestamps
-原始 context
-原始 state diff
-```
-
-作为 source of truth。
-
----
-
-## 12.17.2 Normalized Trace
-
-统一不同 tool / model API：
-
-```text
-标准 event type
-标准字段
-标准 error taxonomy
-```
-
----
-
-## 12.17.3 Compressed Trace
-
-用于较轻量分析：
-
-```text
-去掉冗余 payload
-只保留关键字段
-摘要长 observation
-```
-
----
-
-## 12.17.4 Training View
-
-训练只暴露模型应该看到的内容。
-
-绝不能把：
-
-```text
-hidden world state
-gold label
-future verifier result
-```
-
-意外塞进训练 context。
-
----
-
-# 12.18 Agent-visible Trace 与 Researcher-visible Trace 必须分开
-
-这是非常重要的数据安全边界。
-
-### Agent-visible
-
-模型在线决策真正看到：
+在线模型真正可访问：
 
 ```text
 User messages
-System instructions
+System / Developer instructions
 Tool schemas
-Tool observations
-Permitted memory
+Visible observations
+Allowed memory
 ```
 
-### Researcher-visible
+### Researcher-visible Trace
 
-离线分析可以看到：
+离线分析还可以包含：
 
 ```text
-Hidden environment state
-Ground truth
-Verifier outputs
-Failure attribution
-Counterfactual labels
-Future outcome
+Hidden Environment State
+Gold Outcome
+Verifier Output
+Failure Attribution
+Future Outcome
+Counterfactual Labels
 ```
 
-如果二者混淆，就会出现：
+二者一旦混淆，会产生：
 
 ```text
 future leakage
@@ -1269,392 +766,85 @@ label leakage
 hidden-state leakage
 ```
 
-所以建议每个字段显式带：
+所以建议字段级维护：
 
 ```text
 visible_to_agent: true / false
 ```
 
----
-
-# 12.19 Replay：能不能把同一条 trajectory 重放出来？
-
-高质量 Agent dataset 最好支持 replay。
-
-理想情况下：
-
-```text
-Task Snapshot
-+
-Environment Snapshot
-+
-Runtime Versions
-+
-Action Sequence
-```
-
-能够重放出：
-
-```text
-相同或可接受等价的 observations
-```
+这是所有在线 / 离线分析的基本边界。
 
 ---
 
-## 12.19.1 Exact Replay
-
-完全相同：
-
-```text
-same observation bytes
-same state diff
-same tool output
-```
-
-适合 deterministic simulator。
-
----
-
-## 12.19.2 Semantic Replay
-
-真实网络环境里可能做不到字节级一致。
-
-例如搜索结果顺序变化，但关键事实一致。
-
-因此可以定义：
-
-```text
-semantic equivalence
-```
-
-而不是 exact match。
-
----
-
-## 12.19.3 Replay Failure 本身也是信号
-
-如果同一 action sequence 今天已经无法复现：
-
-可能是：
-
-```text
-environment drift
-tool version changed
-external API changed
-time-dependent state
-missing snapshot
-```
-
-这说明 dataset reproducibility 已经退化。
-
----
-
-# 12.20 Trajectory Lineage：一条轨迹是怎么来的？
-
-Trajectory 最好能回答：
-
-```text
-它来自哪个 Task？
-哪个 Environment Snapshot？
-哪个 Model？
-哪个 Prompt？
-哪个 Toolset？
-哪个 Harness？
-哪个 Sampling Config？
-是不是从另一条 trajectory 分支出来的？
-有没有人工修过？
-有没有被 replay？
-有没有被 relabel？
-```
-
-可以表示成：
-
-```mermaid
-flowchart TD
-    T[Task v3] --> R1[Rollout Run]
-    E[Environment Snapshot 17] --> R1
-    M[Model v5] --> R1
-    H[Harness v2] --> R1
-    R1 --> Tau0[Trajectory τ0]
-    Tau0 --> B1[Branch c1]
-    Tau0 --> B2[Branch c2]
-    Tau0 --> A[Annotated Version]
-    A --> D1[SFT View]
-    A --> D2[Preference View]
-    A --> D3[Eval View]
-```
-
-这就是 trajectory provenance。
-
----
-
-# 12.21 一条 Trajectory 可以派生出很多不同的数据视图
-
-同一条原始轨迹可以转换成：
-
-```text
-SFT Demonstration
-Tool Selection Data
-Argument Prediction Data
-Observation Grounding Data
-Step Reward Data
-Preference Pair
-Failure Classification
-Recovery Data
-Termination Data
-Regression Case
-Benchmark Episode
-```
-
-因此：
-
-> **Raw Trajectory 是数据资产，训练格式只是它的一个 View。**
-
-不要一开始就只保存最终训练 JSON，而丢掉原始 lineage。
-
----
-
-# 12.22 Trajectory Preference：比较整条路径，而不只是最后回答
-
-假设两条轨迹最终都成功。
-
-### A
-
-```text
-search
-update
-verify
-```
-
-### B
-
-```text
-search
-search
-wrong update
-rollback
-update
-search
-verify
-```
-
-最终：
-
-```text
-both success
-```
-
-但 A 可能更好，因为：
-
-```text
-更低 cost
-更少 side effect
-更少 failure exposure
-更易审计
-```
-
-因此 trajectory preference 可考虑：
-
-```text
-Task Success
-Safety
-Side Effects
-Correctness of Intermediate Actions
-Recovery Quality
-Efficiency
-Verification
-Final Communication
-```
-
----
-
-# 12.23 Credit Assignment：最终失败到底怪哪一步？
-
-假设：
-
-```text
-S0
-↓
-A0 correct
-↓
-A1 correct
-↓
-A2 wrong entity selected
-↓
-A3 technically valid update
-↓
-Final failure
-```
-
-如果简单给所有 action reward = 0，会把 A0、A1 一起惩罚。
-
-更细的分析需要：
-
-```text
-first harmful action
-causal dependency
-repair opportunity
-last recoverable state
-irreversible point
-```
-
----
-
-## 12.23.1 First Harmful Action
-
-和 reasoning 中 first error 类似。
-
-```text
-第一个真正让未来 outcome 变差的 action
-```
-
-它不一定是第一个 syntactically wrong action。
-
----
-
-## 12.23.2 Last Recoverable State
-
-非常有价值的概念：
-
-> **到哪个 state 为止，Agent 仍然有机会通过合理操作恢复？**
+# 12.16 State Diff 比 Tool Return 更接近真实执行结果
 
 例如：
 
 ```text
-选错对象
-↓
-尚未执行 write
+refund_order(1847)
+→ {"success": true}
 ```
 
-仍可修复。
+Tool Return 只说明执行接口返回 success。
 
-但：
+真正想确认的是：
 
 ```text
-执行不可逆 transfer
+Before:
+refunded = false
+
+After:
+refunded = true
 ```
 
-之后可能已无法恢复。
-
-所以 trajectory 可以标：
+因此 write action 最好保存：
 
 ```text
-first_error_state
-last_recoverable_state
-point_of_no_return
+pre_state_id
+post_state_id
+state_diff
 ```
+
+这让：
+
+```text
+Tool Success
+```
+
+与：
+
+```text
+World / Environment Change
+```
+
+能够被区分。
 
 ---
 
-# 12.24 Trajectory 的 Counterfactual Analysis
+# 12.17 Progress 是 trajectory-local 的衍生属性
 
-一个很强的分析方法是：
+一个 action 可以完全合法，却不推动任务目标。
 
-```text
-保持前缀完全一致
-只替换某一步 action
-```
-
-然后继续 rollout。
+因此可以派生：
 
 ```text
-Prefix P
-├── Action A → Outcome 0
-├── Action B → Outcome 1
-└── Action C → Outcome 1
+progress_label
+resolved_subgoal
+information_gain
+constraint_delta
 ```
 
-这样可以估计：
+但要注意：这些属于**derived annotation**，不是 raw runtime fact。
 
-```text
-local action value
-causal leverage
-recoverability
-selector headroom
-```
+真正如何把最终 Outcome 归因给中间 decision，见第 13 章。
 
-这和 Reasoning / K17 中 same-prefix sibling comparison 的逻辑完全一致，只是这里 action 变成了 tool / Agent decision。
+本章只要求 trajectory representation 足够支持后续计算，而不重新定义 Credit theory。
 
 ---
 
-# 12.25 Trajectory Length：至少有四种“长度”
+# 12.18 Termination 本身是一类 Event
 
-不要只统计：
-
-```text
-messages = 12
-```
-
-更完整的长度包括：
-
-```text
-Message Count
-Decision Count
-Tool Call Count
-Token Count
-Wall-clock Time
-```
-
-其中：
-
-```text
-12 messages
-```
-
-可能只包含：
-
-```text
-2 meaningful decisions
-```
-
-所以做 efficiency analysis 时要根据任务选择合适长度定义。
-
----
-
-# 12.26 Cost：Agent Trajectory 的代价不仅是 Token
-
-总成本可以粗略写成：
-
-$$
-C = C_{LLM} + C_{tool} + C_{latency} + C_{sideeffect} + C_{human}
-$$
-
-其中：
-
-```text
-LLM token cost
-Tool/API cost
-Wall-clock latency
-External resource cost
-Human confirmation cost
-Risk / side-effect cost
-```
-
-例如：
-
-```text
-多一次 search
-```
-
-可能非常便宜；
-
-但：
-
-```text
-多一次付费 API / 写操作 / 用户确认
-```
-
-代价完全不同。
-
-所以 trajectory efficiency 不能只按 action count。
-
----
-
-# 12.27 Termination Event：为什么“结束”本身也是一个 Decision？
-
-Agent 什么时候结束非常关键。
-
-可能的 termination type：
+至少区分：
 
 ```text
 SUCCESS
@@ -1668,518 +858,392 @@ MODEL_STOP
 HARNESS_STOP
 ```
 
-如果只保存：
+尤其要区分：
 
 ```text
-terminated = true
+Model Stop
 ```
 
-会丢掉大量语义。
+与：
+
+```text
+Harness Stop
+```
+
+如果模型本想继续，但 Harness 因 max_steps 强制结束，这不是 premature model termination。
 
 ---
 
-## 12.27.1 Model Stop 与 Harness Stop 要区分
+# 12.19 Multi-Agent 与 Human-in-the-loop 需要 Actor-level Lineage
 
-例如：
-
-```text
-Model 想继续
-但 harness 达到 max_steps
-```
-
-这不能算模型主动停止。
-
-反过来：
-
-```text
-模型提前输出 final
-```
-
-而任务还没完成，则是 premature termination。
-
----
-
-# 12.28 Multi-Agent Trajectory
-
-如果多个 Agent 协作：
-
-```text
-Planner
-Executor
-Verifier
-Researcher
-```
-
-trajectory 就不再只有一个 actor。
-
-需要记录：
+Multi-Agent trace 至少记录：
 
 ```text
 actor_id
 role
-message recipient
-action ownership
-shared state
-private state
-handoff
+sender
+recipient
+action_owner
+shared_state_id
+private_state_id
+handoff_id
 ```
 
-例如：
+否则：
 
 ```text
-Planner 给 Executor 错计划
+Planner 给错计划
 Executor 正确执行
 ```
 
-最后失败，责任应该归到 Planner，而不是 Executor。
+最终失败时会误罚 Executor。
 
-所以 multi-agent credit assignment 更依赖 actor-level lineage。
+Human-in-the-loop 则最好区分：
+
+```text
+HUMAN_CLARIFICATION
+HUMAN_APPROVAL
+HUMAN_CORRECTION
+HUMAN_OVERRIDE
+```
+
+它们代表完全不同的能力需求。
 
 ---
 
-# 12.29 Human-in-the-loop Trajectory
+# 12.20 Replay：Trajectory 能不能被重新执行？
 
-真实 Agent 里经常需要：
-
-```text
-ask_user
-request_approval
-human_override
-human_edit
-```
-
-这些不能被当成普通 observation。
-
-建议区分：
+理想 replay 至少需要：
 
 ```text
-Human Clarification
-Human Approval
-Human Correction
-Human Intervention
+Task Case
+Environment Snapshot
+Runtime Versions
+Action Sequence
 ```
 
-因为它们反映不同能力：
+Replay 可分：
 
 ```text
-知道何时需要问
-知道何时需要授权
-能否利用用户纠正
+Exact Replay
+同样输入产生字节级一致结果
+
+Semantic Replay
+结果不必字节一致，但关键状态与语义等价
 ```
+
+如果 replay 失败，可能说明：
+
+```text
+环境 drift
+Tool version changed
+外部 API 变化
+时间依赖
+Snapshot 不完整
+```
+
+注意：Replay 的系统级治理和历史版本管理见第 19 章；这里关注的是一条 trajectory 是否包含足够本地证据支持 replay。
 
 ---
 
-# 12.30 Trajectory Quality：一条“好轨迹”到底是什么？
+# 12.21 Raw Trace 是 Data Asset，SFT / Preference / Eval 只是 View
 
-可以从六个层面看。
+同一条 Raw Trajectory 可以派生：
 
-### 1. Outcome Quality
+```text
+SFT Demonstration
+Tool Selection Data
+Argument Data
+Observation Grounding Data
+Preference Pair
+Recovery Data
+Failure Classification
+Regression Case
+Benchmark Episode
+```
 
-目标是否完成？
+因此推荐：
 
-### 2. Decision Quality
+```text
+Raw Trace
+↓
+Normalized Events
+↓
+Annotated Trajectory
+↓
+Derived Views
+```
 
-关键 state 是否做出合理选择？
+而不是：
 
-### 3. Execution Quality
+```text
+Runtime Log
+↓
+直接压成某个训练 JSON
+↓
+删除原始证据
+```
 
-工具调用是否正确、稳定？
-
-### 4. Grounding Quality
-
-是否依据 observation 更新？
-
-### 5. Safety / Side-effect Quality
-
-有没有越权或额外影响？
-
-### 6. Efficiency / Auditability
-
-是否成本合理、路径清晰、结果可验证？
-
-因此：
-
-> **Trajectory quality 是多维的，不能压成“成功 / 失败”一个标签。**
+System-wide Dataset View、versioning 和 lineage 管理见第 19 章。
 
 ---
 
-# 12.31 Trajectory Dataset 的推荐分层
+# 12.22 Trajectory Quality 是多维的，但本章不负责最终评分
 
-一个成熟的数据仓库可以分四层。
-
-```text
-L0 Raw Trace
-    原始日志，不改写
-
-L1 Normalized Events
-    统一 schema / event types
-
-L2 Annotated Trajectory
-    failure / reward / labels / state diff
-
-L3 Training & Eval Views
-    SFT / preference / benchmark / regression
-```
-
-优点是：
+至少可以从这些维度观察：
 
 ```text
-原始事实保留
-分析层可重做
-标签可修正
-训练格式可重新派生
+Outcome
+Decision Quality
+Execution Quality
+Grounding
+Safety / Side Effect
+Efficiency
+Auditability
 ```
 
-这比“直接把日志清洗成训练 JSON 然后删原始数据”要可靠得多。
+但“最终怎样给 reward / credit”属于第 13 章；“怎样定义 failure”属于第 14 章；“谁来判”属于第 15 章；“怎样比较系统”属于第 16 章。
+
+本章的职责是保证：
+
+> **这些后续判断需要的执行证据都被 trajectory 正确表示。**
 
 ---
 
-# 12.32 一个完整案例：订单退款 Agent 的 Trajectory Anatomy
+# 12.23 Canonical Case C1：订单退款 Agent
 
 任务：
 
+> **如果订单 1847 还没发货，并且金额不超过 100 元，就退款；否则不要动。**
+
+一个完整 trajectory 可以表示为：
+
 ```text
-“如果订单 1847 还没发货，而且金额不超过 100 元，就帮我退款。”
+E0 USER_MESSAGE
+↓
+E1 TOOL_CALL get_order(1847)
+↓
+E2 TOOL_RESULT status=pending, amount=79
+↓
+E3 DECISION eligible=true
+↓
+E4 TOOL_CALL refund_order(1847)
+↓
+E5 TOOL_RESULT success
+↓
+E6 TOOL_CALL get_order(1847)
+↓
+E7 TOOL_RESULT refunded=true
+↓
+E8 FINAL_RESPONSE
+↓
+E9 TERMINATION SUCCESS
 ```
 
-环境初始状态：
+其中真正值得保存的是：
 
 ```text
-order_1847.status = pending
-order_1847.amount = 79
-order_1847.refunded = false
+E4.branch_from_state_id
+E4.visible_context
+E4.logical_action_id
+E5.call_id
+Pre-state / Post-state
+State Diff
+Runtime Versions
+Final Verification Reference
 ```
 
-理想 trajectory：
+如果失败版本是：
 
 ```text
-Event 0 USER_MESSAGE
-↓
-Event 1 TOOL_CALL search_order(1847)
-↓
-Event 2 TOOL_RESULT pending, 79
-↓
-Event 3 DECISION eligible_for_refund = true
-↓
-Event 4 TOOL_CALL refund_order(1847)
-↓
-Event 5 TOOL_RESULT success
-↓
-Event 6 TOOL_CALL get_order(1847)
-↓
-Event 7 TOOL_RESULT refunded=true
-↓
-Event 8 FINAL_RESPONSE
-```
-
-但真正值得记录的是：
-
-```text
-State Before Event 4:
-status=pending
-amount=79
-policy_limit=100
-
-Action:
-refund_order(1847)
-
-State After Event 5:
-refunded=true
-
-State Diff:
-false → true
-
-Verification:
-refund persisted
-
-Side Effects:
-none
-```
-
----
-
-## 12.32.1 一个失败版本
-
-```text
-search_order(1847)
+get_order(1847)
 → pending, 79
-
 refund_order(1848)
 → success
 ```
 
-如果只看：
+Tool Return 依旧可能是 success，但 trajectory evidence 会暴露：
+
+```text
+entity binding changed
+wrong target action
+forbidden side effect
+目标订单未退款
+```
+
+这说明为什么执行轨迹不能被压成：
 
 ```text
 Tool Success = true
 ```
 
-完全看不出问题。
+---
 
-但 trajectory analysis 会发现：
+# 12.24 一个推荐的 Trajectory Dataset Contract
 
-```text
-entity binding failure
-wrong target action
-forbidden side effect
-final goal unresolved
-```
-
-这就是为什么 trajectory 必须带：
+至少能够回答：
 
 ```text
-entity lineage
-state diff
-final verifier
+Identity
+这是谁的一次运行？
+
+Visibility
+Agent 当时到底看到了什么？
+
+Decision
+它决定了什么？
+
+Execution
+真正发生了什么动作？
+
+Observation
+环境返回了什么？
+
+State Transition
+世界怎样变化？
+
+Lineage
+它是从哪里分支 / retry / backtrack 来的？
+
+Runtime
+哪版 Model / Tool / Harness / Environment？
+
+Termination
+为什么结束？
+
+Evidence
+以后怎样验证与回放？
 ```
 
 ---
 
-# 12.33 常见失败模式
+# 12.25 常见失败模式
 
-### 失败 1：把 trajectory 当聊天记录
-
-丢掉 event type、state、lineage 后很难做严谨分析。
-
-### 失败 2：只保存最终训练格式
-
-以后无法重新标注、重放或做新的分析。
-
-### 失败 3：没有 branch_from_state
-
-candidate 之间无法确认是否真正同状态比较。
-
-### 失败 4：Memory 不入日志
-
-模型行为会看起来“凭空发生”。
-
-### 失败 5：Context truncation 不记录
-
-把 Harness 丢信息误判成模型遗忘。
-
-### 失败 6：Retry 不做 lineage
-
-无法区分新动作和重复尝试。
-
-### 失败 7：Backtracking 只存成线性文本
-
-恢复路径和历史状态关系丢失。
-
-### 失败 8：并行 action 强行线性化
-
-会制造错误因果顺序。
-
-### 失败 9：Researcher-only label 泄漏进 Agent context
-
-导致 benchmark / training future leakage。
-
-### 失败 10：Termination 只记一个 boolean
-
-不知道是 success、timeout、budget stop 还是 model stop。
-
-### 失败 11：所有成功 trajectory 都认为高质量
-
-忽略低效、危险、不可审计路径。
-
-### 失败 12：只记录 tool return，不记录 state diff
-
-无法验证写操作是否真正生效。
-
-### 失败 13：不保存 Runtime Versions
-
-同一 trace 无法可靠 replay。
-
-### 失败 14：Message-level step 直接拿来做 credit assignment
-
-一个 message 可能包含多个独立决策。
-
-### 失败 15：只按 message count 衡量 trajectory complexity
-
-忽略 decision count 和 dependency structure。
+1. **把 trajectory 当聊天记录。** Event / state / lineage 全丢。
+2. **只保存最终训练格式。** 后续无法重新标注和派生。
+3. **不记录 Agent-visible Context。** 无法判断信息是否真的可用。
+4. **World State 与 Agent-visible State 混用。** 产生 hidden-state leakage。
+5. **Decision 与 Executed Action 混用。** 无法发现 plan-action inconsistency。
+6. **Branch 没有 authoritative state ID。** same-state 比较不成立。
+7. **Retry 没有 logical action lineage。** 系统重试与 Agent recovery 混在一起。
+8. **Backtracking 被压成线性文本。** 恢复逻辑丢失。
+9. **并行动作强行线性化。** 制造假的因果顺序。
+10. **Memory 不入 trace。** 行为看起来像凭空知道。
+11. **Context truncation 不记录。** Harness 问题被误归因模型。
+12. **只保存 Tool Return，不保存 State Diff。** 无法确认写操作真实生效。
+13. **Termination 只有 boolean。** 不知道谁、为什么停止。
+14. **Researcher-only label 混入 Agent Context。** 产生 future leakage。
+15. **Trajectory-local lineage 和 system-wide governance 混成一套。** 职责不清且难维护。
 
 ---
 
-# 12.34 从数据岗位视角，这一章实际在做什么？
+# 12.26 从数据岗位视角，本章实际在做什么？
 
-对应工作可能包括：
+典型工作包括：
 
 ```text
 设计 trajectory schema
 定义 event taxonomy
-统一多模型 / 多工具 trace
-建立 state snapshot
-记录 state diff
-构建 context lineage
+统一不同模型 / 工具 API trace
+保存 authoritative state / state diff
+记录 context construction
 记录 memory read/write
-做 retry/backtrack 标注
-做 branch lineage
-做 trajectory normalization
-做 trace compression
-构建 replay pipeline
-做 termination taxonomy
-提取 first harmful action
-标 last recoverable state
-构造 trajectory preference
-构造 multi-agent trace
-维护 runtime version lineage
-派生 SFT / preference / eval views
+设计 branch / retry / backtrack lineage
+做 multi-agent actor lineage
+区分 Agent-visible / Researcher-visible view
+构建 replay-ready trace
+从 raw trace 派生 SFT / Preference / Eval views
 ```
 
-真正成熟的 Agent 数据工作，已经不是：
+真正成熟的 Agent Data 工作不是：
 
-> “把模型日志收集下来。”
+> “把日志收集下来。”
 
 而是：
 
-> **把行为过程变成可查询、可回放、可归因、可重新派生学习信号的数据资产。**
+> **把一次执行过程保存成可以被重放、比较、归因和重新派生监督信号的经验资产。**
 
 ---
 
-# 12.35 本章关键词
+# 12.27 面试 / 自检问题
 
-| 术语 | 一句话理解 |
-|---|---|
-| Trajectory | 一次 Agent episode 的完整行为路径 |
-| Event | trajectory 中一个有明确类型的发生单元 |
-| State | 当前决策相关的信息状态 |
-| World State | 环境真实状态 |
-| Agent-visible State | Agent 实际可见的信息 |
-| Action | Agent 对环境采取的操作 |
-| Observation | 环境 / 用户 / 工具返回的新信息 |
-| Event Lineage | event 之间的父子、分支、重试、回退关系 |
-| Branch | 从同一 state 探索不同 action |
-| Backtracking | 回到早期 state 重新选择路径 |
-| Retry | 对同一 logical action 再次尝试 |
-| Memory Read/Write | 对长期或外部记忆的读写 |
-| Context Construction | 从完整 state 中选择模型实际看到的输入 |
-| Context Truncation | 因窗口或策略丢弃历史内容 |
-| Replay | 根据 snapshot 和 action sequence 重放 episode |
-| State Diff | action 前后环境状态差异 |
-| First Harmful Action | 第一处真正降低未来 outcome 的 action |
-| Last Recoverable State | 最后一个仍有机会修复任务的状态 |
-| Point of No Return | 之后已很难或不能恢复的不可逆节点 |
-| Agent-visible Trace | 在线模型真正可访问的轨迹视图 |
-| Researcher-visible Trace | 离线分析可见的完整证据视图 |
-| Raw Trace | 未加工的原始运行日志 |
-| Normalized Trace | 统一为标准 event schema 的轨迹 |
-| Training View | 从轨迹派生的训练数据视图 |
+1. 为什么 Agent trajectory 不能只保存成 messages？
+2. World State、Environment State、Agent-visible State 有什么区别？
+3. State 与 Context 为什么不是同一个概念？
+4. Decision Intent 与 Executed Action 为什么必须分开？
+5. Observation 为什么不等于 Tool Result？
+6. 为什么要区分 `observation_received / parsed / used`？
+7. Trajectory segmentation 有哪些常用粒度？
+8. 什么情况下 trajectory 应该建成 Graph？
+9. same-state candidate 为什么需要 authoritative state ID？
+10. Retry 和 Backtracking 有什么区别？
+11. 为什么 Memory read/write 必须进入 trace？
+12. Context truncation 会怎样污染 failure attribution？
+13. Agent-visible Trace 和 Researcher-visible Trace 为什么必须分开？
+14. 为什么 State Diff 比单独 Tool Success 更可靠？
+15. Model Stop 与 Harness Stop 怎么区分？
+16. Multi-Agent 为什么需要 actor-level lineage？
+17. Replay 需要哪些最小信息？
+18. Raw Trace 为什么应该长期保留？
+19. 一条 Raw Trace 可以派生成哪些 Data View？
+20. Trajectory-local lineage 与 system-wide provenance 有什么区别？
 
 ---
 
-# 12.36 面试 / 自检问题
+# 12.28 本章最终心智模型
 
-学完这一章至少应该能够回答：
-
-1. **为什么 Agent trajectory 不能只保存成 messages？**
-2. **State、Observation、Context 三者有什么区别？**
-3. **World State 和 Agent-visible State 为什么必须区分？**
-4. **Decision 与 Executed Action 为什么要分开？**
-5. **为什么 Event-based schema 比纯文本 transcript 更适合 Agent 数据？**
-6. **Trajectory segmentation 有哪些粒度？**
-7. **什么时候 trajectory 应该表示成 graph 而不是 sequence？**
-8. **Branch lineage 为什么是 candidate comparison 的前提？**
-9. **Memory read/write 为什么必须进入 trace？**
-10. **Context truncation 会如何污染模型能力归因？**
-11. **Retry 和 Backtracking 有什么区别？**
-12. **如何判断 repeated tool calls 是正常 retry 还是 loop？**
-13. **什么是 Observation Grounding？**
-14. **为什么 raw trace、normalized trace、training view 最好分层保存？**
-15. **Agent-visible trace 和 researcher-visible trace 为什么不能混？**
-16. **什么叫 trajectory replay？为什么 benchmark 需要它？**
-17. **First Harmful Action 和 First Syntactic Error 有什么区别？**
-18. **什么是 Last Recoverable State？**
-19. **为什么 tool success 不等于 trajectory success？**
-20. **一条成功 trajectory 为什么仍可能不是好 SFT 数据？**
-21. **Multi-agent trajectory 如何做 actor-level credit assignment？**
-22. **Human-in-the-loop event 应该如何表示？**
-23. **如何比较两条都成功的 trajectory？**
-24. **为什么 action count 不等于真实 cost？**
-25. **如何把一条 raw trajectory 转换成 SFT、Preference 和 Eval 三种不同数据？**
-
----
-
-## 12.36.1 一个通用回答框架：如何设计 Agent Trajectory Dataset？
-
-如果面试官问：
-
-> “你会怎么设计一套 Agent trajectory 数据？”
-
-可以按下面回答：
+把本章压成一条链：
 
 ```text
-1. 先冻结 Task Contract 与 Environment
-   ↓
-2. 定义统一 Event Schema
-   ↓
-3. 明确 State / Action / Observation 边界
-   ↓
-4. 保存完整 Raw Trace
-   ↓
-5. 建立 Tool / Memory / Context / Branch Lineage
-   ↓
-6. 保存 Environment Before/After State 与 Diff
-   ↓
-7. 记录 Runtime Versions 和 Cost
-   ↓
-8. 建立 Failure / Termination / Recovery Taxonomy
-   ↓
-9. 构建 Normalized + Annotated Trace
-   ↓
-10. 从同一 Raw Trace 派生 SFT / Preference / Eval Views
-   ↓
-11. 用 Replay 验证可复现性
+Task Case
+↓
+Authoritative Environment State
+↓
+Agent-visible Context
+↓
+Decision Intent
+↓
+Executed Action
+↓
+Environment Transition
+↓
+Observation
+↓
+State / Context Update
+↓
+Next Decision
+↓
+Termination
 ```
 
-这里最重要的思路是：
-
-> **先保存事实和 lineage，再派生 supervision；不要一开始就把轨迹压扁成某一种训练格式。**
-
----
-
-# 12.37 与前面章节的统一关系
-
-到这里，可以把第 4、5、10、11、12 章串成一条完整链路：
-
-```mermaid
-flowchart LR
-    T[Task Contract] --> E[Environment]
-    E --> S[State]
-    S --> D[Decision]
-    D --> A[Action]
-    A --> O[Observation]
-    O --> S2[New State]
-    S2 --> D
-    S2 --> V[Verifier]
-    V --> L[Labels / Rewards]
-    L --> DATA[Trajectory Dataset]
-```
-
-其中：
+在这条主链之外，还必须保留：
 
 ```text
-第 10 章：定义 Task
-第 11 章：定义 Environment
-第 12 章：定义 Trajectory
-第 13 章：下一步要解决——Task Success 与 Credit Assignment
+Branch Lineage
+Retry Lineage
+Backtrack Lineage
+Memory Lineage
+Runtime References
+Visibility Boundary
+State Diff
 ```
 
-第 13 章会继续追问：
-
-> **如果一条 trajectory 最终成功 / 失败，reward 应该怎么分配到中间 action？**
-
-这会正式进入：
+这样，一条 trajectory 才真正从：
 
 ```text
-Binary Success
-Partial Credit
-Step Reward
-Trajectory Reward
-Terminal Reward
-Side-effect Penalty
-Efficiency Penalty
-Counterfactual Credit
-First Harmful Action
-Last Recoverable State
+“一段日志”
 ```
 
-也就是从“把 trajectory 记录清楚”进一步走向“**怎么给这条 trajectory 分配监督信号**”。
+升级成：
+
+```text
+“可重放的经验对象”
+```
+
+本章到此只解决**怎么把行为过程记录清楚**。
+
+下一章第 13 章继续回答：
+
+> **记录清楚以后，最终 Outcome 到底该怎样归因给中间 Decision？**
+
+也就是从 Representation 正式进入 Credit Assignment。
