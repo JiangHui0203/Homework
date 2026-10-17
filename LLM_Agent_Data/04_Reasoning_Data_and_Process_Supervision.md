@@ -1,14 +1,20 @@
-# 第 4 章 Reasoning Data 与 Process Supervision
+# 第 4 章 Reasoning Data 与 Process Supervision：从“答案对不对”到“当前状态该怎么办”
 
 > 所属体系：[`LLM_Agent_Data_Knowledge_System.md`](../LLM_Agent_Data_Knowledge_System.md)
 >
-> 本章目标：理解为什么复杂推理任务不能只用“最终答对 / 答错”描述，以及如何把一条 reasoning trajectory 拆成可以分析、标注、验证和学习的数据对象。
+> 前置章节：[`第 3 章 Preference Data、Reward 与 Feedback`](./03_Preference_Data_Reward_and_Feedback.md)
 >
-> 本章核心问题：**不仅要知道结果对不对，还要知道推理进行到哪里、哪里出了问题、当前状态是否值得继续，以及是否还有修复价值。**
+> 关联章节：[`第 8 章 Rollout、Rejection Sampling 与 Candidate Selection`](./08_Rollout_Rejection_Sampling_and_Candidate_Selection.md)、[`第 9 章 Hard Case Mining 与 Curriculum`](./09_Hard_Case_Mining_and_Curriculum.md)、[`第 13 章 Task Success 与 Credit Assignment`](./13_Task_Success_and_Credit_Assignment.md)、[`第 15 章 Grader、Verifier 与 LLM-as-a-Judge`](./15_Grader_Verifier_and_LLM_as_a_Judge.md)、[`第 16 章 Benchmark Design 与 Evaluation Protocol`](./16_Benchmark_Design_and_Evaluation_Protocol.md)
+>
+> 编辑基础设施：[`Canonical Glossary`](./00_Glossary_and_Notation.md) · [`Case C4 — Reasoning Continue / Repair`](./00_Canonical_Casebook.md#c4--reasoning-continue--repair)
+>
+> 本章定位：**Reasoning state supervision 的 canonical chapter。** 后续章节使用 `Correctness / Risk / Recoverability / Repairability / Selectability`、same-state counterfactual、`Rescue / Harmful`、Continue / Stop、Branch / Repair 等概念时，应以本章定义为准。
+>
+> 本章核心问题：**复杂推理不能只问“最后答对了吗”，还要问：模型现在推到哪里、当前内容是否正确、是否存在失败风险、从这里是否还有可改善的未来、当前系统是否真的能修，以及如果生成了多个候选，我们能不能在线选对。**
 
 ---
 
-## 4.0 先建立总图：Reasoning Data 到底多记录了什么？
+# 4.0 总图：Reasoning Data 到底多记录了什么？
 
 普通问答数据可能只有：
 
@@ -20,478 +26,520 @@ Final Answer
 Correct / Wrong
 ```
 
-Reasoning Data 则把中间过程显式纳入数据对象：
+Reasoning Data 把中间过程显式纳入数据对象：
 
 ```mermaid
 flowchart LR
     Q[Problem / Context] --> S1[Reasoning State 1]
     S1 --> S2[Reasoning State 2]
     S2 --> S3[Reasoning State 3]
-    S3 --> ST[Final State]
-    ST --> A[Final Answer]
+    S3 --> A[Final Answer]
 
-    S1 -. process label .-> L1[Correct / Risk / Value]
-    S2 -. process label .-> L2[Correct / Risk / Value]
-    S3 -. process label .-> L3[Correct / Risk / Value]
-    A -. outcome label .-> O[Correct / Wrong]
+    S1 -. process signals .-> L1[Correctness / Risk / Value]
+    S2 -. process signals .-> L2[Correctness / Risk / Value]
+    S3 -. process signals .-> L3[Correctness / Risk / Value]
+    A -. outcome .-> O[Correct / Wrong]
 ```
 
-因此，一条 reasoning sample 不再只是：
+因此一条 reasoning sample 不再只是：
 
 ```text
 input + answer
 ```
 
-而可能是：
+而可能包含：
 
 ```text
 problem
 + reasoning trajectory
-+ step boundaries
++ step / unit boundaries
 + intermediate states
 + process labels
 + final outcome
 + verifier evidence
++ observable uncertainty signals
 + counterfactual continuations
++ lineage
 ```
 
-这一变化的本质是：
+本质变化是：
 
 > **监督粒度从 outcome-level 下沉到了 state / step / transition level。**
 
+但更重要的是：下沉监督不是为了“记录更多 CoT”，而是为了回答**状态级决策问题**。
+
 ---
 
-# 4.1 什么是 Reasoning Data？
+# 4.1 Reasoning Data、Trace、State 与 Action
 
-Reasoning Data 泛指能够描述模型完成复杂推理任务时**中间计算过程、决策状态或中间产物**的数据。
+Reasoning Data 泛指能够描述模型完成复杂推理任务时，中间计算过程、决策状态或中间产物的数据。
 
-最直观的形式是可见 Chain-of-Thought：
-
-```text
-Problem
-↓
-Step 1
-↓
-Step 2
-↓
-Step 3
-↓
-Final Answer
-```
-
-但实际工作中，Reasoning Data 不应被简单等同于“保存一长段 CoT 文本”。
-
-它还可以包括：
+它可以包括：
 
 ```text
+visible reasoning trace
 structured reasoning state
 subgoal
 intermediate answer
 proof state
 program state
-tool result
 audit state
 remaining gap
 candidate branch
 verification result
-confidence / uncertainty signal
-step reward
-state value
+observable generation statistics
+step reward / state value
 ```
 
-因此更一般的定义是：
+因此：
 
-> **Reasoning Data = 能够刻画模型在“问题 → 最终答案”之间经历了什么状态变化的数据。**
+> **Reasoning Data ≠ 一长段 Chain-of-Thought 文本。**
+
+更一般地：
+
+> **Reasoning Data 是能够刻画模型从问题走向最终答案时发生了什么状态变化，以及这些状态对后续决策意味着什么的数据。**
 
 ---
 
-## 4.1.1 Reasoning Trace 与 Reasoning State
+## 4.1.1 Reasoning Trace
 
-这两个概念最好区分。
+Reasoning Trace 强调“已经走过的整条路径”。可以抽象为：
 
-### Reasoning Trace
-
-强调“走过的整条路径”：
-
-$$
-\tau = (s_0, a_0, s_1, a_1, \ldots, s_T)
-$$
+\[
+\tau=(s_0,a_0,s_1,a_1,\ldots,s_T)
+\]
 
 其中：
 
-- $s_t$：某一时刻的 reasoning state；
-- $a_t$：继续推导、选择分支、验证、修改答案等 reasoning action；
-- $\tau$：完整推理轨迹。
-
-### Reasoning State
-
-强调“模型当前已经推到哪里”。
-
-可以抽象成：
-
-```text
-原始问题
-+
-当前已接受的推理前缀
-+
-当前中间结论
-+
-尚未解决的问题 / gap
-```
-
-很多在线推理优化真正需要判断的并不是：
-
-> “这道题难不难？”
-
-而是：
-
-> **“推理已经走到这个状态以后，下一步应该做什么？”**
-
-这也是 reasoning data 从 task-level 走向 state-level 的关键。
+- \(s_t\)：Reasoning State；
+- \(a_t\)：继续推导、验证、选择分支、修改答案等 reasoning action；
+- \(\tau\)：完整 reasoning trajectory。
 
 ---
 
-# 4.2 为什么 Final Answer Label 不够？
+## 4.1.2 Reasoning State
 
-假设有下面一条轨迹：
+Reasoning State 强调：
+
+> **模型当前已经推到哪里。**
+
+一个实用表示可以包含：
+
+```text
+原始问题 / context
++
+当前已接受 reasoning prefix
++
+中间结论 / subgoal
++
+尚未解决的 answer-relevant gap
++
+当前可观测 evidence
+```
+
+很多 test-time optimization 真正需要判断的不是：
+
+```text
+“这道题难不难？”
+```
+
+而是：
+
+```text
+“已经走到这个 state 后，下一步应该做什么？”
+```
+
+因此必须区分：
+
+```text
+Task Difficulty
+≠
+Current-state Difficulty
+≠
+Future Intervention Value
+```
+
+---
+
+# 4.2 Outcome Supervision 与 Process Supervision
+
+假设一条轨迹是：
 
 ```text
 Step 1: 正确
 Step 2: 正确
 Step 3: 使用错误假设
-Step 4: 基于错误假设继续推导
-Step 5: 恰好得到正确答案
+Step 4: 基于错误假设继续
+Step 5: 碰巧得到正确答案
 ```
 
-如果只看最终答案：
+只看最终答案：
 
 ```text
 label = correct
 ```
 
-但如果真正关心 reasoning reliability，这条轨迹显然存在问题。
+但它显然不是可靠的推理过程。
 
-反过来，也可能发生：
+反过来：
 
 ```text
 Step 1: 正确
 Step 2: 正确
 Step 3: 正确
-Step 4: 一个算术失误
-Final Answer: wrong
+Step 4: 局部算术失误
+Final: wrong
 ```
 
-最终 label 是 wrong，但前面的 reasoning 大部分是有价值的。
+最终结果虽然错误，前面的 reasoning prefix 仍然有价值。
 
-所以 outcome label 会把一条长轨迹压缩成一个比特：
+所以 outcome label 会把一条长轨迹压缩成：
 
 ```text
 Correct / Wrong
 ```
 
-大量过程信息因此丢失。
+大量中间信息因此丢失。
 
 ---
 
 ## 4.2.1 Outcome Supervision
 
-Outcome Supervision 只评价最终结果。
-
-例如：
+Outcome Supervision 只评价最终任务结果，例如：
 
 ```text
-MATH：最终答案是否匹配
-Code：是否通过全部测试
-Logic：最终真假判断是否正确
+数学：最终答案是否正确
+代码：是否通过测试
+逻辑：最终真假判断是否正确
 Agent：最终环境状态是否满足目标
 ```
 
 优点：
 
-- 成本低；
-- 容易自动化；
-- 标签通常比较客观；
-- 适合大规模 rollout。
+```text
+cheap
+objective when verifiable
+scalable
+适合大规模 rollout
+```
 
 缺点：
 
-- feedback sparse；
-- 不知道错误从哪里开始；
-- credit assignment 困难；
-- 正确结果可能掩盖错误过程；
-- 失败轨迹中大量正确前缀被一起判负。
+```text
+feedback sparse
+不知道错误从哪里开始
+credit assignment 弱
+正确结果可能掩盖错误过程
+失败轨迹的正确前缀容易被一起判负
+```
 
 ---
 
 ## 4.2.2 Process Supervision
 
-Process Supervision 给中间过程提供反馈。
+Process Supervision 对中间状态、步骤或 transition 提供反馈。
 
-例如：
+最简单可以是：
 
 ```text
 Step 1: correct
 Step 2: correct
 Step 3: incorrect
-Step 4: invalid because it depends on Step 3
+Step 4: invalid because dependent on Step 3
 ```
 
-也可以不是简单的正确 / 错误：
+也可以是更丰富的结构化标签：
 
 ```text
-Step 2:
-- logically valid = yes
-- sufficiently justified = no
-- contains unresolved gap = yes
-- should continue = yes
+logically_valid
+factually_supported
+remaining_gap
+risk
+should_continue
+recoverable
 ```
 
-因此 Process Supervision 的范围实际上比“逐步判对错”更大。
+因此 Process Supervision 不等于“逐步判对错”。它可以监督：
+
+```text
+correctness
+risk
+progress
+value
+recovery opportunity
+action choice
+```
 
 ---
 
-## 4.2.3 Outcome 与 Process 不是互相替代
-
-一个常见误解是：
-
-> 有了 process labels，就不需要 final outcome 了。
-
-并不是。
-
-更合理的关系是：
+## 4.2.3 Outcome 与 Process 是互补关系
 
 ```mermaid
 flowchart TD
     A[Reasoning Trajectory] --> B[Process Signals]
     A --> C[Final Outcome]
-    B --> D[局部正确性 / 风险 / 价值]
-    C --> E[任务最终是否成功]
+    B --> D[局部状态证据]
+    C --> E[最终任务证据]
     D --> F[Joint Analysis]
     E --> F
 ```
 
-Outcome 是最终任务目标；Process 是帮助理解和分配 credit 的中间证据。
+Outcome 回答“最后是否成功”；Process 回答“中间发生了什么、下一步怎么办”。
 
-如果 process scorer 和真实 outcome 冲突，不能默认 process scorer 一定正确。
-
----
-
-# 4.3 Reasoning Data 最重要的三类标签：Correctness、Risk、Recoverability
-
-这是本章最重要的区分之一。
-
-很多项目会把下面三个问题混成一个“confidence score”，但它们本质上不同。
+如果 process scorer 与客观 final outcome 冲突，不能默认 process scorer 更正确。
 
 ---
 
-## 4.3.1 Correctness：当前内容是不是错了？
+# 4.3 五个必须分开的状态级概念
 
-问题是：
+这是本章最重要的 canonical distinction。
 
-> **这个 step / state 在逻辑或事实意义上是否正确？**
-
-例如：
+很多系统最后都输出一个 `score`，但下面五个问题语义完全不同：
 
 ```text
-Step: 由 x²=4 推出 x=2
+Correctness
+Risk
+Recoverability
+Repairability
+Selectability
 ```
 
-如果没有额外条件，这一步遗漏了 `x=-2`，因此可能被标记为错误 / 不完整。
+其中前三个主要描述**状态本身与未来空间**；后两个描述**当前系统能否实际利用这个空间**。
 
-Correctness label 可以是：
+---
+
+## 4.3.1 Correctness：当前内容已经错了吗？
+
+Correctness 问：
+
+> **这个 step / state 在事实、逻辑或约束意义上是否成立？**
+
+标签可以是：
 
 ```text
 correct
 incorrect
-partially correct
+partially_correct
 unsupported
-cannot determine
+cannot_determine
 ```
 
-这是最传统的 process label。
+例如：
+
+```text
+由 x² = 4 直接推出 x = 2
+```
+
+在没有额外约束时遗漏 `x=-2`，因此可能是错误或不完整。
+
+Correctness 是“当前内容是否合法”的问题。
 
 ---
 
-## 4.3.2 Risk：当前状态是不是危险？
+## 4.3.2 Risk：从当前可观测信息看，后续失败风险高吗？
 
-Risk 问的不是“已经错了吗”，而是：
+Risk 问：
 
-> **从当前可观测状态看，后续出错风险是否升高？**
+> **当前 state 是否呈现出与未来失败相关的危险信号？**
 
-可能的风险信号包括：
+可能的 observable signals：
 
 ```text
-低 token probability
-高 entropy
-小 top1-top2 margin
-突然的 likelihood drop
-前后陈述矛盾
-未解决的关键约束
+low token probability
+high entropy
+small top1-top2 margin
+likelihood drop
+self-inconsistency
+未解决关键约束
 反复改答案
 重复推导
 异常长 reasoning unit
 ```
 
-关键点是：
-
-> **Risk ≠ Error。**
-
-一个低置信状态完全可能最终是正确的；一个非常自信的状态也完全可能错得很稳定。
-
-因此不能把 uncertainty detector 直接叫作 error detector。
-
----
-
-## 4.3.3 Recoverability / Future Value：从这里还有没有救？
-
-这是另一个完全不同的问题：
-
-> **如果从当前 state 继续计算、检查、分支或修复，最终结果有没有机会变好？**
-
-可以抽象为：
-
-$$
-V(s_t, a) = \mathbb{E}[R_{final} \mid s_t, a]
-$$
-
-其中 $a$ 可以是：
+必须牢记：
 
 ```text
-continue
-stop
-branch
-revise
-verify
-backtrack
+Risk ≠ Error
 ```
 
-这里真正关心的是**动作之后的未来价值**。
-
-例如两个 state 都很可疑：
-
-```text
-State A：虽然不确定，但多算一步通常能解决
-State B：已经建立在错误前提上，继续原路径只会越走越远
-```
-
-它们的 risk 可能类似，但 recoverability 完全不同。
+低置信可以是对的；高置信也可以稳定地错。
 
 因此：
 
-```text
-Risk answers:          “这里危险吗？”
-Correctness answers:   “这里已经错了吗？”
-Recoverability answers:“从这里干预值得吗？”
-```
-
-这三者应分开设计标签。
+> **Uncertainty detector 不是天然的 error detector。**
 
 ---
 
-# 4.4 Error Localization：错误到底从哪一步开始？
+## 4.3.3 Recoverability：从这个状态出发，是否存在更好的未来？
 
-如果一条轨迹最终错误，可以进一步寻找：
+Recoverability 问：
 
-> **First Error / First Invalid Step**
+> **从当前 state 出发，是否存在某种允许的未来 continuation / intervention，可以让最终 outcome 比当前基线更好？**
+
+它首先是一个 counterfactual existence question。
 
 例如：
 
 ```text
+当前路径最终会错
+但从同一 state 换一个 continuation 可以答对
+```
+
+则该 state 具有 recoverability。
+
+概念上可以写成：
+
+\[
+\exists a \in \mathcal{A}:\; V(s_t,a) > V(s_t,a_{base})
+\]
+
+这里关心的是：
+
+```text
+更好的未来是否存在？
+```
+
+而不是当前系统是否能找到它。
+
+---
+
+## 4.3.4 Repairability：在当前动作空间和预算下，实际上修得了吗？
+
+Repairability 比 Recoverability 更工程化。
+
+即使理论上存在更好的未来，如果当前系统：
+
+```text
+不能回退
+不能重新采样
+没有对应工具
+budget 不够
+关键状态已经不可逆
+```
+
+那么这个 state 对当前系统而言可能并不 repairable。
+
+因此：
+
+```text
+Recoverability
+= 更好的未来存在吗？
+
+Repairability
+= 在当前 action space / budget / runtime 约束下，系统实际能修吗？
+```
+
+两者不能混用。
+
+---
+
+## 4.3.5 Selectability：更好的候选存在，我们能在线选出来吗？
+
+假设从同一 state 得到：
+
+```text
+candidate A → 最终正确
+candidate B → 最终错误
+```
+
+这说明 candidate pool 中存在可利用差异。
+
+但如果在线 scorer 无法稳定地区分 A 与 B，实际系统仍然得不到收益。
+
+Selectability 问：
+
+> **只使用决策时真实可见的信息，selector 能否识别出更优候选？**
+
+因此必须区分：
+
+```text
+Candidate Existence
+≠ Candidate Quality Gap
+≠ Selectability
+```
+
+这也是为什么 offline oracle 很高，不等于 online selector 一定有效。
+
+Candidate generation / selection 的完整方法在第 8 章展开。
+
+---
+
+## 4.3.6 一张总表
+
+| 概念 | 核心问题 | 典型证据 |
+|---|---|---|
+| Correctness | 当前已经错了吗？ | rule / verifier / expert |
+| Risk | 这里危险吗？ | observable uncertainty / conflict / state features |
+| Recoverability | 是否存在更好的未来？ | offline counterfactual rollout |
+| Repairability | 当前系统实际上修得了吗？ | action space / budget / irreversible state |
+| Selectability | 更好的候选能在线识别吗？ | held-out candidate-selection evaluation |
+
+所以：
+
+> **Low confidence ≠ Wrong ≠ Recoverable ≠ Repairable ≠ Selectable。**
+
+这条区分是本章最重要的分析纪律。
+
+---
+
+# 4.4 Error Localization：错误从哪里开始？
+
+对于 final-wrong trajectory，可以寻找：
+
+```text
 S1 ✓
 S2 ✓
-S3 ✗  ← first error
+S3 ✗  ← First Error
 S4 ✗
 S5 ✗
 ```
 
-这里 S4、S5 虽然也错误，但可能只是继承了 S3 的错误前提。
+`S4 / S5` 可能只是继承了 `S3` 的错误前提。
 
-因此 first-error localization 比“所有后续 step 都打负标签”更有解释力。
+因此 First Error 比“把所有后续 step 都标负”更有解释力。
+
+它可以支持：
+
+```text
+process verifier
+error detector
+correction data
+backtracking policy
+hard-case mining
+error propagation analysis
+```
+
+但要注意：
+
+> **First Error 不是 First Harmful Action，也不是 Root Cause。**
+
+Reasoning 层面这里只定义“第一处局部失效”；更完整的 `First Error / First Harmful Action / Last Recoverable State / Point of No Return` 因果关系在第 13 章统一定义，Failure diagnosis 则归第 14 章。
 
 ---
 
-## 4.4.1 为什么 First Error 很重要？
-
-因为它直接对应 intervention point：
-
-```text
-正确前缀
-   ↓
-第一个错误决策
-   ↓
-错误传播
-   ↓
-最终失败
-```
-
-如果能够找到第一处错误，数据可以用于：
-
-- process verifier；
-- error detector；
-- correction data；
-- backtracking policy；
-- hard-case mining；
-- 分析错误传播机制。
-
----
-
-## 4.4.2 但“第一处看起来奇怪”不一定是第一处错误
-
-复杂 reasoning 中常见：
-
-```text
-某一步表达得很跳
-```
-
-但其实逻辑成立；反而前面一个看似平滑的假设已经错了。
-
-因此 error localization 需要：
-
-```text
-上下文依赖
-前提检查
-事实验证
-逻辑有效性
-后续依赖关系
-```
-
-而不能简单使用“语言看起来怪不怪”作为标签。
-
----
-
-# 4.5 Step 到底怎么切？Step Segmentation 本身就是数据设计
+# 4.5 Step Segmentation：什么叫一个 step？
 
 Process supervision 首先面对一个非常实际的问题：
 
-> **什么叫一个 step？**
+> **监督单位是什么？**
 
-一段 CoT 可能写成：
+一段文本：
 
 ```text
 先设 x=3，因此 y=5，所以答案是 8。
 ```
 
-这里到底是：
-
-```text
-1 step
-```
-
-还是：
-
-```text
-Step 1: x=3
-Step 2: y=5
-Step 3: answer=8
-```
+到底是一个 step，还是三个？
 
 不同 segmentation 会改变：
 
-- 标签粒度；
-- PRM 输入；
-- first-error 位置；
-- annotation cost；
-- step reward 的含义。
+```text
+label granularity
+first-error location
+PRM input
+annotation cost
+step reward semantics
+```
 
 ---
 
@@ -499,195 +547,149 @@ Step 3: answer=8
 
 ### Sentence-level
 
-按句号或自然语言句子切。
-
-简单，但一句里可能包含多个 reasoning operation。
+按句子切。便宜，但一句可能包含多个 reasoning operation。
 
 ### Model-generated Unit
 
-通过模型生成 stop marker、双换行、特殊 token 等形成 reasoning unit。
-
-优点是更贴近实际生成过程。
+通过双换行、特殊 stop marker、生成单元等形成 unit，优点是贴近实际 runtime。
 
 ### Semantic Step
 
-按一个独立推理动作切，例如：
+按一个独立推理动作切：
 
 ```text
 提出假设
 应用规则
-计算数值
-验证结论
-修改答案
+计算
+验证
+修正
 ```
 
-语义最好，但标注 / 自动切分难度更高。
+语义最好，但自动切分和标注更难。
 
 ### Token-level
 
-粒度最细，但单 token 往往不具有完整语义，人工过程监督成本极高。
+粒度最细，但单 token 往往不具有完整决策语义。
 
-因此不存在 universally best 的 step definition，必须与任务和下游动作一致。
+因此：
+
+> **不存在 universally best 的 step definition；segmentation 必须和下游决策动作对齐。**
 
 ---
 
-# 4.6 Process Reward Model（PRM）是什么？
+# 4.6 PRM、ORM 与过程评分
 
 PRM = Process Reward Model。
 
-它不只给整条 response 一个分数，而是对中间 reasoning step / state 提供评价。
-
-例如：
-
-```text
-Step 1 → 0.98
-Step 2 → 0.91
-Step 3 → 0.17
-Step 4 → 0.10
-```
-
-直觉上：
-
-> PRM 学习“推理进行到这里是否仍然可靠”。
-
----
-
-## 4.6.1 PRM 的训练数据
-
-最直接的数据形式是：
+典型输入：
 
 ```text
 Problem
 +
 Reasoning Prefix
 +
-Current Step
-→
-Step Label
+Current Step / State
 ```
 
-例如：
-
-```json
-{
-  "problem": "...",
-  "prefix": ["step1", "step2"],
-  "step": "step3",
-  "label": "incorrect"
-}
-```
-
-标签来源可以是：
+输出可以是：
 
 ```text
-人工逐步标注
-专家标注
-LLM judge
-规则验证
-程序执行
-Monte Carlo rollout outcome
-自动构造的 first-error labels
+correctness probability
+process quality
+reward
+future-success proxy
 ```
 
+关键在于训练目标决定 score 的语义，不能只因为模型名字叫 PRM 就假定它等于“真实 future value”。
+
 ---
 
-## 4.6.2 PRM 与 ORM
+## 4.6.1 PRM 与 ORM
 
-ORM = Outcome Reward Model。
-
-区别可以简化为：
-
-| 模型 | 输入关注点 | 标签粒度 | 核心问题 |
+| 模型 | 主要输入 | 标签粒度 | 核心问题 |
 |---|---|---|---|
-| ORM | 完整 solution | final outcome | “最后答对了吗？” |
-| PRM | reasoning prefix / step | intermediate process | “推到这里还好吗？” |
+| ORM | 完整 solution / trajectory | final outcome | 最后成功了吗？ |
+| PRM | prefix / step / state | intermediate process | 推到这里表现如何？ |
 
-经典 process-supervision 工作表明，在数学推理场景中，逐步反馈可以比只看最终结果提供更细的监督；但这并不意味着任何 PRM score 都天然等于真实 future value。PRM 本身仍然可能被错误标签、局部流畅性或数据分布偏差误导。
+Process supervision 可以提供比 final outcome 更密的信号，但 PRM 仍可能被：
+
+```text
+label noise
+local fluency
+style shortcut
+distribution shift
+```
+
+误导。
 
 ---
 
-## 4.6.3 一条 trajectory 的多个 step score 怎么合并？
+## 4.6.2 多个 step score 如何变成 trajectory score？
 
-假设：
+例如：
 
 ```text
 0.99, 0.96, 0.92, 0.35, 0.91
 ```
 
-怎么得到整条轨迹分数？
-
-可能有：
+可能使用：
 
 ```text
 minimum
-product
 mean
+product
 last-step score
 learned aggregation
 ```
 
-不同 aggregation 表达不同假设。
+不同 aggregation 隐含不同假设。
 
-例如取 minimum 相当于强调：
+例如 minimum 强调最弱环节，但也容易被单点误判主导。
 
-> 只要存在一个高度可疑 step，整条路径都值得警惕。
+所以：
 
-但它也可能被单个误判 step 主导。
+> **有 step score ≠ credit assignment 已经解决。**
 
-因此“有 step score”并不等于 credit assignment 自动解决。
+完整 credit assignment 见第 13 章。
 
 ---
 
-# 4.7 Process Verifier、PRM、Uncertainty Signal 不要混在一起
+# 4.7 Process Verifier、PRM 与 Uncertainty Signal 不要混在一起
 
-三者可能都输出一个分数，但语义不同。
+三者都可能输出“一个分数”，但证据语义不同。
 
 ### Process Verifier
 
-尝试判断：
+尝试验证某个局部条件：
 
 ```text
-当前步骤是否满足某个 correctness 条件？
-```
-
-例如：
-
-```text
-数学等式是否合法
-代码中间状态是否满足 invariant
-逻辑规则是否被正确应用
+等式是否合法
+逻辑规则是否正确应用
+程序状态是否满足 invariant
 ```
 
 ### PRM
 
-学习一个过程层面的 reward / quality signal。
-
-它可能与 correctness 高度相关，但取决于训练目标。
+学习过程层面的 reward / quality function，其意义取决于训练目标。
 
 ### Uncertainty Signal
 
-来自模型生成分布或其他信号，例如：
+例如：
 
 ```text
 logprob
 entropy
 margin
-self-consistency disagreement
+sampling disagreement
 ```
 
-它回答的是：
+它主要回答：
 
 ```text
-模型在这里有多不确定？
+模型对当前生成选择有多不确定？
 ```
 
-而不是直接回答：
-
-```text
-这里是否错误？
-```
-
-所以：
+因此：
 
 ```text
 Low confidence
@@ -695,286 +697,295 @@ Low confidence
 ≠ Worth repairing
 ```
 
-这是 reasoning data 设计中非常重要的一条纪律。
+Evaluator 的完整证据层级在第 15 章统一展开。
 
 ---
 
-# 4.8 Recoverability：为什么“发现错误”仍然不够？
+# 4.8 Counterfactual Rollout：怎么定义 Rescue、Harmful 与 Neutral？
 
-假设你已经能完美识别：
-
-```text
-当前 state 有问题
-```
-
-下一步仍然有一个关键问题：
-
-> **干预以后能不能改善最终答案？**
-
-如果一个错误已经不可逆，那么花大量计算分支也没有意义。
-
-如果当前只是局部算术偏差，重新计算一次可能很容易救回来。
-
-因此对于 test-time reasoning，真正有决策价值的标签常常是：
-
-```text
-intervention value
-branch value
-continuation value
-repairability
-recoverability
-```
-
----
-
-## 4.8.1 如何构造 Recoverability Label？
-
-最直接的方法是 counterfactual rollout。
-
-给定相同 reasoning prefix $P$：
+给定同一个 authoritative state / prefix \(P\)：
 
 ```text
 P
-├── 原路径 u0 → final outcome O0
-├── alternative c1 → final outcome O1
-└── alternative c2 → final outcome O2
+├── baseline continuation u0 → outcome O0
+├── alternative c1          → outcome O1
+└── alternative c2          → outcome O2
 ```
 
-然后比较：
+在相同 prefix 下改变局部 continuation，可以构造更加干净的 counterfactual comparison。
+
+对于某一个“baseline vs replacement”比较：
 
 ```text
-原路径错，alternative 对
-→ rescue
+baseline wrong → replacement correct
+= Rescue
 
-原路径对，alternative 错
-→ harmful
+baseline correct → replacement wrong
+= Harmful
 
-都对 / 都错
-→ neutral or non-discriminative
+both correct
+= Neutral-positive
+
+both wrong
+= Neutral-negative
 ```
 
-这种标签很有价值，因为它回答：
-
-> “如果当时做了不同选择，结果会不会改变？”
+这里的 `Rescue / Harmful` 是**相对于 baseline intervention 的 outcome transition**，不是 candidate 的固有属性。
 
 ---
 
-## 4.8.2 Future Information 只能做 Offline Label，不能偷渡到 Online Feature
+## 4.8.1 为什么 same-prefix / same-state 很重要？
 
-这是研究设计里很关键的一条。
-
-为了知道某个 state 是否可修复，我们可以离线跑未来 continuation：
+如果两个 candidate 来自完全不同前缀，最终结果差异可能来自：
 
 ```text
-当前 state
-↓
-多个 counterfactual futures
-↓
-观察 final outcome
-↓
-构造 recoverability label
+早期 reasoning difference
+不同 context
+不同 accumulated error
+不同 local action
 ```
 
-但在线系统在真正做决策时，还没有看到未来。
+很难归因。
 
-因此必须严格区分：
+same-prefix sibling candidates 控制住历史状态，让差异尽可能集中在当前局部 decision。
+
+因此它们非常适合研究：
+
+```text
+local causal leverage
+recoverability
+branch-worthiness
+candidate selection
+```
+
+---
+
+## 4.8.2 Discordant candidate 为什么特别重要？
+
+如果同一 state 的两个候选：
+
+```text
+一个最终正确
+一个最终错误
+```
+
+说明局部选择对 downstream outcome 有真实影响。
+
+如果所有候选最终结果都一样，那么 selector 再聪明，也没有可兑现的选择收益。
+
+因此 Candidate Selection 的上限同时受：
+
+```text
+Candidate Diversity
+×
+Outcome Discordance
+×
+Selectability
+```
+
+约束。
+
+完整 selector / oracle / abstention 分析在第 8 章展开。
+
+---
+
+# 4.9 Future Information：Offline Label 与 Online Feature 必须分开
+
+为了定义 Recoverability，我们可以离线运行未来 continuation：
+
+```text
+Current State
+↓
+Counterfactual Futures
+↓
+Final Outcomes
+↓
+Recoverability / Rescue / Harmful Labels
+```
+
+但真实在线系统在决策时看不到未来。
+
+因此：
 
 ```text
 Offline supervision / analysis
-        vs
+≠
 Online observable feature
 ```
 
-不能用“未来答案会错”作为在线 detector 的输入，否则就是 future leakage。
+禁止把：
+
+```text
+future final correctness
+future continuation outcome
+oracle best candidate
+```
+
+偷渡进在线 detector / selector feature。
+
+否则得到的是 leakage，不是可部署决策规则。
+
+这条原则在第 16 章 Frozen Protocol 中会再次作为实验纪律出现。
 
 ---
 
-# 4.9 Continue / Stop 与 Branch / Repair 是两个不同决策问题
+# 4.10 Continue / Stop 与 Keep / Branch / Repair 是两个决策问题
 
-Reasoning optimization 中经常存在两种 failure mode。
+Reasoning optimization 至少存在两类不同 action space。
 
-### Failure Mode A：推理还没完成，但系统过早停止
+## A. Continue / Stop
 
-对应的问题是：
+问题是：
 
-> **还需不需要继续想？**
-
-动作空间：
+> **当前 reasoning 是否已经足够，可以 commit；还是继续计算仍有价值？**
 
 ```text
 continue
 stop / commit
 ```
 
-### Failure Mode B：当前局部路径可能正在走错
-
-对应的问题是：
-
-> **要不要从当前前缀探索另一条局部路径？**
-
-动作空间：
+它解决：
 
 ```text
-keep current path
+premature stopping
+redundant reasoning
+compute allocation
+```
+
+---
+
+## B. Keep / Branch / Repair
+
+问题是：
+
+> **当前局部路径是否应该保留，还是从当前 state 尝试替代 continuation？**
+
+```text
+keep
 branch
 repair
 replace
 abstain
 ```
 
-这两个问题不能混成“多想一点好不好”。
+它解决：
+
+```text
+local path risk
+error accumulation
+alternative-path exploration
+```
+
+两者不能都叫“多想一点”。
 
 ```mermaid
 flowchart TD
-    S[Current Reasoning State] --> Q1{仍有未解决问题？}
-    Q1 -->|Yes| C[Continue]
-    Q1 -->|No| T[Stop / Commit]
+    S[Current Reasoning State] --> A{还有必要继续计算吗？}
+    A -->|Yes| C[Continue]
+    A -->|No| T[Stop / Commit]
 
-    S --> Q2{当前局部路径高风险且存在替代价值？}
-    Q2 -->|Yes| B[Branch / Repair]
-    Q2 -->|No| K[Keep Current Path]
+    S --> B{当前路径需要替换或修复吗？}
+    B -->|Yes| R[Branch / Repair]
+    B -->|No| K[Keep]
 ```
 
-一个 state 可能：
+一个 state 可以：
 
 ```text
 需要继续，但不需要分支
 ```
 
-也可能：
+也可以：
 
 ```text
-不应该沿原路径继续，而应该局部修复
+不应该沿当前路径继续，而应该局部修复
 ```
 
-所以在数据设计上，`continue label` 和 `repair label` 应当分开。
+所以 `continue label` 与 `repair / branch label` 必须分开。
 
 ---
 
-# 4.10 研究实例一：More Thinking Is Not Always Better —— 从题目难度转向 Current Reasoning State
+# 4.11 研究实例一：More Thinking Is Not Always Better
 
-> 下面不是通用定义，而是本体系中一个具体研究实例，用来说明 reasoning state data 如何支持动态计算预算决策。
+> 本节是具体研究实例，不是通用定义。正式书稿发布前，论文完整题名与 bibliographic metadata 统一在引用审计阶段核验。
 
-用户已有研究 **More Thinking Is Not Always Better: Structural and Semantic Factors of Complex Reasoning Tasks in LLMs** 关注的核心并不是简单证明“多想不好”，而是：
-
-> **额外推理的收益具有显著异质性，因此 test-time compute 应根据当前 reasoning state 分配，而不是给所有样本固定深度。**
-
-研究在 ProofWriter、PrOntoQA、ProverQA、FOLIO 四个逻辑推理 benchmark、共 5,001 个样本上比较不同推理深度。
-
-固定深度结果呈现明显非单调性：
+该研究关注的核心不是简单证明：
 
 ```text
-fixed depth 1 → 69.04%
-fixed depth 2 → 74.09%
-fixed depth 3 → 70.97%
+“多想不好”
 ```
 
-也就是说：
+而是：
+
+> **额外推理收益具有显著异质性，因此 test-time compute 应根据 current reasoning state 分配，而不是对所有样本使用固定深度。**
+
+在 ProofWriter、PrOntoQA、ProverQA、FOLIO 等逻辑推理任务上的 fixed-depth 实验呈现非单调性：
 
 ```text
-更多 reasoning
-≠ 单调更高 accuracy
+depth 1 → 69.04%
+depth 2 → 74.09%
+depth 3 → 70.97%
 ```
 
-其中既存在：
+仅看总体 accuracy 会遗漏两种相反 transition：
 
 ```text
 Wrong → Right
-额外 reasoning 修复了答案
-```
+额外 reasoning 修复答案
 
-也存在：
-
-```text
 Right → Wrong
-额外 reasoning 导致 answer drift / degradation
+额外 reasoning 破坏原本正确答案
 ```
 
-这正是 process-level 数据分析的典型价值。
+这正说明：
+
+> **Average gain 无法替代 state-dependent transition analysis。**
 
 ---
 
-## 4.10.1 从 Outcome Label 到 Audit State
+## 4.11.1 Structured Audit State
 
-该研究使用 Answerer → Auditor 的迭代框架，并把 Auditor 的诊断组织成 structured audit state。
-
-可以抽象为：
+该研究使用 Answerer–Auditor 迭代，并把当前诊断组织成 structured audit state。
 
 ```mermaid
 flowchart LR
     A[Current Answer / Reasoning] --> B[Auditor]
     B --> C[Structured Audit State]
     C --> D{Remaining answer-relevant gap?}
-    D -->|Yes| E[Continue Reasoning]
+    D -->|Yes| E[Continue]
     D -->|No| F[Stop / Commit]
 ```
 
-这里的数据价值不只来自：
-
-```text
-最终 answer correct / wrong
-```
-
-还来自：
+这里有价值的 process data 包括：
 
 ```text
 remaining_gap
-是否存在未解决的 answer-relevant issue
-当前审计判断
+answer-relevant unresolved issue
+current audit state
 continue / stop decision
 ```
 
-因此这个项目可以被理解为一个非常典型的：
-
-> **从 task-level difficulty 转向 state-level reasoning supervision 的实例。**
-
----
-
-## 4.10.2 它和 Process Supervision 的关系
-
-这里需要严谨区分：
-
-它不是传统意义上“人工给每个 CoT step 标 correct / incorrect”的 PRM 数据集。
-
-更准确的说法是：
-
-> 它构造并利用了**结构化的 reasoning-state diagnostic signal**，判断当前推理是否还存在与答案相关的 unresolved gap，并据此做动态 continuation / stopping。
-
-因此它更接近：
+它不是传统“每个 CoT step 标 correct / incorrect”的 PRM 数据，而更接近：
 
 ```text
 state diagnosis
 +
-continuation value estimation
+continuation-value estimation
 +
-reasoning budget allocation
+reasoning-budget allocation
 ```
-
-而不是单纯 step correctness classification。
-
-这一区分在面试时非常重要。
 
 ---
 
-## 4.10.3 数据视角下能学到什么？
+## 4.11.2 数据视角下的三个启发
 
-这个研究给“做数据”提供了三个直接启发：
+### Task-hard ≠ State-worth-continuing
 
-### 启发 1：Hard Example 不等于值得继续思考的 Example
+难题不代表每个时刻都值得继续计算。
 
-同一道难题，在不同 reasoning state 下 continuation value 不同。
+### Transition 比单点 Accuracy 更有解释力
 
-因此：
-
-```text
-task difficulty
-≠ state difficulty
-≠ continuation value
-```
-
-### 启发 2：要分析 Transition，而不只看最终 Accuracy
-
-只有拆出：
+必须分析：
 
 ```text
 Wrong → Right
@@ -983,72 +994,66 @@ Wrong → Wrong
 Right → Right
 ```
 
-才能知道额外计算到底做了什么。
+### Compute 也可以做 marginal-value allocation
 
-### 启发 3：Reasoning Budget 本身可以成为数据策略问题
-
-不是问：
+真正的问题不是：
 
 ```text
-所有题多给一轮是否提升？
+“所有题再想一轮好吗？”
 ```
 
-而是问：
+而是：
 
 ```text
-哪些 state 的下一单位 compute 具有正边际价值？
+“哪些 current state 的下一单位 compute 仍有正边际价值？”
 ```
-
-这已经接近 Data Strategy 中的“marginal value”思想。
 
 ---
 
-# 4.11 研究实例二：RoTFuse / K17 —— Risk、Branch-worthiness 与 Recoverability
+# 4.12 研究实例二：RoTFuse / K17
 
-> 下面同样是研究实例。当前项目重点在方法与证据链设计，不把阶段性实验结果写成“已经证明稳定提升 accuracy”的结论。
+> 本节同样是具体研究实例。它用于说明 `Risk → Trigger → Candidate → Selection → Outcome` 的状态级数据结构，不把阶段性结果写成普遍方法结论。
 
-RoTFuse / K17 的主线可以抽象为：
+主线可抽象为：
 
 ```text
-当前 authoritative prefix P
+Authoritative Prefix P
         ↓
-生成 greedy provisional unit u0
+Greedy Provisional Unit u0
         ↓
-读取当前可观测风险信号
+Current-state Observable Risk Signal
         ↓
 是否触发局部探索？
       /       \
     No         Yes
     ↓           ↓
- keep u0    same-prefix alternatives C1/C2
+ keep u0    same-prefix candidates
                  ↓
-             candidate selection
+             online selection
                  ↓
-             commit one unit
+              commit
 ```
 
-这里的数据问题和“当前 step 是否错误”并不相同。
-
-系统在线能看到的只是：
+这里在线系统能看到：
 
 ```text
-当前前缀
-当前生成单元
-logprob / entropy 等生成信号
-位置 / 长度等局部特征
+current prefix
+provisional unit
+observable generation statistics
+local structural features
 ```
 
-它不能提前知道最终 answer。
+它不能提前看到最终答案。
 
-因此 K17 特别适合说明：
+因此这个实例特别适合说明：
 
-> **在线 trigger 应使用 current-state observable signals；而最终正确性、rescue / harmful 等 counterfactual outcome 只能作为离线标签。**
+> **Risk signal 可以在线使用；Rescue / Harmful / Recoverability 必须通过离线未来结果定义。**
 
 ---
 
-## 4.11.1 为什么 Low Confidence 不能直接当 Error Label？
+## 4.12.1 Low Confidence 不是 Error Label
 
-K17 使用低置信生成信号来决定是否值得探索，本质上检测的是：
+低置信触发首先表示：
 
 ```text
 suspicion / risk
@@ -1060,139 +1065,100 @@ suspicion / risk
 known error
 ```
 
-因为可能存在：
+因为同时存在：
 
 ```text
 low confidence + correct
 high confidence + wrong
 ```
 
-因此更严谨的研究问题是：
+所以更严谨的问题是：
 
-> **低置信 state 是否更可能具有“局部替代路径值得探索”的价值？**
+> **哪些低置信 state 更可能具有值得探索的替代路径？**
 
-这比“低置信是不是错误”更接近真实 decision objective。
+而不是：
 
----
-
-## 4.11.2 Counterfactual Sibling Data
-
-从同一个 prefix 生成：
-
-```text
-u0  = greedy local continuation
-c1  = sampled alternative
-c2  = sampled alternative
-```
-
-它们形成 sibling candidates。
-
-如果再把每条 candidate 接续到最终 outcome，就可以离线构造：
-
-```text
-same prefix
-+
-different local decision
-+
-different downstream outcome
-```
-
-这种数据特别适合研究：
-
-```text
-local causal leverage
-branch-worthiness
-candidate selection
-recoverability
-```
-
-因为前缀被控制住了，差异集中在局部 continuation。
+> “低置信是不是错。”
 
 ---
 
-## 4.11.3 四类 Counterfactual Outcome
+## 4.12.2 Candidate Existence 与 Selectability 必须拆开
 
-可以把局部替换结果理解为：
-
-```text
-原路径错 → 替代路径对：rescue
-原路径对 → 替代路径错：harmful
-两者都对：neutral-positive
-两者都错：neutral-negative
-```
-
-其中真正对 selector 最有信息量的是 discordant case：
+从同一 prefix 生成：
 
 ```text
-一个 candidate 对，一个 candidate 错
+u0 = greedy continuation
+c1 = alternative
+c2 = alternative
 ```
 
-因为这说明：
-
-> **当前局部选择具有 downstream causal sensitivity。**
-
-如果无论选哪个最后都一样，那么 selector 再聪明也无法产生净收益。
-
-这就是为什么：
+如果离线发现某个 sibling 能 rescue baseline，只能证明：
 
 ```text
-Risk
-×
-Candidate Diversity
-×
-Downstream Causal Leverage
+better candidate exists
 ```
 
-三者共同决定一次局部探索是否值得。
+还不能证明：
+
+```text
+online selector can identify it
+```
+
+因此必须分别评估：
+
+```text
+Generator Quality
+Oracle Gap
+Selector Quality
+End-to-End Net Gain
+```
+
+这一拆分在第 8 章 Candidate Selection 与第 16 章 Evaluation Protocol 中正式展开。
 
 ---
 
-## 4.11.4 More Thinking 与 RoTFuse 的互补关系
-
-两项研究可以放在同一张图里理解：
+## 4.12.3 More Thinking 与 RoTFuse 的统一视角
 
 ```mermaid
 flowchart TD
-    S[Current Reasoning State] --> A{问题 1：还要不要继续？}
-    A -->|Yes| MT[More Thinking: continue / stop]
+    S[Current Reasoning State] --> A{还要继续吗？}
+    A -->|Yes| MT[Continue]
     A -->|No| Stop[Commit]
 
-    S --> B{问题 2：当前局部路径要不要换？}
-    B -->|Yes| RF[RoTFuse: branch / repair / select]
-    B -->|No| Keep[Keep current path]
+    S --> B{当前局部路径要换吗？}
+    B -->|Yes| RF[Branch / Repair / Select]
+    B -->|No| Keep[Keep]
 ```
 
-它们针对的是两个不同 failure mode：
+两者都是：
+
+> **State-dependent test-time decision problem。**
+
+但 action space 不同：
 
 ```text
 More Thinking
-→ redundant reasoning / premature stopping
-→ continuation budget allocation
+→ continue / stop
 
 RoTFuse
-→ local path risk / error accumulation
-→ branch and repair
+→ keep / branch / repair / select
 ```
 
-所以面试时不宜把两个项目说成“都是让模型多想”。
-
-更准确的统一表述是：
-
-> **两者都把 test-time reasoning 看成 state-dependent decision problem，但优化的 action 不同：一个决定 continue/stop，另一个决定 keep/branch/repair。**
+因此不应把两者都概括成“让模型多想”。
 
 ---
 
-# 4.12 Reasoning Correction Data：错误轨迹也可以变成高价值训练数据
+# 4.13 失败 Reasoning 也可以转化成训练数据
 
-如果只保留完全正确的 CoT：
+只保留完美 CoT：
 
 ```text
 Correct trajectory → SFT
 ```
 
-会浪费大量模型自己产生的失败信息。
+会浪费大量失败信息。
 
-失败轨迹可以转换成：
+失败 trajectory 可以派生：
 
 ### Error Localization Data
 
@@ -1203,7 +1169,7 @@ trajectory + first_error_step
 ### Critique Data
 
 ```text
-wrong step → explanation of why wrong
+wrong step → why wrong
 ```
 
 ### Correction Data
@@ -1217,30 +1183,27 @@ wrong prefix
 ### Preference Data
 
 ```text
-bad continuation vs repaired continuation
-→ repaired > bad
+bad continuation
+vs
+repaired continuation
 ```
 
 ### Recovery Data
 
 ```text
-error state
+risky / wrong state
 → detect
-→ backtrack / branch
+→ branch / backtrack / repair
 → recover
 ```
 
-这说明 Reasoning Data 不必只追求“采到一条完美轨迹”。
+因此：
 
-很多时候：
-
-> **模型最有信息量的数据，恰恰来自它差一点就做对的 failure。**
+> **“失败”不是一种单一负标签，而是可以被重新编码成不同 supervision interface 的经验。**
 
 ---
 
-# 4.13 Reasoning Data 的生产 Pipeline
-
-一套较完整流程可以写成：
+# 4.14 Reasoning Data Production Pipeline
 
 ```mermaid
 flowchart TD
@@ -1249,80 +1212,55 @@ flowchart TD
     C --> D[Step / Unit Segmentation]
     D --> E[Final Outcome Verification]
     D --> F[Process Annotation]
-    F --> G1[Correctness Labels]
-    F --> G2[Risk Signals]
+    F --> G1[Correctness]
+    F --> G2[Risk]
     F --> G3[Error Localization]
-    F --> G4[Continue / Stop Labels]
-    F --> G5[Recoverability Labels]
-    G1 --> H[Dataset Construction]
-    G2 --> H
-    G3 --> H
-    G4 --> H
-    G5 --> H
-    E --> H
+    F --> G4[Continue / Stop]
+    F --> G5[Recoverability / Repairability]
+    D --> H[Counterfactual Generation]
+    H --> G5
+    H --> G6[Rescue / Harmful / Neutral]
+    E --> I[Dataset Assembly]
+    G1 --> I
+    G2 --> I
+    G3 --> I
+    G4 --> I
+    G5 --> I
+    G6 --> I
 ```
 
-各阶段分别解决：
-
-### 1. Task Sampling
-
-需要覆盖目标 reasoning 能力，而不是只挑容易自动判的题。
-
-### 2. Rollout
-
-必须记录：
+生产时至少记录：
 
 ```text
 model version
+prompt / system context
 decoding config
-prompt
 seed if available
 max tokens
-stop condition
+stop semantics
+step segmentation rule
+verifier version
+annotation / judge version
+counterfactual generation policy
 ```
 
-### 3. Segmentation
-
-step boundary 必须稳定且可复现。
-
-### 4. Outcome Verification
-
-尽量使用客观 verifier。
-
-### 5. Process Annotation
-
-不要把多个语义不同的 label 硬塞成一个分数。
-
-### 6. Counterfactual Generation
-
-如果研究 recoverability / repair，需要从同一 prefix 产生 alternative continuation。
-
-### 7. Dataset Assembly
-
-保留完整 lineage：
+特别要记录：
 
 ```text
-哪条 trajectory
-哪个 prefix
-哪个 step
-谁标的
-依据是什么
-是否使用未来信息
-用于 train 还是 eval
+某字段是否使用 future information
+用于 offline analysis 还是 online policy
 ```
 
 ---
 
-# 4.14 一个推荐的 Reasoning Data Schema
-
-可以设计成：
+# 4.15 一个推荐的 Reasoning Data Schema
 
 ```json
 {
   "task_id": "logic_001",
-  "problem": "...",
-  "model_version": "...",
   "trajectory_id": "traj_001",
+  "model_version": "model_v1",
+  "problem": "...",
   "steps": [
     {
       "step_id": 0,
@@ -1349,30 +1287,31 @@ step boundary 必须稳定且可复现。
   ],
   "final_answer": "...",
   "final_correct": false,
-  "verifier": "exact_match",
+  "verifier_version": "exact_match_v1",
   "counterfactuals": [
     {
       "branch_from_step": 1,
       "candidate_id": "c1",
-      "final_correct": true
+      "final_correct": true,
+      "relative_to_baseline": "rescue"
     }
   ]
 }
 ```
 
-重点不在字段名，而在于**不要把不同语义的 supervision 混为一个 label**。
+重点不是字段名，而是：
+
+> **不同语义的 supervision 不要压成一个模糊的 `quality_score`。**
 
 ---
 
-# 4.15 Reasoning Data 的几个特殊难题
+# 4.16 Reasoning Data 的特殊难题
 
-## 4.15.1 多条正确路径
+## 4.16.1 多条正确路径
 
-数学、逻辑和开放推理通常没有唯一 CoT。
+开放推理通常不存在唯一 CoT。
 
-因此不能因为模型没走 reference path 就判错。
-
-正确 process annotation 应关注：
+所以 process annotation 应判断：
 
 ```text
 当前推导是否有效
@@ -1381,14 +1320,14 @@ step boundary 必须稳定且可复现。
 而不是：
 
 ```text
-是否和参考答案逐句一致
+是否逐句匹配 reference reasoning
 ```
 
 ---
 
-## 4.15.2 Local Correctness 不保证 Global Success
+## 4.16.2 Local Correctness 不保证 Global Success
 
-每个局部 step 看起来都合理，也可能：
+每一步局部合理，也可能：
 
 ```text
 遗漏关键分支
@@ -1396,102 +1335,97 @@ step boundary 必须稳定且可复现。
 最终答非所问
 ```
 
-因此必须同时保留 global outcome。
+所以必须保留 global outcome。
 
 ---
 
-## 4.15.3 Final Correct 不保证 Process Correct
+## 4.16.3 Final Correct 不保证 Process Correct
 
-可能出现：
+可能存在：
 
 ```text
 错误推理 + 猜中答案
 ```
 
-这正是 process supervision 能补充的信息。
+这正是 process evidence 的价值。
 
 ---
 
-## 4.15.4 Hidden Reasoning 与 Observable Trace
+## 4.16.4 Hidden Reasoning 与 Observable State
 
-现代系统里，不应默认可以访问或需要训练模型复现其全部私有内部思维过程。
+数据系统不应假定必须获得或复现模型全部私有内部思维过程。
 
-在数据工程中更稳健的做法是关注可用的中间产物，例如：
+更稳健的对象是可观察、可评价、与决策目标直接相关的中间状态：
 
 ```text
 structured audit state
 subgoal
 intermediate result
+proof / program state
 tool action
-proof state
 verification result
 candidate continuation
 observable generation statistics
 ```
 
-也就是说：
+因此：
 
-> **Process supervision 不要求把“模型脑内全部过程”都变成数据。**
-
-真正需要的是与决策目标相关、可观察、可评价的过程状态。
+> **Process supervision 的目标是得到 decision-relevant evidence，不是记录“模型脑内全部过程”。**
 
 ---
 
-## 4.15.5 Long-horizon Credit Assignment
+## 4.16.5 Long-horizon Credit Assignment
 
-如果最终在第 20 步失败：
+如果最终第 20 步失败：
 
 ```text
 S1 → S2 → ... → S20 → wrong
 ```
 
-到底哪一步应负责？
-
-可能是：
+可能出现：
 
 ```text
 S3 埋下错误
-S12 错失纠正机会
-S18 做出不可逆决策
+S12 错失修复机会
+S18 造成不可逆后果
 ```
 
-所以“一条失败 trajectory 全部标负”通常过于粗糙。
-
-需要结合：
+Reasoning Data 可以提供这些局部证据，但完整的：
 
 ```text
-first error
-causal dependency
-repair opportunity
-counterfactual continuation
+First Error
+First Harmful Action
+Last Recoverable State
+Point of No Return
+Root Cause
 ```
 
-进行更细的 credit assignment。
+应在第 13、14 章完成因果归因与诊断，不在本章重复定义。
 
 ---
 
-# 4.16 如何评价一套 Process Supervision Data？
+# 4.17 如何评价一套 Process Supervision Data？
 
-至少需要看五个层次。
+至少分六层。
 
 ## 1. Label Accuracy
 
-step correctness / gap / recoverability 标签本身准不准？
+Correctness / gap / recoverability 标签本身是否可靠？
 
 ## 2. Boundary Quality
 
-step segmentation 是否稳定？错误是否被切在合理位置？
+Segmentation 是否稳定？关键 decision 是否被正确切分？
 
-## 3. Inter-annotator Consistency
+## 3. Agreement / Calibration
 
-尤其对于开放 reasoning：不同标注者是否一致？
+人、人机、Judge、Verifier 之间是否一致？分歧来自噪声还是任务真实歧义？
 
 ## 4. Predictive Utility
 
-process signal 能否预测：
+Process signal 能否预测：
 
 ```text
-final failure
+future failure
 future rescue
 continue benefit
 branch benefit
@@ -1499,85 +1433,104 @@ branch benefit
 
 ## 5. Decision Utility
 
-最重要的是：
-
-> **根据这个 process signal 做决策，是否真的比基线更好？**
-
-例如：
+根据这个 signal 做 policy decision 是否真的改善：
 
 ```text
-更高 accuracy？
-更少 tokens？
-更高 rescue？
-更低 harmful intervention？
+accuracy
+success
+rescue
+harmful rate
+tokens
+latency
 ```
 
-Process metric 很高但无法改善实际 policy，不一定是有价值的数据。
+## 6. Online Validity
+
+真正部署时是否只依赖当时可观察的信息？是否发生 future leakage？
+
+最终最重要的不是：
+
+```text
+Process classifier AUC 很高
+```
+
+而是：
+
+> **它是否让实际决策变得更好。**
 
 ---
 
-# 4.17 常见失败模式
+# 4.18 常见失败模式
 
-### 失败 1：把 Final Wrong 的所有 Step 都标成 Wrong
+### 失败 1：把 Final Wrong 的所有 Step 都标 Wrong
 
-这会把正确前缀一起污染。
+会污染正确前缀。
 
-### 失败 2：把低置信直接当错误
+### 失败 2：把 Low Confidence 直接当 Error
 
 Uncertainty 是风险信号，不是 correctness certificate。
 
-### 失败 3：把“有风险”直接当“值得修”
+### 失败 3：把 Risk 直接当 Worth Repairing
 
-高风险 state 可能不可修复；低风险 state 也可能存在高价值替代路径。
+高风险不代表存在可改善未来，更不代表当前系统修得了。
 
-### 失败 4：用未来信息做在线 feature
+### 失败 4：Recoverable 就默认 Selectable
 
-离线可以用最终 outcome 构造 label；在线决策不能提前看到未来。
+更好的 candidate 存在，不代表 online selector 能识别它。
 
-### 失败 5：Step Definition 不稳定
+### 失败 5：未来信息偷渡进 Online Feature
 
-同一逻辑操作在不同样本里切成不同粒度，会让 process labels 失去统一语义。
+Offline label 可以看未来；online decision 不可以。
 
-### 失败 6：PRM 只学语言风格
+### 失败 6：Step Definition 不稳定
 
-“写得像数学证明”不等于推理正确。
+同一种 reasoning operation 被切成不同粒度，process label 会失去统一语义。
 
-### 失败 7：只做 Error Detection，不研究 Action
+### 失败 7：PRM 只学语言风格
 
-知道“这里有问题”以后，还需要决定：
+“写得像证明”不等于正确。
+
+### 失败 8：只做 Detection，不定义 Action
+
+检测“这里有问题”之后，必须知道系统能做：
 
 ```text
-继续？
-停止？
-分支？
-回退？
-重算？
+continue
+stop
+branch
+repair
+backtrack
+abstain
 ```
 
-### 失败 8：只看平均 Accuracy，不看状态转移
+中的哪一个。
 
-需要至少分析：
+### 失败 9：只看平均 Accuracy，不看 Transition
+
+必须至少分析：
 
 ```text
 Wrong → Right
 Right → Wrong
 ```
 
-否则无法看清 repair 与 degradation trade-off。
+才能看到 repair–degradation trade-off。
 
-### 失败 9：Counterfactual Candidate 不控制 Prefix
+### 失败 10：Counterfactual Candidate 不控制 State
 
-如果两个候选来自完全不同前缀，就很难把最终差异归因到当前局部 decision。
+前缀不同会严重削弱局部因果解释。
 
-### 失败 10：把阶段性 selector 结果上升成“内部状态没有 signal”
+### 失败 11：一个 selector / probe 失败，就宣布“内部状态没有 signal”
 
-一个具体 probe / selector 在当前样本、表示、层、容量和监督条件下失败，只能说明**当前可操作方法未提取到足够稳定信号**，不能直接证明该状态理论上不存在可用信息。
+一个具体方法在当前样本、表示、层、容量和监督下失败，只能说明：
+
+> **当前可操作方法没有提取到足够稳定的可利用信号。**
+
+不能直接证明理论上不存在信息。
 
 ---
 
-# 4.18 从数据岗位视角，这一章实际会做什么？
-
-对应工作可能包括：
+# 4.19 从数据岗位视角，这一章实际会做什么？
 
 ```text
 收集 reasoning rollout
@@ -1586,157 +1539,190 @@ Right → Wrong
 标 step correctness
 找 first error
 构建 critique / correction data
-生成 counterfactual continuation
+生成 same-state counterfactual continuation
 跑 verifier
 构造 process reward labels
 训练 / 校准 PRM
 分析 uncertainty signals
-做 recoverability labeling
-构造 continue/stop 数据
-构造 branch/repair 数据
-分析 Wrong→Right / Right→Wrong transition
+构造 recoverability / repairability labels
+构造 continue / stop 数据
+构造 branch / repair 数据
+分析 Wrong→Right / Right→Wrong
 维护 reasoning hard-case pool
 ```
 
-因此 Reasoning Data 岗位真正需要的能力不是“会看 CoT”，而是：
+核心能力不是“会看 CoT”，而是：
 
-> **把一条长推理轨迹转化成可验证、可归因、可用于决策的训练信号。**
+> **把长推理轨迹转化成可验证、可归因、可用于状态级决策的学习信号。**
 
 ---
 
-# 4.19 本章关键词
+# 4.20 本章关键词
 
-| 术语 | 一句话理解 |
+| 术语 | Canonical meaning |
 |---|---|
 | Reasoning Trace | 从问题到答案的一整条推理路径 |
-| Reasoning State | 当前推理已经到达的状态 |
-| Outcome Supervision | 只评价最终结果 |
-| Process Supervision | 对中间推理过程提供反馈 |
-| Step Label | 针对某个 reasoning step 的监督信号 |
-| First Error | 轨迹中第一处关键错误 |
-| PRM | 对 reasoning process / step 进行评分的 reward model |
-| ORM | 对完整输出最终 outcome 进行评价的 reward model |
-| Risk Signal | 表示当前状态潜在失败风险的信号 |
-| Uncertainty | 模型对当前生成选择的不确定程度 |
-| Recoverability | 从当前 state 通过额外行动修复最终结果的可能性 |
-| Future Value | 当前状态采取某动作后的预期未来收益 |
-| Counterfactual Rollout | 从同一状态尝试不同 continuation 并观察结果 |
-| Branch-worthiness | 当前 state 是否值得探索替代路径 |
-| Credit Assignment | 将最终结果归因到中间决策 |
-| Error Propagation | 一个局部错误如何影响后续推理 |
-| Audit State | 对当前 reasoning 状态进行结构化诊断的中间表示 |
+| Reasoning State | 当前推理已经到达的决策状态 |
+| Outcome Supervision | 只评价最终任务结果 |
+| Process Supervision | 对中间 state / step / transition 提供反馈 |
+| First Error | 第一处局部事实 / 逻辑 / 约束失效 |
+| Correctness | 当前内容是否成立 |
+| Risk | 当前可观察状态是否呈现较高未来失败风险 |
+| Recoverability | 是否存在能改善最终结果的未来 continuation / intervention |
+| Repairability | 当前系统在给定 action space / budget 下是否实际可修 |
+| Selectability | 在线 selector 能否用当时可见信息识别更优候选 |
+| PRM | 对 reasoning process / state 学习评价信号的模型 |
+| ORM | 对完整输出 outcome 进行评价的模型 |
+| Counterfactual Rollout | 从相同 state 尝试不同 continuation 并观察 outcome |
+| Rescue | baseline wrong → intervention correct |
+| Harmful | baseline correct → intervention wrong |
+| Branch-worthiness | 当前 state 是否值得探索 alternative branch |
 | Wrong→Right | 额外计算修复错误 |
 | Right→Wrong | 额外计算破坏原本正确结果 |
 
+更完整定义见 [`Canonical Glossary`](./00_Glossary_and_Notation.md)。
+
 ---
 
-# 4.20 面试 / 自检问题
+# 4.21 面试 / 自检问题
 
 学完这一章至少应该能够回答：
 
-1. **Outcome Supervision 和 Process Supervision 有什么区别？**
-2. **为什么 final answer correct 不能证明 reasoning process correct？**
-3. **PRM 与 ORM 分别在学什么？**
-4. **为什么 step segmentation 本身就是数据设计问题？**
-5. **什么是 first-error localization，它有什么价值？**
-6. **Risk、Correctness、Recoverability 为什么必须区分？**
-7. **为什么 low confidence 不能直接等同于 wrong？**
-8. **怎么利用 counterfactual rollout 构造 recoverability label？**
-9. **为什么未来 outcome 可以用于 offline label，却不能作为 online feature？**
-10. **Continue/Stop 与 Branch/Repair 为什么是两个不同决策？**
-11. **如果 PRM step accuracy 很高，但用它做 search 没提升，可能是什么原因？**
-12. **一条 final-wrong trajectory 应不应该所有 step 都标负？为什么？**
-13. **如何把失败 CoT 转换成 correction / preference data？**
-14. **Process Supervision 最大的成本瓶颈是什么？**
-15. **如何评价一批 process data 是否真的有 downstream value？**
-16. **为什么同前缀 sibling candidate 对研究局部 causal leverage 很重要？**
-17. **Wrong→Right / Right→Wrong 分析比单独 accuracy 多告诉了我们什么？**
-18. **More Thinking 项目和 RoTFuse 项目分别在优化 reasoning 的哪个决策？**
+1. Outcome Supervision 和 Process Supervision 有什么区别？
+2. 为什么 Final Correct 不能证明 Process Correct？
+3. PRM 与 ORM 分别在学习什么？
+4. 为什么 Step Segmentation 本身就是数据设计问题？
+5. First Error 有什么价值？它为什么不等于 First Harmful Action？
+6. Correctness、Risk、Recoverability 为什么必须分开？
+7. Recoverability 与 Repairability 有什么区别？
+8. Candidate existence 与 Selectability 有什么区别？
+9. 为什么 Low Confidence 不能直接等于 Wrong？
+10. 如何利用 same-state counterfactual rollout 定义 Rescue / Harmful？
+11. 为什么 future outcome 可以用于 offline label，却不能作为 online feature？
+12. Continue / Stop 与 Keep / Branch / Repair 为什么是不同决策？
+13. 如果 PRM step accuracy 很高，但 search 没提升，可能是什么原因？
+14. 一条 final-wrong trajectory 是否应该所有 step 都标负？
+15. 如何把失败 reasoning 转成 correction / preference / recovery data？
+16. 如何证明一批 process data 真有 downstream decision utility？
+17. 为什么 same-prefix sibling candidate 对研究局部 causal leverage 很重要？
+18. Wrong→Right / Right→Wrong 比平均 Accuracy 多告诉了我们什么？
+19. More Thinking 和 RoTFuse 分别优化哪一种 test-time action？
+20. 一个 oracle candidate pool 很强但线上没有收益，你会优先检查什么？
 
 ---
 
-## 4.20.1 一个通用回答框架：如何设计 Reasoning Data？
+## 4.21.1 一个通用回答框架：如何设计 Reasoning Data？
 
-如果面试官问：
+不要直接回答：
 
-> “让你做一批提升模型推理能力的数据，你会怎么做？”
+```text
+“生成更多 CoT。”
+```
 
-不要直接回答“生成更多 CoT”。
-
-可以按下面的链路回答：
+更成熟的链路是：
 
 ```text
 1. 明确目标 failure mode
    ↓
-2. 决定监督粒度：outcome / step / state / trajectory
+2. 明确最终要做的 decision
    ↓
-3. 定义 reasoning unit 和 schema
+3. 决定 supervision 粒度：outcome / step / state / trajectory
    ↓
-4. 用当前模型 rollout，获得真实失败分布
+4. 定义 reasoning unit 与 schema
    ↓
-5. 先用 verifier 建立可靠 final outcome
+5. 用 current model rollout 获取真实 failure distribution
    ↓
-6. 对关键 state 做 process annotation / error localization
+6. 用 verifier 建立可靠 outcome
    ↓
-7. 必要时从同一 prefix 做 counterfactual rollout
+7. 对关键 state 做 process annotation / error localization
    ↓
-8. 分开构造 correctness、risk、recoverability 标签
+8. 必要时从同一 state 做 counterfactual rollout
    ↓
-9. 形成 SFT / preference / PRM / routing data
+9. 分开 Correctness / Risk / Recoverability / Repairability / Selectability
    ↓
-10. 用 held-out eval 验证真实 decision utility
+10. 转成 SFT / Preference / PRM / Router / Selector Data
+   ↓
+11. 用 held-out protocol 验证真实 Decision Utility
 ```
 
-其中最值得强调的是：
+核心原则：
 
-> **数据设计必须从目标决策倒推，而不是先生成一堆 CoT 再想怎么用。**
-
----
-
-# 4.21 延伸阅读
-
-建议至少知道以下脉络：
-
-- **Let’s Verify Step by Step / Improving Mathematical Reasoning with Process Supervision**：经典 Outcome Supervision vs Process Supervision、PRM 路线；
-- **PRM800K**：大规模 step-level mathematical reasoning feedback 数据；
-- Process Reward Model 相关工作：如何从人工标签、自动 verifier、Monte Carlo rollout 或模型反馈构造 step-level reward；
-- Test-time scaling / search：PRM 或 verifier 如何用于 best-of-N、tree search、candidate selection；
-- Reasoning correction：如何把错误轨迹转换成 critique、repair 和 recovery 数据。
-
-在本知识体系中，后续第 8 章 Rollout / Candidate Selection、第 9 章 Hard Case Mining、第 16 章 Verifiable Data、第 17 章 Grader，以及第 20 章 Data Flywheel 都会重新用到这一章的概念。
+> **从目标决策倒推数据设计，而不是先生成大量 CoT，再想它们能做什么。**
 
 ---
 
-# 4.22 本章最终要形成的一个认识
+# 4.22 与后续章节的关系
 
-把整章压缩成一句话：
+这一章只负责把 reasoning-state semantics 定义清楚。
 
-> **Reasoning Data 的价值，不在于保存“模型想了什么”，而在于把推理过程变成可以定位错误、评估风险、估计未来价值并指导下一步决策的数据。**
-
-再进一步，可以把一条 reasoning trajectory 看成：
+后续章节分别接手：
 
 ```text
-State
- ↓
-Observable Signals
- ↓
-Diagnosis
- ├── Correctness
- ├── Risk
- └── Recoverability
- ↓
-Decision
- ├── Continue / Stop
- └── Keep / Branch / Repair
- ↓
-Future Outcome
+第 8 章
+→ Candidate Generation / Rejection Sampling / Selector / Oracle
+
+第 9 章
+→ 哪些 state / case 值得优先采集
+
+第 13 章
+→ First Error / First Harmful / Last Recoverable / Credit
+
+第 15 章
+→ Verifier / Grader / Judge 的证据层级
+
+第 16 章
+→ Frozen Protocol / paired comparison / Rescue-Harmful evaluation
+
+第 21 章
+→ 如何用受控训练实验证明 process data 真有学习价值
 ```
 
-这套结构会直接连接下一章：
+建议延伸阅读方向：
 
-> **Tool-use Data 与 Agent Trajectory Data**
+- Process Supervision / Process Reward Models；
+- PRM800K 等 step-level mathematical reasoning feedback 数据；
+- Test-time scaling / best-of-N / tree search / verifier-guided search；
+- Reasoning correction / critique / repair / recovery data。
 
-因为 Agent 本质上只是把 reasoning action 从“继续想一步”扩展成了：
+正式书稿发布前，具体论文题名、年份和引用格式统一在 bibliographic audit 阶段核验。
+
+---
+
+# 4.23 本章最终要形成的认识
+
+把整章压缩成一条链：
+
+```text
+Reasoning State
+       ↓
+Observable Evidence
+       ↓
+Diagnosis
+├── Correctness
+├── Risk
+├── Recoverability
+├── Repairability
+└── Selectability
+       ↓
+Decision
+├── Continue / Stop
+└── Keep / Branch / Repair
+       ↓
+Future Outcome
+       ↓
+Offline Counterfactual Analysis
+       ↺
+```
+
+最终要记住的不是某一个 score，而是：
+
+> **Reasoning Data 的价值，不在于保存“模型想了什么”，而在于把中间过程变成能够定位状态、区分风险与错误、识别可恢复空间、约束实际干预，并最终改善决策的数据。**
+
+下一章把同样的状态—动作思想扩展到外部世界：
+
+> [`第 5 章 Tool-use Data 与 Agent Trajectory Data`](./05_Tool_Use_and_Agent_Trajectory_Data.md)
+
+Reasoning action 从“继续推一步”扩展成：
 
 ```text
 调用工具
@@ -1747,4 +1733,4 @@ Future Outcome
 继续 / 回退 / 停止
 ```
 
-也就是说，从 Reasoning Data 到 Agent Data，并不是换了一个完全不同的话题，而是从**内部推理状态序列**进一步走向了**模型与外部环境交互的决策轨迹**。
+也就是说，从 Reasoning Data 到 Agent Data，不是换了一个完全不同的话题，而是从**内部/显式推理状态序列**进一步走向**模型与外部环境交互的决策轨迹**。
