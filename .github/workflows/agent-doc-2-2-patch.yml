@@ -1,0 +1,2005 @@
+name: Patch Agent Knowledge 2.2
+
+on:
+  push:
+    branches: [agent-doc-2-2-agent-loop]
+    paths: [.github/workflows/agent-doc-2-2-patch.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch document
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('Agent_Knowledge_System.md')
+          s = p.read_text(encoding='utf-8')
+
+          old = '''### 2.2 Agent Loop
+
+- State
+- Decision
+- Action
+- Observation
+- Termination
+
+待补充。
+'''
+
+          new = r'''### 2.2 Agent Loop
+
+#### 2.2.1 定义：Agent Loop 到底是什么？
+
+上一节定义了 Agent 是一个闭环决策系统。
+
+这一节进一步回答：
+
+> **这个闭环在运行时到底一轮一轮怎样执行？**
+
+一个最小 Agent Loop 可以写成：
+
+```text
+Observe
+  ↓
+Update State
+  ↓
+Build Context
+  ↓
+Decide
+  ↓
+Validate / Authorize
+  ↓
+Act
+  ↓
+Observe Result
+  ↓
+Update State
+  ↓
+Check Termination
+  └────────────→ next step
+```
+
+它不是一句：
+
+```text
+LLM → Tool → LLM
+```
+
+这么简单。
+
+因为真实系统中，至少还有三个不能省略的系统动作：
+
+```text
+State Update
+Validation / Policy
+Termination Check
+```
+
+因此，本章采用一个更完整的抽象：
+
+$$
+S_t
+\xrightarrow{\text{context}}
+\pi
+\xrightarrow{\text{propose}}
+\hat{A}_t
+\xrightarrow{\text{policy}}
+A_t
+\xrightarrow{\text{environment}}
+O_{t+1}
+\xrightarrow{\text{update}}
+S_{t+1}
+$$
+
+其中：
+
+- $S_t$：当前 Agent State；
+- $\pi$：决策 Policy，LLM 往往是核心组成部分；
+- $\hat{A}_t$：模型提出的 proposed action；
+- $A_t$：通过 Harness / Permission 后真正执行的 action；
+- $O_{t+1}$：环境返回的新 Observation。
+
+最重要的边界是：
+
+> **Agent Loop 不是“模型不断说话”，而是“状态—决策—行动—环境反馈—状态更新”的持续闭环。**
+
+---
+
+#### 2.2.2 一轮完整 Agent Step 可以拆成哪些阶段？
+
+一轮最完整的执行可以拆成八个阶段。
+
+```text
+1. Observe
+2. Update State
+3. Build Context
+4. Decide
+5. Validate / Authorize
+6. Execute Action
+7. Observe Result
+8. Termination / Continue
+```
+
+下面逐个看。
+
+---
+
+##### 1. Observe：现在世界是什么状态？
+
+Agent 首先需要获取当前可见信息，例如：
+
+```text
+用户的新消息
+Tool Result
+文件内容
+数据库状态
+网页
+截图
+测试结果
+另一 Agent 的消息
+```
+
+Observation 可能来自：
+
+```text
+Environment
+User
+Tool
+Runtime
+Subagent
+Verifier
+```
+
+它是 Agent 对世界的**可见切片**，而不是完整世界本身。
+
+---
+
+##### 2. Update State：把新信息写进运行状态
+
+例如：
+
+```text
+last_test_result = failed
+files_changed = ["auth.py"]
+retry_count = 1
+current_plan_step = 3
+pending_approval = false
+```
+
+State Update 的目标不是把所有 Observation 原封不动保存，而是把：
+
+```text
+对后续决策真正有用的运行事实
+```
+
+变成稳定状态。
+
+---
+
+##### 3. Build Context：这一轮模型到底看什么？
+
+State 很大，但模型当前 Context 有限。
+
+Harness 会从：
+
+```text
+Goal
+State
+Recent Observation
+Memory
+Relevant Files
+Tool Definitions
+History
+Policy
+```
+
+中选择本轮需要的信息。
+
+因此：
+
+```text
+State
+↓ select / serialize
+Context
+↓
+LLM
+```
+
+Context 是 State 的**模型可见投影**。
+
+---
+
+##### 4. Decide：下一步应该做什么？
+
+Policy 根据当前 Context 产生一个 proposed action。
+
+例如：
+
+```text
+search(...)
+read_file(...)
+run_tests(...)
+edit_file(...)
+ask_user(...)
+answer(...)
+stop(...)
+```
+
+对于 LLM Agent，这一步通常由模型完成，但也可能混合：
+
+```text
+LLM
++
+rules
++
+router
++
+planner
++
+verifier
+```
+
+所以 Decision 不等于“单次 LLM 输出”这一种实现。
+
+---
+
+##### 5. Validate / Authorize：这个 Action 能不能执行？
+
+模型说：
+
+```text
+delete_file("important.db")
+```
+
+不意味着 Runtime 立刻执行。
+
+系统还需要检查：
+
+```text
+schema valid?
+business rule valid?
+tool available?
+permission allowed?
+budget sufficient?
+approval required?
+action duplicated?
+```
+
+因此：
+
+```text
+Proposed Action
+≠
+Executed Action
+```
+
+这一步是 Agent Loop 从“模型 demo”走向“可靠系统”的关键分界。
+
+---
+
+##### 6. Execute Action：真正改变 Environment
+
+真正执行可能是：
+
+```text
+HTTP request
+database query
+shell command
+file edit
+browser click
+API call
+message send
+subagent spawn
+```
+
+Runtime 承担实际执行。
+
+---
+
+##### 7. Observe Result：Action 之后发生了什么？
+
+Action 的返回值不是简单“函数返回值”而已。
+
+可能出现：
+
+```text
+success
+failure
+timeout
+partial success
+unknown state
+permission denied
+stale result
+side effect already happened
+```
+
+因此 Runtime 必须把结果包装成可解释 Observation。
+
+---
+
+##### 8. Termination / Continue：结束还是继续？
+
+每轮结束时至少要判断：
+
+```text
+Goal achieved?
+Need more information?
+Recoverable failure?
+Budget exhausted?
+Need human approval?
+Hard stop reached?
+```
+
+如果继续，就进入下一轮。
+
+所以 Agent Loop 本质上是：
+
+> **不断执行“Observe–Decide–Act–Observe”的反馈控制，并在每轮更新状态与检查终止。**
+
+---
+
+#### 2.2.3 State 是 Loop 的“连续性”
+
+如果没有 State：
+
+```text
+step 1
+↓
+step 2
+```
+
+之间就只剩自然语言历史作为连接。
+
+这很脆弱。
+
+真正的 Agent State 可以包括：
+
+```text
+Goal
+Constraints
+Current Plan
+Completed Steps
+Current Environment Snapshot
+Tool Results
+Artifacts
+Retry Counters
+Budget
+Approvals
+Errors
+Open Questions
+Checkpoint
+```
+
+因此 State 的作用是：
+
+> **让 Agent 的第 t+1 步知道第 t 步之后系统到底变成了什么。**
+
+形式化一点：
+
+$$
+S_{t+1}=U(S_t,A_t,O_{t+1})
+$$
+
+其中 $U$ 是 state update function。
+
+这意味着：
+
+```text
+下一状态
+=
+旧状态
++
+实际执行的 Action
++
+新的 Observation
++
+系统更新规则
+```
+
+注意这里不是：
+
+```text
+S_{t+1} = LLM 自己总结出来的所有东西
+```
+
+很多关键状态应该由 Runtime / Harness 确定性维护。
+
+例如：
+
+```text
+retry_count += 1
+budget -= tool_cost
+file_version = new_hash
+```
+
+这些不应该依赖模型“记得更新”。
+
+---
+
+#### 2.2.4 State、Observation、Context 三者如何流动？
+
+这是 Agent Loop 中最容易混的三件事。
+
+可以记成：
+
+```text
+Environment
+   ↓ observe
+Observation
+   ↓ state update
+State
+   ↓ select / serialize
+Context
+   ↓
+Policy / LLM
+```
+
+三者分别回答：
+
+```text
+Observation:
+刚刚看到了什么？
+
+State:
+系统现在认为什么是真的、完成到哪里？
+
+Context:
+这一轮模型需要看到什么？
+```
+
+例如测试失败：
+
+```text
+Raw Observation:
+3000 行 pytest output
+
+State:
+test_status = failed
+failed_test = test_login
+error_type = AssertionError
+
+Context:
+用户目标
++ 当前 diff
++ test_login 的关键错误栈
+```
+
+因此：
+
+> **Observation 可以很大，State 应尽量稳定，Context 应尽量相关。**
+
+---
+
+#### 2.2.5 Observation 不等于 Ground Truth
+
+Tool 返回：
+
+```json
+{"status": "success"}
+```
+
+不能自动推出真实 Environment 一定成功。
+
+原因可能包括：
+
+```text
+API bug
+stale cache
+eventual consistency
+partial execution
+parser error
+malicious source
+timeout after side effect
+```
+
+所以 Loop 里的 Observation 应该带着：
+
+```text
+source
+timestamp / freshness
+confidence
+error state
+provenance
+```
+
+一起理解。
+
+特别是高风险 Action：
+
+```text
+send_email
+transfer_money
+delete_resource
+```
+
+如果返回 timeout，真实状态可能是：
+
+```text
+没执行
+已经执行
+执行了一半
+结果未知
+```
+
+因此下一轮不能简单写：
+
+```text
+timeout → retry
+```
+
+而要先判断环境状态。
+
+---
+
+#### 2.2.6 Decision 和 Action 必须分开
+
+模型输出：
+
+```json
+{
+  "action": "send_email",
+  "to": "...",
+  "body": "..."
+}
+```
+
+这是 **Decision / Proposed Action**。
+
+真正 Action 还需要：
+
+```text
+Policy check
+Permission
+Human approval
+Deduplication
+Budget check
+Runtime routing
+```
+
+完整链路：
+
+```text
+Decision
+   ↓
+Proposed Action
+   ↓
+Validation
+   ↓
+Authorization
+   ↓
+Executable Action
+   ↓
+Runtime
+```
+
+所以：
+
+> **Decision 属于 Policy；Action 属于 Environment Interaction。**
+
+这条边界会在后面的 Harness 和 Tool Use 中一直复用。
+
+---
+
+#### 2.2.7 Action 可以分成哪几类？
+
+从 Loop 设计角度，可以粗略分四类。
+
+##### 1. Information-gathering Action
+
+```text
+search
+read
+inspect
+query
+ask_user
+zoom
+scroll
+```
+
+目的：
+
+> 减少不确定性，不一定直接改变业务状态。
+
+---
+
+##### 2. Environment-changing Action
+
+```text
+edit_file
+send_email
+update_database
+purchase
+delete
+deploy
+```
+
+目的：
+
+> 改变真实 Environment。
+
+这类 Action 通常风险更高。
+
+---
+
+##### 3. Internal-control Action
+
+例如：
+
+```text
+update_plan
+summarize_context
+spawn_subagent
+checkpoint
+switch_strategy
+```
+
+它们主要改变 Agent 系统内部的执行状态。
+
+---
+
+##### 4. Termination Action
+
+```text
+complete
+fail
+pause
+ask_for_approval
+budget_exhausted
+```
+
+“停止”本身也是控制动作。
+
+因此 Action Space 不只是：
+
+```text
+Tool list
+```
+
+而是：
+
+```text
+Environment Actions
++
+Information Actions
++
+Internal Control
++
+Termination
+```
+
+---
+
+#### 2.2.8 为什么 Action 后必须重新 Observe？
+
+一个经典错误是：
+
+```text
+Agent 执行动作
+↓
+默认动作成功
+↓
+继续下一步
+```
+
+但真实系统应该更接近：
+
+```text
+Act
+↓
+Observe
+↓
+Verify state transition
+↓
+Continue
+```
+
+例如：
+
+```text
+edit_file
+↓
+重新读取 diff
+
+send request
+↓
+检查 response / remote state
+
+click button
+↓
+获取 fresh screenshot
+
+run deployment
+↓
+检查 health status
+```
+
+这是闭环和开环的核心区别。
+
+Open-loop：
+
+```text
+Plan
+↓
+A
+↓
+B
+↓
+C
+```
+
+不看真实反馈。
+
+Closed-loop：
+
+```text
+A
+↓
+observe
+↓
+根据反馈决定 B 还是 B'
+```
+
+因此：
+
+> **真正的 Agentic behavior，不只是多步，而是后一步会被前一步的真实结果改变。**
+
+---
+
+#### 2.2.9 Step、Turn、Transition、Trajectory、Episode 分别是什么？
+
+这些词经常混用，需要先建立工作定义。
+
+##### Step
+
+本知识体系中：
+
+> **一次 Agent 决策与其直接后果，称为一个 step。**
+
+例如：
+
+```text
+State_t
+→ Decide
+→ Action_t
+→ Observation_{t+1}
+→ State_{t+1}
+```
+
+---
+
+##### Turn
+
+Turn 更常用于对话：
+
+```text
+User Turn
+Assistant Turn
+```
+
+一个 Agent Turn 里可能包含很多内部 steps。
+
+例如用户只说一句：
+
+```text
+帮我修这个 bug
+```
+
+系统内部可能运行 15 个 Agent steps 才最终回复。
+
+所以：
+
+```text
+Conversation Turn
+≠
+Agent Step
+```
+
+---
+
+##### Transition
+
+Transition 是状态变化：
+
+$$
+(S_t,A_t,O_{t+1},S_{t+1})
+$$
+
+强调：
+
+> 系统如何从一个状态走到另一个状态。
+
+---
+
+##### Trajectory
+
+Trajectory 是一串连续 transition：
+
+$$
+\tau=(S_0,A_0,O_1,S_1,\ldots,A_T,O_{T+1},S_{T+1})
+$$
+
+它描述：
+
+> **Agent 这一次到底走了哪条路径。**
+
+---
+
+##### Episode
+
+Episode 通常指：
+
+> **一个 Task 从初始化到终止的一次完整运行。**
+
+同一个 Task 可以运行多次：
+
+```text
+Episode 1 → success
+Episode 2 → failure
+Episode 3 → success
+```
+
+因此：
+
+```text
+Task
+→ can have many Episodes
+
+Episode
+→ contains one Trajectory
+
+Trajectory
+→ contains many Steps / Transitions
+```
+
+这是后面 Agent Evaluation、Trajectory Data 和 RL 中非常重要的术语边界。
+
+---
+
+#### 2.2.10 Agent Loop 可以看作状态转移系统
+
+从抽象上，一个 Agent 可以写成：
+
+$$
+A_t \sim \pi(A\mid S_t)
+$$
+
+环境根据 Action 发生变化：
+
+$$
+E_{t+1}=T(E_t,A_t)
+$$
+
+Agent 得到 Observation：
+
+$$
+O_{t+1}=\Omega(E_{t+1})
+$$
+
+然后更新内部 State：
+
+$$
+S_{t+1}=U(S_t,A_t,O_{t+1})
+$$
+
+因此一轮完整闭环是：
+
+```text
+S_t
+ ↓ policy
+A_t
+ ↓ environment transition
+E_{t+1}
+ ↓ observation
+O_{t+1}
+ ↓ state update
+S_{t+1}
+```
+
+在部分可观测环境中：
+
+```text
+S_t
+```
+
+通常不是 Environment 的完整真实状态，而是系统维护的：
+
+```text
+belief / working state
+```
+
+所以 Agent 的问题不是简单：
+
+> “根据真相做决定。”
+
+而是：
+
+> **根据有限、可能有噪声的 Observation，持续维护足够好的 State，再做决策。**
+
+---
+
+#### 2.2.11 Model Loop、Agent Loop、Workflow Loop 不要混在一起
+
+一个系统内部可能同时有多层循环。
+
+##### Model Decoding Loop
+
+```text
+token
+→ next token
+→ next token
+→ ...
+```
+
+发生在单次模型 generation 内部。
+
+---
+
+##### Agent Loop
+
+```text
+Observation
+→ model decision
+→ Action
+→ new Observation
+→ ...
+```
+
+跨越模型和 Environment。
+
+---
+
+##### Workflow Loop
+
+```text
+for each document:
+    run_agent(document)
+```
+
+或者：
+
+```text
+while queue not empty:
+    dispatch_task()
+```
+
+是更外层应用控制流。
+
+因此：
+
+```text
+Token Loop
+⊂
+Model Call
+
+Model Calls + Actions
+⊂
+Agent Loop
+
+Agent Loop
+⊂
+Larger Workflow / Product
+```
+
+理解这个层级后，就不会把：
+
+```text
+“模型内部生成了很多 token”
+```
+
+误认为：
+
+```text
+“Agent 已经进行了很多轮环境交互”
+```
+
+---
+
+#### 2.2.12 ReAct Loop 是 Agent Loop 的一种具体实现
+
+ReAct 常见形式：
+
+```text
+Thought
+↓
+Action
+↓
+Observation
+↓
+Thought
+↓
+Action
+↓
+Observation
+```
+
+它本质上是在 Agent Loop 中把：
+
+```text
+Reasoning
+```
+
+显式交织进：
+
+```text
+Action–Observation
+```
+
+但 Agent Loop 是更大的抽象。
+
+因为 Agent 不一定：
+
+```text
+每一步都显式输出 Thought
+```
+
+也可以：
+
+```text
+State
+→ structured Action
+→ Observation
+```
+
+甚至由 Harness 完成一部分决策。
+
+所以：
+
+```text
+Agent Loop
+⊃
+ReAct-style Loop
+```
+
+下一节会专门讲 ReAct。
+
+---
+
+#### 2.2.13 Tool Error 也应该成为 Observation
+
+假设：
+
+```text
+search_web(...)
+```
+
+返回：
+
+```text
+timeout
+```
+
+系统不应该把它当作 Loop 外的“异常噪声”。
+
+更好的做法是把错误结构化成 Observation：
+
+```json
+{
+  "ok": false,
+  "error_type": "timeout",
+  "retryable": true
+}
+```
+
+于是下一轮才能根据真实失败状态做：
+
+```text
+retry
+change query
+switch tool
+fallback
+ask user
+stop
+```
+
+因此：
+
+> **Failure 不是 Agent Loop 的例外；Failure 本身也是 Environment Feedback。**
+
+成熟 Agent 的重要能力，不是“永远不失败”，而是：
+
+> **失败后状态仍然可解释，系统还能决定下一步。**
+
+---
+
+#### 2.2.14 Retry 是新的 Transition，不是“把时间倒回去”
+
+假设：
+
+```text
+Action_1 → timeout
+```
+
+然后 retry。
+
+此时不能假设 Environment 一定没变。
+
+特别是写操作：
+
+```text
+send_email
+payment
+database write
+deploy
+```
+
+可能已经部分成功。
+
+因此 retry 实际是：
+
+```text
+State_after_failure
+↓
+new decision
+↓
+retry / inspect / compensate
+```
+
+而不是：
+
+```text
+回到 Action 前重新按一次按钮
+```
+
+所以真正安全的 retry 需要考虑：
+
+```text
+idempotency
+side effect
+execution status
+deduplication
+compensation
+```
+
+这就是为什么 Recovery 是 Loop Policy，而不仅是 exception handler。
+
+---
+
+#### 2.2.15 Synchronous Loop 与 Asynchronous Loop
+
+最容易理解的 Agent Loop 是同步的：
+
+```text
+Decide
+↓
+Call Tool
+↓
+Wait
+↓
+Get Result
+↓
+Next Decision
+```
+
+但长任务中可能出现异步 Action：
+
+```text
+start_job()
+→ job_id
+
+wait / do other work
+
+poll_job(job_id)
+→ completed
+```
+
+此时 State 必须保存：
+
+```text
+pending_job_id
+job_status
+callback / poll state
+deadline
+```
+
+因此 Agent Loop 不一定是：
+
+```text
+一调用工具就立刻拿到最终 Observation
+```
+
+还可能是：
+
+```text
+Action
+→ pending
+→ intermediate observations
+→ final observation
+```
+
+这会进一步连接：
+
+- long-running tasks；
+- scheduling；
+- queue；
+- persistence；
+- resume；
+- event-driven runtime。
+
+这些属于后面的 Runtime 章节。
+
+---
+
+#### 2.2.16 一个 Loop 里可能存在并行分支
+
+并不是所有 Agent 都严格：
+
+```text
+A → B → C → D
+```
+
+例如研究 Agent：
+
+```text
+             ┌→ search source A ─┐
+Decision ────┼→ search source B ─┼→ aggregate
+             └→ search source C ─┘
+```
+
+这种情况下，Trajectory 更像一个 execution graph。
+
+但从控制角度仍然可以理解成：
+
+```text
+State
+↓
+spawn actions
+↓
+multiple observations
+↓
+aggregate
+↓
+new state
+```
+
+并行带来：
+
+```text
+latency ↓
+cost often ↑
+state merge complexity ↑
+ordering uncertainty ↑
+```
+
+所以并行不是改变了 Agent Loop 本质，而是让一次 Transition 的执行图更复杂。
+
+---
+
+#### 2.2.17 Loop Invariant：哪些东西每一轮都不能被破坏？
+
+复杂 Agent 很容易越跑越乱。
+
+一个非常有用的工程思想是定义 **Loop Invariants**：
+
+> 每一步执行前后，都应该持续成立的系统约束。
+
+例如 Coding Agent：
+
+```text
+user goal remains unchanged
+protected files never modified
+budget >= 0
+every write has provenance
+current state reflects latest file version
+```
+
+金融 Agent：
+
+```text
+no transaction without authorization
+total transfer <= approved amount
+each payment idempotency key unique
+```
+
+因此每一轮都可以检查：
+
+```text
+Before Action:
+Invariant holds?
+
+After Action:
+Invariant still holds?
+```
+
+这比把所有规则只写在 Prompt 中更可靠。
+
+---
+
+#### 2.2.18 Loop Guard：为什么所有循环都必须有硬终点？
+
+任何 Agent Loop 都必须防止：
+
+```text
+while True:
+    keep_thinking()
+```
+
+最基本的 Guard 包括：
+
+```text
+max_steps
+max_model_calls
+max_tool_calls
+max_retry
+max_cost
+deadline
+max_search_depth
+max_parallel_tasks
+```
+
+这些 Guard 的作用不只是省钱，还防止：
+
+```text
+infinite loop
+oscillation
+retry storm
+tool spam
+runaway recursion
+```
+
+所以：
+
+> **Termination Policy = semantic completion + hard system guards。**
+
+两者缺一不可。
+
+---
+
+#### 2.2.19 Termination 应区分“成功结束”和“被迫停止”
+
+Agent 停止不一定代表成功。
+
+至少可以区分：
+
+```text
+SUCCESS
+FAILED
+BLOCKED
+NEEDS_USER
+NEEDS_APPROVAL
+BUDGET_EXHAUSTED
+TIMEOUT
+CANCELLED
+```
+
+如果系统只用一个：
+
+```text
+done = true
+```
+
+很多 failure semantics 会丢失。
+
+更好的状态可能是：
+
+```json
+{
+  "terminal": true,
+  "status": "blocked",
+  "reason": "missing_permission"
+}
+```
+
+因此：
+
+> **Termination 是状态机的一部分，不是简单 break。**
+
+---
+
+#### 2.2.20 Completion Check 为什么最好独立于模型自述？
+
+模型可能说：
+
+```text
+任务已完成。
+```
+
+但真实状态可能没有完成。
+
+例如：
+
+```text
+Agent: 已经修复 bug
+Reality: tests not run
+```
+
+所以 completion 应尽可能由：
+
+```text
+Environment State
+Verifier
+Success Criteria
+Deterministic Check
+```
+
+来判断。
+
+例如：
+
+```text
+tests_pass == true
+AND
+forbidden_files_changed == false
+```
+
+而不是：
+
+```text
+assistant_message contains "done"
+```
+
+因此：
+
+> **模型可以提出“我认为完成了”，系统最好负责验证“是否真的完成”。**
+
+---
+
+#### 2.2.21 一个更完整的 Agent Loop 伪代码
+
+```python
+state = initialize_state(task)
+budget = initialize_budget(task)
+
+while True:
+    # 1. hard guards
+    if budget.exhausted():
+        return terminate(state, "budget_exhausted")
+
+    # 2. observe / synchronize
+    observations = collect_new_observations(state)
+    state = update_state(state, observations)
+
+    # 3. completion before more work
+    if success_check(state):
+        return terminate(state, "success")
+
+    # 4. build model-facing context
+    context = build_context(state)
+
+    # 5. propose next action
+    proposal = policy(context)
+
+    # 6. validate / authorize
+    decision = validate_action(
+        proposal=proposal,
+        state=state,
+        budget=budget,
+    )
+
+    if decision.requires_approval:
+        return pause_for_approval(state, decision)
+
+    if decision.is_rejected:
+        state = record_rejection(state, decision)
+        continue
+
+    if decision.action.type == "stop":
+        if success_check(state):
+            return terminate(state, "success")
+        return terminate(state, "premature_stop")
+
+    # 7. execute
+    result = runtime.execute(decision.action)
+
+    # 8. record actual transition
+    budget.record(result)
+    state = record_action_result(
+        state,
+        action=decision.action,
+        result=result,
+    )
+
+    # loop continues with fresh observation
+```
+
+这段代码最重要的不是 Python 语法，而是控制顺序：
+
+```text
+Observe
+→ State
+→ Context
+→ Decide
+→ Validate
+→ Execute
+→ Record
+→ Verify
+→ Continue / Stop
+```
+
+---
+
+#### 2.2.22 一个 Research Agent 的完整 Loop
+
+用户：
+
+```text
+请判断某项新政策是否已经正式生效，并给出证据。
+```
+
+初始：
+
+```text
+Goal:
+determine current legal / official status
+
+State:
+no evidence yet
+```
+
+Loop：
+
+```text
+Step 1
+Decision:
+search official source
+
+Action:
+search
+
+Observation:
+发现政府公告
+
+State update:
+candidate_source = official notice
+
+↓
+
+Step 2
+Decision:
+open primary source
+
+Observation:
+公告正文 + effective date
+
+State update:
+effective_date = ...
+source_status = primary
+
+↓
+
+Step 3
+Decision:
+check current date / implementation notice
+
+Observation:
+implementation page
+
+State update:
+evidence sufficient
+
+↓
+
+Completion check:
+official source?
+effective date confirmed?
+current status consistent?
+
+↓
+
+SUCCESS
+```
+
+如果第一轮搜索结果只是新闻转载：
+
+```text
+Observation:
+secondary media
+
+State:
+evidence insufficient
+```
+
+下一步就应该改变。
+
+这就是 Closed-loop。
+
+---
+
+#### 2.2.23 一个 Coding Agent 的 Loop 为什么常常比“生成 Patch”更可靠？
+
+一次性代码生成：
+
+```text
+read task
+↓
+generate patch
+↓
+done
+```
+
+是非常弱的 open-loop。
+
+真正 Coding Agent 更像：
+
+```text
+inspect
+↓
+observe code
+↓
+run tests
+↓
+observe failure
+↓
+form hypothesis
+↓
+edit
+↓
+observe diff
+↓
+run tests
+↓
+observe result
+↓
+repair / finish
+```
+
+也就是说，可靠性来自：
+
+> **每一次修改都能被新的 Environment Feedback 约束。**
+
+因此 Coding Agent 的核心能力并不只是：
+
+```text
+code generation quality
+```
+
+还包括：
+
+```text
+state tracking
+test interpretation
+tool choice
+recovery
+verification
+termination
+```
+
+---
+
+#### 2.2.24 Agent Loop 的典型 Failure Modes
+
+**1. Missing Observation**
+
+Action 执行后没有拿回结果，就进入下一轮。
+
+---
+
+**2. Stale Observation**
+
+Environment 已变化，仍根据旧状态决策。
+
+---
+
+**3. Observation Ignored**
+
+Observation 已经返回，但模型沿旧计划继续。
+
+---
+
+**4. State Update Failure**
+
+真实结果发生了，但 State 没有同步。
+
+---
+
+**5. State Corruption**
+
+错误摘要、错误 parser 或错误 merge 把 State 写坏。
+
+---
+
+**6. Decision–Action Mismatch**
+
+模型提出的是 A，Runtime 实际执行成 B。
+
+---
+
+**7. Unauthorized Execution**
+
+Proposed Action 未经过 policy / permission 就直接执行。
+
+---
+
+**8. Repeated Action Loop**
+
+```text
+search X
+→ same result
+→ search X
+→ same result
+→ ...
+```
+
+没有 novelty / progress check。
+
+---
+
+**9. Oscillation**
+
+```text
+Strategy A
+→ fail
+→ Strategy B
+→ fail
+→ Strategy A
+→ ...
+```
+
+状态没有记录“这个路径已经尝试过”。
+
+---
+
+**10. Retry Storm**
+
+任何错误都无条件重试。
+
+---
+
+**11. Premature Termination**
+
+模型说完成，但 success criteria 没满足。
+
+---
+
+**12. Non-termination**
+
+目标已经达成，却继续 reasoning / search。
+
+---
+
+**13. Hidden Side Effect**
+
+Tool timeout，Agent 以为没执行，实际上 Environment 已改变。
+
+---
+
+**14. Partial-success Blindness**
+
+复杂 Action 部分完成，但系统只有 success / failure 二元状态。
+
+---
+
+**15. Context–State Drift**
+
+State 正确，但送给模型的 Context 落后。
+
+---
+
+**16. Loop without Progress Metric**
+
+系统只会“再试一步”，却没有判断：
+
+```text
+是否真的离目标更近？
+```
+
+---
+
+**17. Error Swallowing**
+
+异常被底层代码吃掉，Agent 看到一个伪 success。
+
+---
+
+**18. Unbounded Branching**
+
+Agent 不断 spawn search / subagent / candidate，资源失控。
+
+---
+
+#### 2.2.25 怎样判断 Loop 是否在“前进”？
+
+只有：
+
+```text
+step_count += 1
+```
+
+不等于任务在进展。
+
+成熟系统可以跟踪某些 **Progress Signal**：
+
+```text
+new evidence acquired
+unknowns reduced
+plan steps completed
+tests failing ↓
+constraints satisfied ↑
+distance-to-goal ↓
+unresolved errors ↓
+```
+
+例如 Coding Agent：
+
+```text
+failing tests:
+5 → 3 → 1 → 0
+```
+
+这是一种明确 progress。
+
+而：
+
+```text
+连续搜索 10 次
+但没有新证据
+```
+
+应该触发：
+
+```text
+change strategy
+stop search
+ask user
+```
+
+所以：
+
+> **Loop Control 不只是“还能不能继续”，还应该判断“继续是否产生新的信息或进展”。**
+
+---
+
+#### 2.2.26 Agent Loop 的工程原则
+
+**原则一：Action 后必须产生可追踪 Observation。**
+
+**原则二：State 要由实际结果更新，而不是由模型想象更新。**
+
+**原则三：Context 是 State 的选择性投影，不要混为一体。**
+
+**原则四：Decision 与 Execution 分层。**
+
+模型提出 Action，系统验证后执行。
+
+**原则五：Failure 也要结构化进入 Loop。**
+
+不要把错误当成不可解释异常。
+
+**原则六：Retry 是新决策，不是机械重放。**
+
+**原则七：每个 Loop 都要有硬 Guard。**
+
+**原则八：Completion 要验证，不要只相信模型自述。**
+
+**原则九：显式区分 Success / Failed / Blocked / Timeout 等终止状态。**
+
+**原则十：观察 Progress，而不只是 Step Count。**
+
+**原则十一：Loop 的每一步都应该可 Trace / Replay。**
+
+至少记录：
+
+```text
+state snapshot
+context version
+proposed action
+executed action
+observation
+latency
+cost
+error
+termination decision
+```
+
+**原则十二：高风险 Action 前后都需要更强检查。**
+
+```text
+before:
+authorization
+
+after:
+state verification
+```
+
+---
+
+#### 2.2.27 与相邻概念的边界
+
+| 概念 | 核心问题 | 与 Agent Loop 的关系 |
+|---|---|---|
+| State | 当前系统运行到哪里 | Loop 的持久连续性 |
+| Context | 当前模型看到什么 | 每轮从 State 中构建 |
+| Policy | 下一步应该做什么 | Loop 的 Decision 部分 |
+| Action | 真正执行什么 | 改变 Environment 或获取信息 |
+| Observation | Action 后看到了什么 | 下一轮状态更新输入 |
+| Transition | 一个状态如何变成下一状态 | Loop 的最小状态变化单位 |
+| Step | 一次决策及直接后果 | Loop 的基本运行单位 |
+| Trajectory | 多个 Steps / Transitions 的序列 | 一次运行的路径 |
+| Episode | 一个 Task 从开始到终止的一次完整执行 | 包含完整 Trajectory |
+| ReAct | Reasoning 与 Action / Observation 交错 | Agent Loop 的一种典型实现 |
+| Planning | 对未来多步行为做结构化预测 | 可以影响多个未来 Steps |
+| Harness | Loop 的系统级控制逻辑 | 构建 Context、验证 Action、控制 Termination / Recovery |
+| Runtime | 真正执行 Action、维护执行状态 | Agent Loop 的执行底座 |
+| Workflow | 更外层或更确定性的控制流 | 可包含 Agent Loop |
+
+---
+
+#### 2.2.28 面试掌握边界
+
+这一节至少要能稳定回答：
+
+1. **Agent Loop 的最小结构是什么？**  
+   Observe → State Update → Context → Decide → Validate → Act → Observe → Termination / Continue。
+
+2. **为什么 Agent Loop 是 Closed-loop？**  
+   因为下一步决策会根据前一步真实 Environment Feedback 改变，而不是把预先计划无条件执行到底。
+
+3. **State、Observation、Context 的区别是什么？**  
+   Observation 是刚刚从环境得到的信息；State 是系统维护的当前运行事实；Context 是本轮模型实际看到的 State / Observation 子集。
+
+4. **Decision 和 Action 为什么要分开？**  
+   LLM 只能提出 proposed action；Harness / Permission 还需要判断是否允许，Runtime 才真正执行。
+
+5. **Step、Trajectory、Episode 有什么区别？**  
+   Step 是一次局部决策与后果；Trajectory 是很多 Steps 的路径；Episode 是一个 Task 从初始化到终止的一次完整运行。
+
+6. **Tool Error 属于 Agent Loop 吗？**  
+   属于。Error 应作为 Observation 进入 State，让 Agent 决定 retry、fallback、recover 或 stop。
+
+7. **为什么 retry 不能直接机械重放？**  
+   因为 Environment 可能已经部分改变，尤其非幂等操作，需要先确认真实状态。
+
+8. **为什么 Action 后需要重新 Observe？**  
+   因为执行结果可能与预期不同，只有 fresh observation 才能闭合反馈回路。
+
+9. **Termination 怎么设计？**  
+   同时包含 semantic success criteria 与硬 Guard，例如 max steps、budget、timeout；并区分 success、failed、blocked 等终止原因。
+
+10. **为什么模型说“完成了”还不够？**  
+    模型自述不是 Environment Ground Truth，应尽量通过 verifier 或真实状态检查 completion。
+
+11. **ReAct 和 Agent Loop 什么关系？**  
+    ReAct 是 Agent Loop 的具体实现之一，在 action–observation 之间显式加入 reasoning；Agent Loop 本身更一般。
+
+12. **怎样防止 Agent 无限循环？**  
+    Hard guards + repeated-action detection + progress checks + bounded retry + termination policy。
+
+13. **同步和异步 Agent Loop 有什么区别？**  
+    同步 Action 通常立刻返回 Observation；异步任务会经历 pending / poll / callback，需要 Runtime 持久化中间状态。
+
+14. **为什么 Agent Evaluation 要看 Trajectory？**  
+    因为最终失败可能来自错误 Action、忽略 Observation、错误 State Update、重复循环或错误 Termination，仅看 final answer 无法定位。
+
+如果继续追问“Thought–Action–Observation 为什么有效、它和 CoT 有什么区别”，进入下一节 **2.3 ReAct**；如果追问 Loop 的 max steps、retry、checkpoint、resume 到底由谁控制，进入第三层 **Agent Harness / Runtime**。
+
+---
+
+#### 2.2.29 本节一句话总结
+
+> **Agent Loop 的本质，是在每一步把真实 Environment Feedback 重新纳入决策：Observe → 更新 State → 构建 Context → 提出并校验 Action → Runtime 执行 → 获得新 Observation → 验证进展与终止；真正可靠的 Agent 不是“能连续调用很多 Tool”，而是每一次状态转移都可观察、可验证、可恢复、可停止。**
+'''
+
+          if old not in s:
+              raise SystemExit('2.2 placeholder not found; aborting without modification')
+
+          s = s.replace(old, new, 1)
+
+          old_progress = '| I | 2. Agent Decision Loop | 进行中：2.1 已完成 |'
+          new_progress = '| I | 2. Agent Decision Loop | 进行中：2.1–2.2 已完成 |'
+          if old_progress not in s:
+              raise SystemExit('progress marker not found; aborting')
+          s = s.replace(old_progress, new_progress, 1)
+
+          old_next = '下一步：继续 **I. Model & Decision Core → 2. Agent Decision Loop → 2.2 Agent Loop**。'
+          new_next = '下一步：继续 **I. Model & Decision Core → 2. Agent Decision Loop → 2.3 ReAct**。'
+          if old_next not in s:
+              raise SystemExit('next-step marker not found; aborting')
+          s = s.replace(old_next, new_next, 1)
+
+          p.write_text(s, encoding='utf-8')
+          PY
+
+          git config user.name "A_Jiang"
+          git config user.email "79295145+JiangHui0203@users.noreply.github.com"
+          git add Agent_Knowledge_System.md
+          git commit -m "docs: add agent loop foundations"
+          git push
