@@ -4,171 +4,112 @@
 >
 > 前置章节：[`第 5 章 Tool-use Data 与 Agent Trajectory Data`](./05_Tool_Use_and_Agent_Trajectory_Data.md)
 >
-> 本章目标：理解现代大模型 / Agent 数据生产里，“人工标注”真正负责什么，以及如何把主观判断、专业判断和复杂轨迹评价，转化成稳定、可复现、可审计的数据。
+> 关联章节：[`第 3 章 Preference Data`](./03_Preference_Data_Reward_and_Feedback.md)、[`第 14 章 Failure Taxonomy`](./14_Agent_Failure_Taxonomy.md)、[`第 15 章 Grader / Verifier / Judge`](./15_Grader_Verifier_and_LLM_as_a_Judge.md)、[`第 19 章 Governance / Lineage / Reproducibility`](./19_Data_Governance_Lineage_and_Reproducibility.md)
 >
-> 本章核心问题：**Human Data 的价值不在于“有人看过”，而在于把模糊的人类判断变成定义清楚、质量可控、版本可追踪的监督信号。**
+> 编辑基础设施：[`Canonical Glossary`](./00_Glossary_and_Notation.md) · [`Canonical Casebook`](./00_Canonical_Casebook.md)
+>
+> 本章定位：**Human Annotation / Guideline / Gold / IAA / Calibration / Adjudication / Expertise Routing 的 canonical chapter。Label Versioning、Historical Decision 与 Corrected Label 的系统治理归第 19 章。**
+>
+> 本章核心问题：**Human Data 的价值不在于“有人看过”，而在于把模糊的人类判断变成定义清楚、边界稳定、质量可测、分歧可解释的监督信号。**
 
 ---
 
-# 6.0 为什么 2026 年还需要 Human Data？
+# 6.0 2026 年为什么仍然需要 Human Data？
 
-看到 Synthetic Data、LLM-as-a-Judge、自动 verifier 越来越强，一个很自然的问题是：
+随着 Synthetic Data、自动 Verifier 和 LLM-as-a-Judge 越来越强，人工的角色正在变化，但没有消失。
 
-> 还需要人工标注吗？
-
-需要，而且很多时候仍然是不可替代的。
-
-原因不是人工一定比模型聪明，而是**很多目标本身就是由人定义的**。
-
-例如：
+因为很多目标本身仍然需要人来定义：
 
 ```text
-这个回答是否符合用户真实需求？
-这个解释对初学者是否清楚？
-这个 Agent 是否做了不必要的危险操作？
-这两个都正确的答案，哪个更自然？
-这个场景是否需要澄清？
-这个专业结论是否符合领域标准？
+什么叫真正满足用户意图？
+什么时候应该澄清？
+两个都正确的回答哪个更自然？
+某个专业判断是否符合领域标准？
+一个 Agent 是否做了不必要的高风险操作？
 ```
 
-这些问题不一定存在天然、可执行的“唯一公式”。
-
-因此 Human Data 常承担四类角色：
+所以 Human Data 越来越从：
 
 ```text
-定义目标
-    ↓
+“大规模逐条手工生产”
+```
+
+转向：
+
+```text
+定义标准
++
 提供高质量示范
-    ↓
-评价模型行为
-    ↓
-校准自动评价系统
++
+标关键边界样本
++
+建立 Gold
++
+校准自动 evaluator
++
+处理 disagreement / high-risk cases
 ```
-
-可以画成：
 
 ```mermaid
 flowchart LR
     H[Human / Expert] --> G[Guideline & Rubric]
     H --> D[Demonstration]
     H --> L[Labels / Preferences]
-    H --> Gold[Gold Set]
-    Gold --> J[Judge / Grader Calibration]
+    H --> Gold[Gold / Anchor Cases]
+    Gold --> J[Judge / Annotator Calibration]
     G --> A[Annotation Pipeline]
     D --> T[Training Data]
     L --> T
     J --> Auto[Scaled Automated Labeling]
 ```
 
-所以 Human Data 在现代 pipeline 中并没有消失，而是在从：
+最重要的变化不是“人工变少”，而是：
 
-> 大规模逐条手工生产
-
-逐渐转向：
-
-> **定义标准 + 标关键样本 + 建 gold + 校准模型 + 处理边界案例。**
+> **把人类最稀缺的判断能力用在定义标准和处理高信息量样本上。**
 
 ---
 
-# 6.1 Human Data 不等于“人工打标签”
+# 6.1 Human Data 不只是“人工打标签”
 
-人类可以参与的数据形式很多。
+常见 Human Data 至少包括：
 
----
-
-## 6.1.1 Human-written Demonstration
-
-人工直接写理想答案：
+### Human-written Demonstration
 
 ```text
-Prompt
-↓
-Expert-written Response
+Prompt → Expert-written Response
 ```
 
-用途：
+适合 SFT、reference、style exemplar。
+
+### Human Preference
 
 ```text
-SFT
-few-shot example
-gold reference
-style exemplar
+A vs B → A better / Tie / Both bad
 ```
 
----
+适合 Preference / RM / Judge calibration。
 
-## 6.1.2 Human Preference
-
-比较两个或多个候选：
+### Human Rubric Scoring
 
 ```text
-A vs B
-→ A better
+Correctness
+Instruction Following
+Safety
+Clarity
 ```
 
-用途：
-
-```text
-preference optimization
-reward model
-judge calibration
-ranking analysis
-```
-
----
-
-## 6.1.3 Human Scoring / Rubric Annotation
+### Process / Trajectory Annotation
 
 例如：
 
 ```text
-Correctness = 4/5
-Instruction Following = 5/5
-Style = 3/5
-Safety = Pass
+first error
+wrong tool
+observation grounding failure
+premature stop
 ```
 
----
-
-## 6.1.4 Human Process Annotation
-
-例如 Reasoning Data：
-
-```text
-Step 1 correct
-Step 2 correct
-Step 3 first error
-```
-
-或者 Agent：
-
-```text
-Tool selection = correct
-Arguments = wrong
-Observation grounding = correct
-Termination = premature
-```
-
----
-
-## 6.1.5 Human Adjudication
-
-当多个标注员不一致时，由更高资质人员做最终裁决。
-
-```text
-Annotator A → label 1
-Annotator B → label 2
-          ↓
-     Adjudicator
-          ↓
-     Final label
-```
-
----
-
-## 6.1.6 Human Correction
-
-人不只是给标签，也可以直接改模型输出：
+### Human Correction
 
 ```text
 Model Output
@@ -178,155 +119,151 @@ Human Edit
 Corrected Output
 ```
 
-这类数据特别适合：
+### Adjudication
+
+对分歧、边界和高风险样本做高可信裁决。
+
+因此 Human Data 可以同时提供：
 
 ```text
-SFT
-rewrite
-correction data
-error analysis
+Demonstration
+Preference
+Label
+Correction
+Rubric
+Gold
 ```
 
+它不是一种单一数据格式。
+
 ---
 
-# 6.2 Crowd Annotator、Trained Annotator、Expert 有什么区别？
+# 6.2 谁来标：Staffing 本身就是数据设计
 
-不能把“人工标注”当成一个统一质量等级。
+“人工”不是同一个能力等级。
 
-可以粗略分为：
-
-| 类型 | 特点 | 适合任务 |
+| 角色 | 典型能力 | 更适合 |
 |---|---|---|
-| Crowd / General Annotator | 成本低、规模大 | 基础分类、明显偏好、格式检查 |
-| Trained Annotator | 接受专项培训 | instruction following、复杂 rubric、Agent trace |
+| General / Crowd Annotator | 规模大、成本低 | 明显分类、简单偏好、格式检查 |
+| Trained Annotator | 熟悉专项 guideline | Instruction、Agent trace、复杂 rubric |
 | Domain Expert | 专业知识强 | 医疗、法律、数学证明、专业代码 |
-| Senior Adjudicator | 处理分歧与规范解释 | gold set、边界案例、规则更新 |
+| Senior Adjudicator | 解释标准、处理冲突 | Gold、边界样本、规则更新 |
 
----
-
-## 6.2.1 什么任务不应该交给普通标注员？
-
-如果任务要求：
+如果一个任务需要：
 
 ```text
 专业知识
-长链路因果分析
-复杂数学验证
-代码执行理解
-行业规则
+复杂因果分析
+长 Agent trace
+业务规则
 高风险判断
 ```
 
-却仍交给普通标注员，表面上会得到大量标签，实际上可能是**高一致性的错误数据**。
+却交给不具备相应知识的人，可能得到：
 
-例如：
+> **高一致性的错误标签。**
 
-```text
-两个数学答案都写得很流畅
-```
+所以 Human Data 质量的第一步不是 QC，而是：
 
-普通标注员可能更喜欢更有条理的错误答案。
-
-所以 annotation staffing 本身就是数据设计。
+> **让正确的人判断正确的问题。**
 
 ---
 
-# 6.3 Annotation Guideline：整个 Human Data Pipeline 的核心
+# 6.3 Annotation Guideline 是 Human Data 的核心接口
 
-如果一个项目中标注员大量分歧，第一反应不应该是：
-
-> “这些标注员水平不行。”
-
-更应该先检查：
-
-> **任务定义和 guideline 是否真的清楚？**
-
-一个成熟 guideline 至少应该回答：
+如果大量 annotator 分歧，不应该第一时间归因：
 
 ```text
-我们在标什么？
-为什么要标？
-每个 label 的定义是什么？
-边界在哪里？
-什么情况不能判断？
-冲突时哪个维度优先？
-是否允许 abstain？
-有没有正例 / 反例？
+“人不行”
 ```
+
+应先检查：
+
+```text
+任务定义清楚吗？
+label 边界清楚吗？
+优先级冲突吗？
+有没有 abstain？
+有没有 boundary examples？
+```
+
+一份成熟 guideline 至少应该有：
+
+```text
+Task Definition
+Label Definitions
+Decision Priority
+Positive Examples
+Negative Examples
+Boundary Cases
+Abstain / Escalation Rule
+Required Evidence
+Common Confusions
+```
+
+差的 guideline：
+
+```text
+“请判断回答是否优秀。”
+```
+
+更好的 guideline：
+
+```text
+1. 先判断真实任务是否完成
+2. 再判断是否违反显式约束
+3. 再检查未授权 side effect
+4. 再检查 observation grounding / process
+5. 前面相同时再比较 efficiency / style
+```
+
+这会显著稳定 decision boundary。
 
 ---
 
-## 6.3.1 一个差的 Guideline
+# 6.4 Boundary Case 比典型例子更重要
+
+真正决定标注质量的通常不是：
 
 ```text
-请判断回答是否优秀。
+明显正确
+明显错误
 ```
 
-问题非常大：
+而是：
 
 ```text
-什么叫优秀？
-正确更重要还是简洁更重要？
-漏一个小要求算不算优秀？
-语言漂亮但事实错怎么办？
-```
-
----
-
-## 6.3.2 一个更好的 Guideline
-
-例如 Agent trajectory：
-
-```text
-第一优先级：任务是否真实完成
-第二优先级：是否违反明确约束
-第三优先级：是否产生未授权 side effect
-第四优先级：是否基于真实 observation
-第五优先级：在以上都相同时比较效率
-第六优先级：最后比较 final response 的表达质量
-```
-
-此时 annotator 的 decision boundary 会稳定很多。
-
----
-
-## 6.3.3 Guideline 应该包含 Boundary Cases
-
-不要只给典型例子。
-
-真正影响一致性的往往是：
-
-```text
-几乎正确但漏一个约束
+主结论对但漏一个约束
 任务本身不可完成
-两个回答都错但一个错得少
-调用工具成功但没有真正完成任务
-正确回答但极度冗长
-模型拒绝，但用户请求其实可完成
+两个候选都不好
+工具成功但任务没完成
+正确但有高风险副作用
+应该澄清还是可以推断
 ```
 
-所以 guideline 最有价值的部分往往不是定义，而是：
+所以 guideline 中最有价值的一部分往往是：
 
-> **边界案例及其裁决理由。**
+> **“容易混淆的边界在哪里，以及为什么这样裁决。”**
+
+成熟团队会持续把 adjudication 中反复出现的争议案例沉淀成新的 boundary examples。
 
 ---
 
-# 6.4 Label Taxonomy：标签设计决定后面能分析什么
+# 6.5 Label Schema：标签空间决定未来能分析什么
 
-如果一开始只有：
+如果只有：
 
 ```text
 Good / Bad
 ```
 
-后面你只能分析：
+未来只能统计：
 
 ```text
-多少 Good
-多少 Bad
+多少 Good / Bad
 ```
 
-如果一开始拆成：
+如果拆成：
 
 ```text
 correctness
@@ -339,96 +276,46 @@ safety
 efficiency
 ```
 
-后面才能回答：
+后面才能做能力诊断和数据策略。
+
+常见 label 形式：
+
+### Binary
 
 ```text
-模型最常失败在哪？
-哪个能力改善了？
-哪些 failure 值得生产更多数据？
+Pass / Fail
 ```
 
-因此 label taxonomy 是一个**面向未来分析能力的 schema design 问题**。
-
----
-
-## 6.4.1 Binary Label
+### Ordinal
 
 ```text
-0 / 1
-pass / fail
+1–5
 ```
 
-优点：简单。
-
-缺点：信息少。
-
----
-
-## 6.4.2 Ordinal Label
-
-例如：
+### Multi-label
 
 ```text
-1 = 严重错误
-2 = 较差
-3 = 可接受
-4 = 好
-5 = 非常好
-```
-
-适合连续质量维度。
-
-问题是不同 annotator 对 3、4 的尺度可能不同。
-
----
-
-## 6.4.3 Multi-label Taxonomy
-
-一条样本可以同时有：
-
-```text
-hallucination = true
 missing_constraint = true
-tool_error = false
 premature_stop = true
 ```
 
-对于 failure analysis 非常有用。
+### Hierarchical
+
+```text
+Tool Use
+└── Argument Error
+    └── Wrong Entity
+```
+
+但要注意概念所有权：完整 Agent Failure Taxonomy 统一归第 14 章。本章负责的是：
+
+> **如何让人稳定地按照既定 taxonomy 产生可靠标签。**
 
 ---
 
-## 6.4.4 Hierarchical Label
+# 6.6 Abstention：允许“不知道”是质量机制，不是失败
 
-例如 Agent Failure：
-
-```text
-Agent Failure
-├── Understanding
-├── Planning
-├── Tool Use
-│   ├── Missing Tool
-│   ├── Wrong Tool
-│   └── Argument Error
-├── Observation
-├── Verification
-└── Termination
-```
-
-层级 taxonomy 可以同时支持粗粒度统计与细粒度诊断。
-
----
-
-# 6.5 Abstention：允许“不知道”是高质量数据的重要条件
-
-很多数据项目为了追求：
-
-```text
-100% coverage
-```
-
-要求 annotator 必须选一个 label。
-
-这会制造大量伪标签。
+强迫 annotator 对所有样本二选一，会制造伪标签。
 
 应该允许：
 
@@ -437,122 +324,87 @@ Cannot Judge
 Insufficient Information
 Ambiguous
 Need Expert
-Both Bad
 Tie
+Both Bad
 ```
 
-这不是标注失败，而是一种有意义的监督信息。
-
-例如：
+这类结果本身很有价值，因为它可以触发：
 
 ```text
-普通标注员：Need Expert
+Expert Routing
+Adjudication
+Rubric Revision
+Hard-case Mining
 ```
 
-可以把样本自动升级到专家队列。
+所以 Human Data 的目标不应该是：
 
-所以成熟 pipeline 不应该优化：
+```text
+100% forced coverage
+```
 
-> 标完率最大化
+而应该是：
 
-而是：
-
-> **可靠标签产出率最大化。**
+> **最大化 reliable label yield。**
 
 ---
 
-# 6.6 Gold Set：什么是“金标”？
+# 6.7 Gold Set：它为什么叫 Gold？
 
-Gold Set 是一批经过高可信流程确定的 reference labels。
-
-它的用途包括：
+Gold Set 不是因为：
 
 ```text
-培训标注员
-准入考试
-线上质量监控
-LLM judge calibration
-版本回归
-规则变更验证
+“某个资深的人说了算”
 ```
 
-Gold 不是因为“某一个人说了算”，而应该因为：
+而是因为它通常具有：
 
 ```text
-定义清楚
+清晰定义
 高资质标注
 多方复核
+充分 evidence
 必要时 adjudication
-证据完整
-版本冻结
+稳定版本
 ```
+
+Gold 常用于：
+
+```text
+Annotator Training
+Qualification
+Hidden QC
+Judge Calibration
+Regression
+Rubric Validation
+```
+
+好的 Gold 应包含：
+
+```text
+Easy sanity cases
+Medium cases
+Boundary cases
+Known traps
+Historical disagreements
+High-severity cases
+```
+
+如果 Gold 全是简单题，98% accuracy 并不能证明真实生产能力。
+
+Gold 的系统版本治理、change history 与 lineage 统一见第 19 章。
 
 ---
 
-## 6.6.1 Gold Set 不应该全是简单题
+# 6.8 Inter-Annotator Agreement：一致不等于正确
 
-如果 gold 全是：
-
-```text
-A 明显正确
-B 明显胡说
-```
-
-所有 annotator 都能 99% 正确，但这不能证明他们能处理真实边界案例。
-
-更合理的 gold mixture：
-
-```text
-easy sanity cases
-medium cases
-hard boundary cases
-known trap cases
-historical disagreement cases
-```
-
----
-
-## 6.6.2 Gold Set 要定期更新吗？
-
-通常要，但不能随意变。
-
-需要区分：
-
-```text
-Gold v1
-Gold v2
-```
-
-并记录：
-
-```text
-为什么改？
-哪些 label 改了？
-是 guideline 变化还是旧 gold 错了？
-旧实验使用哪个版本？
-```
-
-否则历史结果不可比较。
-
----
-
-# 6.7 Inter-Annotator Agreement：一致性到底怎么测？
-
-最简单的是 Percent Agreement：
+最简单的一致率：
 
 $$
-Agreement = \frac{\#\text{一致样本}}{\#\text{总样本}}
+Agreement=\frac{\#\text{agreed items}}{\#\text{items}}
 $$
 
-例如 100 个 pair 中，两位标注员有 82 个判断一致：
-
-```text
-Agreement = 82%
-```
-
-但它没有校正“随机一致”。
-
-因此还常用：
+更常见的统计还包括：
 
 ```text
 Cohen's Kappa
@@ -560,133 +412,84 @@ Fleiss' Kappa
 Krippendorff's Alpha
 ```
 
----
-
-## 6.7.1 Cohen's Kappa
-
-适合两个 annotator 的分类标签。
+Cohen's Kappa：
 
 $$
-\kappa = \frac{p_o - p_e}{1-p_e}
+\kappa=\frac{p_o-p_e}{1-p_e}
 $$
 
 其中：
 
-- $p_o$：实际一致率；
-- $p_e$：根据标签边际分布推算的随机一致率。
+- $p_o$：观察到的一致率；
+- $p_e$：按标签边际分布估计的随机一致率。
 
-它比 raw agreement 更能说明：
-
-> 标注员是真的达成共识，还是因为大多数样本都属于同一类。
-
----
-
-## 6.7.2 Fleiss' Kappa
-
-可扩展到多个 annotator。
-
----
-
-## 6.7.3 Krippendorff's Alpha
-
-更灵活：
-
-```text
-多个 annotator
-缺失标注
-不同 label scale
-```
-
-都可以处理。
-
----
-
-## 6.7.4 IAA 高不一定意味着数据好
-
-假设一个错误 guideline 写得非常明确：
-
-```text
-只要回答长于 500 字，就标 Good
-```
-
-所有 annotator 可以 100% 一致。
-
-但标签和真实质量毫无关系。
-
-所以：
+但必须记住：
 
 ```text
 High Agreement
-≠ High Validity
+≠
+High Validity
 ```
 
-一致性只能说明：
+如果 guideline 本身错了，所有人完全一致也可能只是：
 
-> **大家在执行同一个标准。**
+> **稳定地执行错误标准。**
 
-不能证明标准本身正确。
+所以 Human Data 至少要同时看：
+
+```text
+Agreement
+Gold Accuracy
+Adjudication Rate
+Abstention Rate
+```
+
+而不是只看 IAA。
 
 ---
 
-# 6.8 Calibration：标注员不是上岗就开始生产
+# 6.9 Calibration：标注员不能直接“上线生产”
 
-一个成熟流程通常包含：
+一个成熟流程通常是：
 
 ```mermaid
 flowchart LR
-    A[Guideline Training] --> B[Practice Set]
+    A[Guideline Training] --> B[Practice]
     B --> C[Feedback]
-    C --> D[Qualification Test]
+    C --> D[Qualification]
     D -->|Pass| E[Production]
     D -->|Fail| F[Retraining]
-    E --> G[Ongoing Gold Checks]
-    G --> H[Periodic Recalibration]
+    E --> G[Hidden Gold / Anchors]
+    G --> H[Recalibration]
 ```
 
-Calibration 的目标是让标注员：
+Calibration 不是让人背答案，而是对齐：
 
 ```text
-理解 label 定义
-理解优先级
-熟悉边界案例
-形成相似 decision boundary
+Label Definition
+Priority
+Boundary
+Evidence Standard
+Abstain Rule
 ```
+
+长期项目还要防 Annotation Drift：
+
+```text
+Week 1 按 guideline
+↓
+Week 4 形成口头习惯
+↓
+Week 8 不同班组出现不同标准
+```
+
+因此需要固定 anchor cases 与周期性 recalibration。
 
 ---
 
-## 6.8.1 为什么需要持续 Recalibration？
+# 6.10 Adjudication：分歧不是简单多数投票
 
-因为会发生 label drift。
-
-例如一开始：
-
-```text
-“回答正确即可标 Good”
-```
-
-标了一周之后，人可能逐渐把标准变成：
-
-```text
-“回答得漂亮才算 Good”
-```
-
-这种漂移往往很慢，人自己意识不到。
-
-因此需要定期插入：
-
-```text
-hidden gold
-repeated cases
-historical anchor cases
-```
-
-来检查 decision boundary 是否漂移。
-
----
-
-# 6.9 Adjudication：分歧不应该被简单平均掉
-
-假设三位 annotator：
+三个人：
 
 ```text
 A → Good
@@ -694,497 +497,264 @@ B → Bad
 C → Bad
 ```
 
-最简单做法是 majority vote：
+不一定应该机械地：
 
 ```text
 Final = Bad
 ```
 
-但对于复杂任务，这可能不够。
+因为 A 可能掌握关键领域规则。
 
-为什么？
+Adjudication 的目的不是“再投一次票”，而是：
 
-因为：
+> **用更高资质、更完整 evidence 和更明确的 rule 解决语义冲突。**
 
-```text
-A 可能是领域专家
-B/C 可能误解了业务规则
-```
-
-所以 Adjudication 不是机械投票，而是：
-
-> **用更高资质、更多证据和更明确规则解决真正的语义冲突。**
-
----
-
-## 6.9.1 哪些 Case 应进入 Adjudication？
-
-可以设置：
+常见进入 adjudication 的条件：
 
 ```text
-annotator disagreement
-low confidence
+Annotator Disagreement
+Low Confidence
 Need Expert
-high business risk
-judge-human conflict
-gold mismatch
-new unseen failure type
+High Severity
+Judge-Human Conflict
+Gold Mismatch
+New Failure Type
 ```
 
----
-
-## 6.9.2 Adjudication 结果不仅修改 Label，还应该改 Guideline
-
-如果同一种分歧反复发生：
-
-```text
-几十个 annotator 都在同一个边界卡住
-```
-
-真正的问题往往不是人，而是规则。
-
-因此 adjudication 应产生两类产物：
+并且 adjudication 应该产生两个输出：
 
 ```text
 Final Label
 +
-Guideline Update / New Example
+Guideline / Boundary Example Update
 ```
 
-这样系统才会越来越稳定。
+否则同一种分歧还会继续发生。
 
 ---
 
-# 6.10 Majority Vote 什么时候有用？
+# 6.11 Majority Vote：什么时候有用，什么时候危险？
 
-对于：
-
-```text
-主观但简单的语言偏好
-明显分类
-低风险任务
-```
-
-多标 + majority vote 很实用。
-
-例如 5 人评价：
+适合：
 
 ```text
-A better: 4
-B better: 1
+低风险
+简单主观偏好
+普通语言质量判断
 ```
 
-可以较可靠地聚合。
-
-但以下场景要谨慎：
+不适合机械使用在：
 
 ```text
 领域专业题
-少数专家知道正确答案
 高风险判断
-事实性强的复杂推理
+事实性复杂推理
+少数专家才知道标准的任务
 ```
 
-此时“多数人觉得”不一定等于正确。
+所以：
+
+> **Annotator count 不能替代 annotator competence。**
 
 ---
 
-# 6.11 Annotation Confidence：为什么要记录置信度？
+# 6.12 Confidence：可以记录，但不要当真值
 
-让 annotator 除 label 外再给：
-
-```text
-high / medium / low confidence
-```
-
-或：
+Annotator 可以额外给：
 
 ```text
-0-1 confidence
+high / medium / low
 ```
 
-可以帮助：
+或数值 confidence。
+
+它可以帮助：
 
 ```text
 挑 adjudication case
 识别 guideline ambiguity
-分析 judge-human disagreement
+分析 human-judge disagreement
 构造 hard set
 ```
 
-但要注意：
+但：
 
-> Annotator self-confidence 不是 correctness。
+```text
+High Confidence
+≠
+Correct
+```
 
-有人可能错得很自信。
-
-所以 confidence 只是一个辅助信号。
+所以 confidence 是 routing signal，而不是 gold certificate。
 
 ---
 
-# 6.12 Label Provenance：一个 Label 到底是谁、怎么产生的？
+# 6.13 Annotation Provenance：本章只定义“标注现场需要记录什么”
 
-高质量数据不能只有：
-
-```json
-{"label":"good"}
-```
-
-更完整的 provenance 应包括：
-
-```json
-{
-  "label": "good",
-  "annotator_type": "trained_generalist",
-  "annotator_id": "anon_017",
-  "guideline_version": "v3.2",
-  "annotation_time": "...",
-  "confidence": "high",
-  "adjudicated": false,
-  "evidence": "..."
-}
-```
-
-如果是 AI 辅助：
+一条 Human Label 最好至少知道：
 
 ```text
-judge_model_version
-judge_prompt_version
-human_final_decision
+annotator role / anonymized id
+guideline version
+annotation UI version
+timestamp
+confidence
+abstain / escalation
+adjudication status
+evidence reference
 ```
 
-也应该保留。
+如果有 AI assistance，还应知道：
+
+```text
+AI suggestion version
+whether annotator saw it before judgment
+human final decision
+```
+
+这里的重点是：
+
+> **Human judgment 不是脱离上下文的一个 label，它是在某个 guideline、UI、evidence 和 assistance condition 下产生的 measurement。**
+
+至于 Label Versioning、Corrected Labels、Historical Decision、Audit Trail、Re-score / Re-run 的系统治理，统一交给第 19 章，不在本章重复展开。
 
 ---
 
-# 6.13 Label Versioning：标签会变，历史实验不能跟着偷偷变
+# 6.14 Pilot：不要一上来标 10 万条
 
-这是数据治理里非常关键的问题。
-
-假设一个数据集：
+推荐先做：
 
 ```text
-v1 labels
+100–1000 cases
 ```
 
-后来复查发现 100 条有错误，得到：
+重点看：
 
 ```text
-v2 corrected labels
-```
-
-正确做法不是：
-
-```text
-把旧文件覆盖掉
-然后假装一直都是这些标签
-```
-
-而应该明确：
-
-```text
-label_v1
-label_v2
-change_reason
-reviewer
-changed_at
-```
-
-并重新计算需要更新的统计。
-
----
-
-## 6.13.1 为什么“重新计分”与“重新做决策”必须区分？
-
-假设一个 selector 当时是基于 v1 信息做的历史决策：
-
-```text
-Chosen = A
-```
-
-后来 gold label 从：
-
-```text
-A correct
-```
-
-修正为：
-
-```text
-A wrong
-```
-
-如果你想评价“历史 selector 在新 gold 下表现如何”，正确操作是：
-
-```text
-保持历史选择 A 不变
-↓
-用 corrected labels 重新计分
-```
-
-而不是：
-
-```text
-重新运行 selector
-↓
-得到新的 B
-↓
-再拿 B 和 corrected labels 比
-```
-
-后者改变了原来的实验对象。
-
-这就是：
-
-> **Decision freeze 与 Label correction 是两个不同维度。**
-
----
-
-## 6.13.2 研究经验映射：Corrected Labels 与 Frozen Decisions
-
-在你已有的 RoTFuse / selector 分析中，就出现过非常典型的标签治理问题：历史 selector 的决策已经冻结，但后续 corrected labels 发生变化。
-
-这种情况下科学上正确的做法是：
-
-```text
-Frozen Decisions
-      ↓
-keep unchanged
-      ↓
-Corrected Gold Labels
-      ↓
-Re-score historical decisions
-```
-
-这类实践非常适合映射到真实数据岗位，因为它体现的不是某个具体算法，而是三项数据治理能力：
-
-```text
-label versioning
-experiment immutability
-metric recomputation
-```
-
-也就是说：
-
-> **标签可以修正，历史决策可以重评，但不能为了让结果更好而把历史决策一起重做。**
-
-这是一条很重要的实验审计原则。
-
----
-
-# 6.14 Human Annotation Pipeline：一套完整流程
-
-可以抽象为：
-
-```mermaid
-flowchart TD
-    A[Task Definition] --> B[Label Taxonomy]
-    B --> C[Guideline]
-    C --> D[Pilot Annotation]
-    D --> E[Disagreement Analysis]
-    E --> F[Guideline Revision]
-    F --> G[Annotator Training]
-    G --> H[Qualification]
-    H --> I[Production Annotation]
-    I --> J[Gold / QC Monitoring]
-    J --> K[Adjudication]
-    K --> L[Final Dataset]
-    L --> M[Downstream Validation]
-    M --> N[Guideline / Label Revision]
-    N --> C
-```
-
-这张图最重要的是：
-
-> **Annotation guideline 不是一次写完，而是通过 pilot → disagreement → adjudication 不断迭代。**
-
----
-
-# 6.15 Pilot：不要一上来就标 10 万条
-
-一个非常常见的工程错误是：
-
-```text
-需求确定
-↓
-直接外包 100k 样本
-```
-
-结果标到一半才发现：
-
-```text
-标签定义有歧义
-guideline 漏了关键边界
-数据 UI 信息不全
-某些任务需要专家
-```
-
-正确方法通常是先 pilot：
-
-```text
-100-1000 cases
-```
-
-重点分析：
-
-```text
-分歧最多的标签
-耗时最长的样本
+分歧最高的 label
 高 abstain case
-高置信但错误 case
-annotation UI 问题
-新 failure category
+耗时异常的 case
+高置信但错的 case
+新 failure pattern
+UI friction
+专家需求
 ```
 
-然后再扩大规模。
-
----
-
-# 6.16 Annotation UI：界面也会影响 Label
-
-这是经常被低估的一点。
-
-例如 pairwise preference：
+Pilot 的目标不是估计最终产能，而是验证：
 
 ```text
-A 永远在左边
-B 永远在右边
+Schema 能不能标？
+Guideline 能不能执行？
+证据够不够？
+普通标注员能不能判断？
+哪些 case 必须 escalation？
 ```
 
-可能产生 position bias。
+所以：
 
-Agent trace 如果 UI 默认只展开 final response，而 tool trace 需要手动点开，annotator 可能偷懒只看最终文字。
+> **Pilot 是 annotation design experiment。**
 
-因此 UI 应支持：
+---
+
+# 6.15 Annotation UI 也是数据质量的一部分
+
+例如 Pairwise UI 如果永远：
 
 ```text
-候选随机换位
-关键证据高亮
-完整 trace 查看
-tool call / observation 分块
-环境状态 before / after
-rubric 固定显示
-快捷 abstain
+A 在左
+B 在右
 ```
 
-所以 annotation UI 也是数据质量系统的一部分。
+会引入 position bias。
+
+Agent trace UI 如果默认只展开 final response，而 action / observation 要层层点开，标注员很容易只看最后一句话。
+
+好的 UI 会支持：
+
+```text
+Candidate Position Randomization
+Rubric Always Visible
+Action / Observation 分块
+Before / After State
+Evidence Highlight
+Quick Abstain / Escalate
+Trace Navigation
+```
+
+因此 UI 版本也可能影响 label distribution。
 
 ---
 
-# 6.17 质量控制：不要只在最后抽检
+# 6.16 质量控制应该贯穿生产过程
 
-QC 应该贯穿整个流程。
+Human Data QC 常见机制：
 
----
-
-## 6.17.1 Qualification Gate
+### Qualification Gate
 
 上岗前通过准入测试。
 
+### Hidden Gold
+
+生产中混入已知高可信 case。
+
+### Repeated Item
+
+同一 annotator 隔一段时间再次看到相同样本，检查 self-consistency。
+
+### Cross Annotation
+
+同一 item 多人独立判断。
+
+### Distribution Monitoring
+
+观察 annotator 是否出现异常 label pattern。
+
+### Time / Interaction Anomaly
+
+极端过快、从不展开 evidence 等可以作为 audit signal，但不能单独判定低质量。
+
+QC 的目标不是“抓坏标注员”，而是：
+
+> **尽早发现系统性 decision-boundary drift。**
+
 ---
 
-## 6.17.2 Hidden Gold
+# 6.17 Annotator Quality 不应该压成一个黑箱分数
 
-生产中随机混入已知答案样本。
-
----
-
-## 6.17.3 Repeated Item
-
-同一 annotator 隔一段时间重复看到同一 case，检查 self-consistency。
-
----
-
-## 6.17.4 Cross Annotation
-
-同一 case 多人独立标注。
-
----
-
-## 6.17.5 Time-based Anomaly
-
-例如：
+可以观察：
 
 ```text
-正常平均一条 45 秒
-某 annotator 平均 2 秒
+Gold Accuracy
+Agreement with Adjudicated Labels
+Self-consistency
+Abstain Calibration
+Rubric-specific Accuracy
+Domain-specific Accuracy
 ```
 
-可能说明快速乱标。
+但比一个总分更有价值的是：
 
-但不能单独依据时间淘汰，因为有些 annotator 熟练度高。
+```text
+这个人擅长什么？
+在哪个 label 上容易错？
+什么类型需要升级专家？
+```
+
+即：
+
+> **Annotator Capability Profile。**
+
+这为 Expertise Routing 提供基础。
 
 ---
 
-## 6.17.6 Label Distribution Drift
-
-如果某 annotator：
-
-```text
-95% 都标 Good
-```
-
-而全体平均是 55%，需要调查。
-
-可能是：
-
-```text
-样本分配不同
-理解偏差
-偷懒
-```
-
-不能直接下结论。
-
----
-
-# 6.18 Annotator Quality Score 怎么设计？
-
-可以综合：
-
-```text
-gold accuracy
-agreement with adjudicated labels
-consistency
-abstain calibration
-speed anomaly
-rubric-specific accuracy
-```
-
-但不要简单形成一个黑箱总分后淘汰。
-
-更有价值的是知道：
-
-```text
-这个人在哪类任务上可靠？
-在哪个标签上经常错？
-是否适合更高难度任务？
-```
-
-也就是建立 annotator capability profile。
-
----
-
-# 6.19 Expertise Routing：不同数据给不同的人
-
-假设数据中有：
-
-```text
-80% 普通问答
-10% 数学
-5% 法律
-5% Agent 边界案例
-```
-
-全部交给同一批 annotator 并不合理。
-
-可以建立：
+# 6.18 Expertise Routing：不同 case 给不同的人
 
 ```mermaid
 flowchart TD
-    A[Incoming Case] --> B{Need Domain Expertise?}
+    A[Incoming Case] --> B{Requires Expertise?}
     B -->|No| C[General Annotator]
-    B -->|Yes| D{Which Domain?}
+    B -->|Yes| D{Domain}
     D --> E[Math Expert]
     D --> F[Legal Expert]
     D --> G[Agent Specialist]
@@ -1196,37 +766,55 @@ flowchart TD
     H -->|No| J[Final Label]
 ```
 
-这就是 expertise routing。
+这比：
+
+```text
+所有数据 → 同一 workforce
+```
+
+更合理，也更省成本。
 
 ---
 
-# 6.20 Human + AI：人工不一定从零开始标
+# 6.19 Human + AI：人工可以被辅助，但不能被默认替代
 
-越来越常见的是：
+常见三种模式：
 
-```text
-LLM 先给预标
-↓
-Human Review
-↓
-Accept / Edit / Reject
-```
-
-优点：
+### Pre-label
 
 ```text
-降低成本
-提高速度
-让人聚焦边界案例
+LLM proposes → Human accepts / edits
 ```
 
-但风险也很明显：
+优点是快，风险是 Automation Bias。
 
-> **Automation Bias**
+### Evidence Assistant
 
-人看到模型先给的答案后，容易被锚定。
+模型只帮助：
 
-因此要做实验比较：
+```text
+抽取约束
+总结长 trace
+定位相关 evidence
+```
+
+不提前给 final label。
+
+这通常更不容易产生锚定。
+
+### Second Opinion
+
+```text
+Human independent label
+↓
+AI second opinion
+↓
+Conflict → review
+```
+
+高风险任务通常更适合这一类。
+
+如果引入 AI-assisted annotation，应该实验比较：
 
 ```text
 Human-only
@@ -1234,870 +822,426 @@ vs
 AI-assisted Human
 ```
 
-看：
+至少看：
 
 ```text
-accuracy
-speed
-disagreement
-systematic bias
+Accuracy
+Speed
+Agreement
+Bias Pattern
+Escalation Rate
 ```
 
-不能因为 AI-assisted 更快，就默认更好。
+而不是只看 throughput。
 
 ---
 
-# 6.21 Model-assisted Annotation 的三种常见模式
+# 6.20 Human、Verifier、LLM Judge 如何分工？
 
-## 1. Pre-label
+本章不重新定义 evaluator taxonomy，统一见第 15 章。
 
-```text
-Model proposes label
-Human confirms / edits
-```
-
-## 2. Evidence Assistant
-
-模型不直接给最终标签，只帮助：
+Human Data 视角只需要记：
 
 ```text
-提取关键约束
-总结 trace
-定位可能错误
+能客观执行验证
+→ 优先 Verifier
+
+已有稳定 rubric、规模大
+→ LLM Judge 可以放大应用
+
+标准尚不稳定 / 高风险 / 新 failure / 专业领域
+→ Human / Expert
 ```
 
-最后由人判断。
-
-这种方式通常比直接给答案更不容易产生锚定。
-
-## 3. Second Opinion
-
-人先独立标，再让模型提供第二意见。
-
-如果冲突：
-
-```text
-进入复核
-```
-
-这在高风险数据里更稳妥。
-
----
-
-# 6.22 Human vs LLM Judge：谁应该做最终裁判？
-
-没有统一答案。
-
-可以按任务分：
-
-### Rule / Verifier 最优
-
-如果可以客观验证：
-
-```text
-exact match
-unit test
-database state
-schema validity
-```
-
-优先使用 verifier。
-
-### Expert Human 最优
-
-如果需要：
-
-```text
-高风险专业判断
-复杂边界规则
-新型 failure
-```
-
-### LLM Judge 最优
-
-如果：
-
-```text
-规模大
-任务相对稳定
-已有 gold 校准
-错误成本可控
-```
-
-最成熟的做法通常是 hybrid：
+最成熟的系统往往是：
 
 ```text
 Verifier
-+
+↓
 LLM Judge
-+
+↓
 Human / Expert Escalation
 ```
 
----
-
-# 6.23 Sampling：人工预算应该花在哪？
-
-如果有 100 万条模型 rollout，不可能全人工看。
-
-所以需要 sampling strategy。
-
----
-
-## 6.23.1 Random Sampling
-
-用于估计总体质量。
-
----
-
-## 6.23.2 Stratified Sampling
-
-按：
-
-```text
-domain
-language
-difficulty
-model version
-failure type
-tool type
-```
-
-分层抽样，避免只看到主流分布。
-
----
-
-## 6.23.3 Uncertainty Sampling
-
-优先标模型 / judge 最不确定的样本。
-
----
-
-## 6.23.4 Disagreement Sampling
-
-例如：
-
-```text
-Judge A ≠ Judge B
-Model prediction ≠ verifier
-Human ≠ LLM judge
-```
-
-这些 case 通常信息密度很高。
-
----
-
-## 6.23.5 Risk-based Sampling
-
-高风险业务优先人工复核。
-
----
-
-## 6.23.6 Failure-driven Sampling
-
-优先标：
-
-```text
-线上投诉
-regression
-高频失败
-新 failure type
-```
-
-这会自然连接到后面的 Data Flywheel。
-
----
-
-# 6.24 Cost、Throughput、Quality：永远是三角权衡
-
-Human Data 生产不只看质量。
-
-真实项目会同时受：
-
-```text
-成本 Cost
-速度 Throughput
-质量 Quality
-```
-
-约束。
-
-例如：
-
-```text
-专家双人复核 + adjudication
-```
-
-质量很高，但成本巨大。
-
-所以不同数据层级可以使用不同流程：
-
-```text
-普通数据 → 单标 + hidden gold
-重要训练数据 → 双标 + disagreement review
-核心 eval gold → 专家多标 + adjudication
-```
-
-这叫 risk-based quality tiering。
-
----
-
-# 6.25 人工标注 Agent Data 为什么特别难？
-
-因为 annotator 不再只看一段文字。
-
-可能需要同时理解：
-
-```text
-User Goal
-System Constraint
-Available Tools
-Tool Schema
-Initial Environment State
-Trajectory
-Tool Calls
-Observations
-Final Environment State
-Final Response
-```
-
-这对 cognitive load 要求非常高。
-
----
-
-## 6.25.1 Agent Annotation 最容易漏看的几个地方
-
-### 1. Tool Call 发生了没有
-
-模型说完成不代表执行。
-
-### 2. 参数对象对不对
-
-例如更新了错误会议。
-
-### 3. Observation 是否真的支持后续结论
-
-### 4. 最终环境是否改变
-
-### 5. 是否有 side effect
-
-### 6. 是否重复执行非幂等 write action
-
-### 7. 任务本身是否可完成
-
-因此 Agent annotation guideline 往往必须提供**结构化 UI 与逐层 rubric**。
-
----
-
-# 6.26 Agent Annotation Rubric 示例
-
-可以设计成：
-
-```text
-A. Task Feasibility
-- feasible
-- infeasible
-- unclear
-
-B. Tool Necessity
-- tool needed
-- tool not needed
-
-C. Tool Selection
-- correct
-- wrong
-
-D. Arguments
-- correct
-- partially correct
-- wrong
-
-E. Observation Grounding
-- grounded
-- ignored / contradicted
-
-F. Execution Verification
-- verified
-- not verified
-- not applicable
-
-G. Final Task Outcome
-- success
-- partial
-- failure
-
-H. Side Effect
-- none
-- acceptable
-- harmful
-
-I. Failure Attribution
-- model
-- tool
-- harness
-- environment
-- task infeasible
-```
-
-这样的 schema 后续可以直接用于：
-
-```text
-training data
-failure analysis
-benchmark
-reward design
-regression monitoring
-```
-
----
-
-# 6.27 Privacy 与 Sensitive Data
-
-Human annotation 往往意味着真实用户数据被更多人看到。
-
-所以需要考虑：
-
-```text
-PII removal
-redaction
-least-privilege access
-annotator access logging
-data retention
-sensitive-domain routing
-```
-
-尤其真实 Agent trace 可能包含：
-
-```text
-邮件
-日历
-文件
-订单
-联系方式
-账号信息
-```
-
-这类数据不能因为“只是做标注”就忽视隐私边界。
-
----
-
-# 6.28 Data Leakage：Annotator 也可能造成 Eval 污染
-
-如果同一批 annotator 同时参与：
-
-```text
-训练数据生产
-benchmark gold 标注
-```
-
-又能看到测试题，可能产生间接泄漏。
-
-更严格的体系会区分：
-
-```text
-training annotation pool
-evaluation annotation pool
-hidden benchmark pool
-```
-
-并控制访问。
-
----
-
-# 6.29 Annotator Disagreement 本身就是数据
-
-不要只把 disagreement 当噪声。
-
-高 disagreement case 往往意味着：
-
-```text
-guideline 模糊
-任务本身主观
-信息不足
-存在多解
-模型输出位于 decision boundary
-```
-
-所以可以把 disagreement rate 当作：
-
-```text
-ambiguity signal
-hardness signal
-rubric quality signal
-```
-
-高分歧样本特别适合：
-
-```text
-做 hard eval
-改 guideline
-构造 preference boundary data
-训练 calibrated judge
-```
-
----
-
-# 6.30 “一致”与“正确”必须分开看
-
-一个成熟的数据质量 dashboard 至少要同时有：
-
-```text
-Agreement
-Gold Accuracy
-Adjudication Rate
-Abstention Rate
-Label Distribution
-Time per Item
-Domain Breakdown
-```
-
-其中：
-
-```text
-Agreement → 大家是否一致
-Gold Accuracy → 是否接近可靠标准
-Abstention → 是否有大量难判断样本
-Adjudication Rate → guideline 是否存在边界问题
-```
-
-不能只看一个指标。
-
----
-
-# 6.31 Annotation Drift：数据生产时间越长，规则越容易变形
-
-长期项目可能出现：
-
-```text
-Week 1: 严格执行 guideline
-Week 4: 形成口头习惯
-Week 8: 不同班组各自形成版本
-```
-
-所以需要：
-
-```text
-定期 calibration
-统一 change log
-固定 guideline version
-anchor cases
-cross-team audit
-```
-
-如果 guideline 更新，必须记录：
-
-```text
-从哪个日期生效
-旧数据是否需要 relabel
-哪些指标不可直接横比
-```
-
----
-
-# 6.32 Relabel：什么时候值得重新标？
-
-不应该因为发现 1 条错标就全部重标。
-
-可以根据：
-
-```text
-error rate
-label importance
-systematic vs random error
-是否影响核心结论
-是否集中于某个 batch / annotator / domain
-```
-
-决定。
-
-例如：
-
-```text
-错误随机且 <0.1%
-```
-
-可能只需记录。
-
-如果：
-
-```text
-某个 guideline 解释反了
-导致一个月的 Tool Verification 标签全部错
-```
-
-就需要系统 relabel。
-
----
-
-# 6.33 Relabel 后如何保证实验可审计？
-
-需要保存：
-
-```text
-old_label
-new_label
-reason
-reviewer
-version
-```
-
-并明确：
-
-```text
-哪些实验使用 v1
-哪些实验使用 v2
-```
-
-如果论文结果更新，应说明：
-
-```text
-旧结果是否重算
-哪些结论改变
-哪些结论不变
-```
-
-这也是数据科学与科研实验共通的 reproducibility 要求。
-
----
-
-# 6.34 一个完整案例：给 Agent Trajectory 做人工 Gold
-
-任务：
-
-```text
-“如果订单 1847 还没发货，就帮我取消；如果已经发货，不要取消，只告诉我状态。”
-```
-
-Agent trajectory：
-
-```text
-search_order(1847)
-→ status = pending
-
-cancel_order(1847)
-→ cancellation_success = true
-
-Final:
-订单已经取消。
-```
-
-Annotator 不应该只标：
-
-```text
-Good
-```
-
-而可以拆成：
-
-```text
-Task Feasible = yes
-Tool Needed = yes
-Search Tool = correct
-Search Argument = correct
-Observation Grounding = correct
-Cancel Decision = correct
-Cancel Argument = correct
-Execution Success = yes
-Final-state Verified = yes
-Final Response = correct
-Task Success = yes
-Side Effect = none
-```
-
-如果另一个 trajectory：
-
-```text
-search_order(1847)
-→ status = shipped
-cancel_order(1847)
-→ error
-```
-
-那么应该标：
-
-```text
-Observation Grounding = wrong
-Policy Decision = wrong
-Task Success = failure
-Failure Attribution = model
-```
-
-这类结构化 gold 才能真正支持后续 failure analysis。
-
----
-
-# 6.35 Human Data 如何转成不同训练信号？
-
-同一批人工标注可以派生：
-
-```mermaid
-flowchart TD
-    A[Human-reviewed Cases] --> B[SFT Demonstration]
-    A --> C[Preference Pair]
-    A --> D[Reward Label]
-    A --> E[Failure Taxonomy]
-    A --> F[Eval Gold]
-    A --> G[Judge Calibration Set]
-    A --> H[Hard-case Pool]
-```
-
-因此高成本人工数据最好不要只服务一个下游。
-
-应该尽量保存原始 evidence 和结构化标签，便于复用。
-
----
-
-# 6.36 常见失败模式
-
-### 失败 1：Guideline 只有一句话
-
-标注员只能凭感觉。
-
-### 失败 2：只给典型正例，没有边界案例
-
-上线后分歧集中爆发。
-
-### 失败 3：普通标注员被迫判断专业问题
-
-可能得到高一致性的错误标签。
-
-### 失败 4：所有 case 必须二选一
-
-制造伪 preference。
-
-### 失败 5：Gold Set 太简单
-
-无法检测真实能力差异。
-
-### 失败 6：只看 IAA，不看 Gold Accuracy
-
-一致不等于正确。
-
-### 失败 7：只在项目结束后抽检
-
-发现问题时已经标了几十万条。
-
-### 失败 8：Adjudication 只改 label，不改 guideline
-
-同类分歧反复发生。
-
-### 失败 9：AI 预标导致 Automation Bias
-
-人只是机械点 Accept。
-
-### 失败 10：不记录 Guideline Version
-
-后续无法解释 label drift。
-
-### 失败 11：Corrected Label 直接覆盖旧 Label
-
-历史实验失去可审计性。
-
-### 失败 12：Label 改了以后重新跑历史 selector
-
-这混淆了 label correction 与 decision change。
-
-### 失败 13：Agent 标注只看 Final Response
-
-执行过程和真实环境结果被忽略。
-
-### 失败 14：Tool / Harness Failure 都记成 Model Failure
-
-训练数据被系统故障污染。
-
-### 失败 15：所有数据都使用相同质量等级
-
-简单任务成本过高，关键任务质量又不足。
-
----
-
-# 6.37 从数据岗位视角，这一章实际会做什么？
-
-典型工作包括：
-
-```text
-设计 label taxonomy
-写 annotation guideline
-制作 boundary cases
-搭标注 UI
-做 pilot
-分析 disagreement
-定义 gold set
-培训 annotator
-做 qualification
-设计 hidden gold
-监控 agreement / accuracy
-组织 adjudication
-维护 guideline version
-做 corrected labels
-做 relabel audit
-搭 annotator quality dashboard
-设计 expert routing
-评估 AI-assisted annotation
-维护 eval gold
-做 privacy / access control
-```
-
-真正成熟的数据工作不是：
-
-> “组织人标了 20 万条。”
-
-而应该能说：
-
-```text
-标签定义是什么？
-为什么这样定义？
-谁有资格标？
-一致性怎样？
-正确性怎样？
-边界怎么处理？
-规则如何版本化？
-错标怎么纠正？
-自动 judge 怎么校准？
-训练后有什么价值？
-```
-
----
-
-# 6.38 本章关键词
-
-| 术语 | 一句话理解 |
-|---|---|
-| Human Data | 由人类产生、评价、修正或裁决的数据 |
-| Annotation Guideline | 规定标签语义与决策边界的规范 |
-| Label Taxonomy | 一套结构化标签空间 |
-| Boundary Case | 位于标签决策边界、最容易产生分歧的样本 |
-| Abstention | 在无法可靠判断时选择不强行打标签 |
-| Gold Set | 高可信 reference labels 集合 |
-| IAA | Inter-Annotator Agreement，标注员间一致性 |
-| Cohen's Kappa | 校正随机一致后的双人一致性指标 |
-| Krippendorff's Alpha | 支持多 annotator / 缺失数据的通用一致性指标 |
-| Calibration | 让 annotator 的决策标准与 guideline 对齐 |
-| Adjudication | 对分歧样本进行更高层级裁决 |
-| Hidden Gold | 生产任务中暗插的已知答案样本 |
-| Label Drift | 标注标准随时间逐渐漂移 |
-| Automation Bias | 人被 AI 预标结果锚定 |
-| Expertise Routing | 将不同类型任务分配给最适合的标注者 |
-| Label Provenance | 记录标签由谁、按什么规则、何时产生 |
-| Label Versioning | 对标签修订建立版本与变更记录 |
-| Relabel | 对已有样本重新标注 |
-| Corrected Label | 经复核修正后的新标签 |
-| Decision Freeze | 历史模型 / selector 决策保持不变以便公平重评 |
-
----
-
-# 6.39 面试 / 自检问题
-
-学完这一章至少应该能够回答：
-
-1. **为什么有了 LLM Judge 还需要 Human Data？**
-2. **Crowd Annotator、Trained Annotator、Expert 分别适合什么任务？**
-3. **一份好的 annotation guideline 应包含什么？**
-4. **为什么 boundary case 比简单例子更重要？**
-5. **为什么要允许 abstention？**
-6. **什么是 Gold Set，它应该怎么构造？**
-7. **Percent Agreement 和 Cohen's Kappa 有什么区别？**
-8. **IAA 高是否意味着数据一定高质量？**
-9. **Calibration 和 Adjudication 分别解决什么问题？**
-10. **为什么 adjudication 之后还要修改 guideline？**
-11. **如何监控 annotator drift？**
-12. **AI-assisted annotation 有什么风险？**
-13. **什么时候应该 human-only，什么时候适合 LLM Judge？**
-14. **如果有 100 万条 rollout，只能人工看 1 万条，怎么抽样？**
-15. **Agent trajectory 为什么比普通文本更难标？**
-16. **为什么 Model Failure、Tool Failure、Harness Failure 必须区分？**
-17. **Label correction 与 historical decision freeze 为什么要分开？**
-18. **Corrected labels 出现后，哪些结果应该重算？**
-19. **如何判断一批数据是否值得 relabel？**
-20. **Human Data 怎么同时服务 SFT、Preference、Eval 和 Judge Calibration？**
-
----
-
-## 6.39.1 一个通用回答框架：如果让你负责 10 万条 Agent 数据标注
-
-可以这样回答：
-
-```text
-1. 先定义目标能力和 failure taxonomy
-   ↓
-2. 设计 label schema 与任务 success condition
-   ↓
-3. 写 guideline + boundary cases
-   ↓
-4. 做 200-1000 条 pilot
-   ↓
-5. 分析 disagreement / abstain / annotation time
-   ↓
-6. 修 guideline 和 UI
-   ↓
-7. 按任务难度分 general / expert routing
-   ↓
-8. 建 gold set 与 qualification
-   ↓
-9. 批量生产，同时插 hidden gold
-   ↓
-10. 对 disagreement / high-risk case 做 adjudication
-   ↓
-11. 维护 guideline / label version
-   ↓
-12. 最后用 downstream eval 验证数据价值
-```
-
-其中最值得强调的是：
-
-> **不要把“标注规模”当成项目目标，目标应该是获得可靠、可解释、能真正改变模型行为的监督信号。**
-
----
-
-# 6.40 与下一章的衔接：为什么 Human Data 最终会走向 Synthetic Data？
-
-Human Data 最大的问题非常明确：
-
-```text
-贵
-慢
-专家稀缺
-难扩展
-```
-
-所以一旦 guideline、gold、judge calibration 建立起来，下一步自然会问：
-
-> 能不能让模型自己生产更多数据？
-
-于是进入下一章：
-
-# 第 7 章 Synthetic Data
-
-但这里要先记住一条原则：
-
-> **Synthetic Data 不是为了消灭 Human Data，而是把少量高质量人类监督放大。**
-
-最典型的结构是：
-
-```text
-Human defines target
-↓
-Human creates gold / rubric
-↓
-Model generates synthetic data
-↓
-Verifier / Judge filters
-↓
-Human audits boundary cases
-↓
-Scale up
-```
-
-也就是说，真正可扩展的数据系统通常不是：
+而不是：
 
 ```text
 Human OR AI
 ```
 
-而是：
+---
+
+# 6.21 人工预算应该花在哪？
+
+面对百万 rollout，人工不应均匀撒出去。
+
+常见 sampling：
 
 ```text
-Human + AI + Verifier
+Random Sampling
+→ 估总体
+
+Stratified Sampling
+→ 保证不同 domain / capability / risk 被覆盖
+
+Disagreement Sampling
+→ evaluator 不一致
+
+Uncertainty Sampling
+→ 模型 / judge 边界 case
+
+Risk-based Sampling
+→ 高 severity
+
+Failure-driven Sampling
+→ 新 failure / regression / complaint
 ```
 
-共同构成一个分层质量控制体系。
+但 sampling 的正式数据价值与 hard-case acquisition 逻辑统一交给第 9、18 章。
+
+本章只强调：
+
+> **Human review 应集中到“人工判断最能改变决策”的样本。**
+
+---
+
+# 6.22 Cost、Throughput、Quality：不同数据需要不同质量等级
+
+Human pipeline 永远受：
+
+```text
+Cost
+Throughput
+Quality
+```
+
+三角约束。
+
+所以可以分 tier：
+
+```text
+普通训练数据
+→ single label + hidden gold
+
+重要训练 / preference data
+→ double label + disagreement review
+
+核心 benchmark / judge calibration
+→ expert multi-label + adjudication
+```
+
+这比所有数据统一使用最高成本流程更实际。
+
+---
+
+# 6.23 Agent Annotation 为什么特别难？
+
+因为标注员往往需要同时理解：
+
+```text
+User Goal
+Task Constraints
+Tool Set
+Tool Schema
+Initial State
+Actions
+Observations
+Final Environment State
+Final Response
+```
+
+所以 Agent annotation 最容易出现：
+
+```text
+只看 final answer
+忽略实际 action
+忽略参数实体
+忽略 observation
+忽略 side effect
+把 infrastructure failure 当 model failure
+```
+
+因此 Agent Data 非常需要：
+
+```text
+Structured UI
+Evidence Package
+Layered Rubric
+Abstention
+Expert Escalation
+```
+
+完整 failure label 本身由第 14 章定义。
+
+---
+
+# 6.24 Canonical Case：C1 Order / Refund Agent 的人工 Gold
+
+任务：
+
+```text
+“如果订单 1847 还没发货，就帮我取消；已经发货就不要动。”
+```
+
+Episode A：
+
+```text
+get_order_status(1847)
+→ pending
+
+cancel_order(1847)
+→ success
+
+verify
+→ cancelled
+```
+
+Annotator 可以按结构化 rubric 判断：
+
+```text
+Task Feasibility = feasible
+Tool Need = yes
+Tool Selection = correct
+Argument = correct
+Observation Grounding = correct
+Write Decision = correct
+Verification = sufficient
+Task Outcome = success
+Forbidden Side Effect = none
+```
+
+Episode B：
+
+```text
+get_order_status(1847)
+→ shipped
+
+cancel_order(1847)
+```
+
+Human annotation 的关键不是只写：
+
+```text
+Bad
+```
+
+而是基于第 14 章 taxonomy 识别：
+
+```text
+Observation Grounding / Policy Failure
+```
+
+如果工具结果其实没有进入模型 context，则 annotator 应升级 evidence review，而不是直接标 Model Failure。
+
+这就是为什么 Human annotation 需要看到足够 evidence。
+
+---
+
+# 6.25 Human Data 的真正产物不只是 Final Label
+
+一次高成本人工判断最好保留：
+
+```text
+Raw Human Judgment
+Confidence
+Evidence Reference
+Disagreement
+Adjudication
+Correction
+```
+
+然后可以派生：
+
+```text
+SFT
+Preference
+Failure Labels
+Eval Gold
+Judge Calibration
+Hard-case Pool
+```
+
+所以：
+
+> **高价值 Human Data 应被视为可复用 supervision asset，而不是一次性 label。**
+
+系统级 Derived View 与 lineage 统一见第 19 章。
+
+---
+
+# 6.26 常见失败模式
+
+1. Guideline 只有一句模糊描述。
+2. 只给典型例子，不给 boundary cases。
+3. 普通 annotator 被迫判断专业问题。
+4. 不允许 abstain / tie / both bad。
+5. Gold Set 太简单。
+6. 只看 IAA，不看 Gold Accuracy。
+7. 项目结束后才做 QC。
+8. Adjudication 只改 label，不更新 guideline。
+9. AI 预标造成 automation bias。
+10. Annotation UI 隐藏关键 evidence。
+11. 所有 case 都用同一 workforce。
+12. 所有数据都用同一质量 tier。
+13. Agent 标注只看 Final Response。
+14. Infrastructure failure 被错标成 Model Failure。
+15. 把“标完多少条”当作项目成功，而没有验证 downstream value。
+
+Label version overwrite、historical decision mutation 等治理问题不在本章重复列为主 failure；统一见第 19 章。
+
+---
+
+# 6.27 从数据岗位视角，这一章实际会做什么？
+
+```text
+设计 label schema
+写 annotation guideline
+制作 boundary cases
+设计 annotation UI
+做 pilot
+分析 disagreement
+定义 Gold / Anchor Set
+培训 annotator
+做 qualification
+插 hidden gold
+监控 Gold Accuracy / IAA / abstention
+做 expertise routing
+组织 adjudication
+评估 AI-assisted annotation
+构建 annotator capability profile
+设计 human-review sampling
+沉淀 high-value human supervision assets
+```
+
+真正成熟的 Human Data 工作不是：
+
+> “组织人标了 20 万条。”
+
+而是能回答：
+
+```text
+标什么？
+为什么这样标？
+谁有资格标？
+证据是否够？
+一致性怎样？
+正确性怎样？
+边界如何处理？
+什么时候需要专家？
+人工怎样校准自动系统？
+```
+
+---
+
+# 6.28 本章关键词
+
+| 术语 | 一句话理解 |
+|---|---|
+| Human Data | 人产生、评价、修正或裁决的监督数据 |
+| Annotation Guideline | 规定 label 语义与决策边界的规范 |
+| Boundary Case | 最容易暴露 label 边界与 guideline 歧义的样本 |
+| Abstention | 证据不足时拒绝强行给确定标签 |
+| Gold Set | 经过高可信流程确定的 reference labels |
+| IAA | 标注员之间的一致性 |
+| Calibration | 让 annotator decision boundary 对齐 guideline |
+| Adjudication | 用更高资质 / 更多证据解决标注分歧 |
+| Hidden Gold | 生产任务中暗插的已知高可信样本 |
+| Annotation Drift | 标注标准随时间逐渐漂移 |
+| Automation Bias | 人被 AI 预标答案锚定 |
+| Expertise Routing | 将不同 case 分配给最合适的 annotator |
+| Annotator Capability Profile | 描述 annotator 在不同任务 / rubric 上的可靠性 |
+| Annotation Provenance | 描述某个人类判断在什么规则和证据条件下产生 |
+| Reliable Label Yield | 真正可靠标签的产出，而不是强制覆盖率 |
+
+---
+
+# 6.29 面试 / 自检问题
+
+1. 为什么有 LLM Judge 以后还需要 Human Data？
+2. Crowd、Trained Annotator、Expert、Adjudicator 的区别是什么？
+3. 一份好的 guideline 至少应该包含什么？
+4. 为什么 boundary case 比典型例子更关键？
+5. 为什么应该允许 abstention？
+6. Gold Set 应该如何构造？
+7. IAA 高为什么不等于标签一定正确？
+8. Calibration 与 Adjudication 分别解决什么问题？
+9. Majority Vote 在什么场景下不可靠？
+10. 为什么 annotator confidence 不能直接当 correctness？
+11. Annotation UI 为什么会影响 label？
+12. 怎么持续监控 Annotation Drift？
+13. Annotator Quality 为什么不应该只看一个总分？
+14. 什么是 Expertise Routing？
+15. AI-assisted annotation 有哪些典型 bias？
+16. 什么时候应该 Human-only，什么时候适合自动 grader？
+17. 人工预算应该优先投入哪些样本？
+18. Agent trajectory 为什么比普通文本更难标？
+19. Human annotation 如何同时服务 SFT、Preference、Eval 和 Judge calibration？
+20. 哪些内容应该由本章讲，哪些治理问题应交给第 19 章？
+
+---
+
+## 6.29.1 一个通用回答框架：如果让你负责 10 万条 Agent 数据标注
+
+```text
+1. 明确目标 capability 与 label interface
+   ↓
+2. 复用 canonical failure / evaluation taxonomy
+   ↓
+3. 写 guideline + boundary cases
+   ↓
+4. 做 200–1000 条 pilot
+   ↓
+5. 分析 disagreement / abstain / time / UI friction
+   ↓
+6. 修 guideline 和 UI
+   ↓
+7. 建 workforce / expertise routing
+   ↓
+8. 建 Gold + qualification
+   ↓
+9. 批量生产 + hidden QC
+   ↓
+10. disagreement / high-risk → adjudication
+   ↓
+11. 沉淀 Gold / correction / preference / calibration assets
+   ↓
+12. 下游再验证这些人工监督是否真正有价值
+```
+
+最关键的一句话：
+
+> **Human Annotation 的目标不是把每条样本“标满”，而是把人类判断变成稳定、可校准、可放大的监督标准。**
+
+---
+
+# 6.30 本章最终要形成的认识
+
+Human Data 的核心链条是：
+
+```text
+Human Defines Standard
+↓
+Guideline / Rubric
+↓
+Qualified Annotator / Expert
+↓
+Judgment + Evidence
+↓
+Agreement / Gold / Calibration
+↓
+Adjudication
+↓
+Reliable Supervision
+↓
+Scale with Verifier / Judge / Synthetic Pipeline
+```
+
+因此 Human Data 并不是 Synthetic Data 时代被淘汰的旧方法。
+
+它更像：
+
+> **整个数据系统的标准制定层和高可信锚点。**
+
+下一章进入 Synthetic Data 时，真正的问题不是“怎么摆脱人工”，而是：
+
+> **怎样把少量高可信的人类标准放大成大规模、可验证、具有真实 decision diversity 的合成经验。**
