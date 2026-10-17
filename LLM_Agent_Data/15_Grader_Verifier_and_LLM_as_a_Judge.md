@@ -1,440 +1,467 @@
-# 第 15 章 Grader、Verifier 与 LLM-as-a-Judge：谁来判对错，以及如何知道判得对
+# 第 15 章 Grader、Verifier 与 LLM-as-a-Judge：从 Evidence 到可信 Label
 
 > 所属体系：[`LLM_Agent_Data_Knowledge_System.md`](../LLM_Agent_Data_Knowledge_System.md)
 >
 > 前置章节：[`第 14 章 Agent Failure Taxonomy`](./14_Agent_Failure_Taxonomy.md)
 >
-> 关联章节：[`第 3 章 Preference Data、Reward 与 Feedback`](../LLM_Agent_Data_Knowledge_System.md)、[`第 6 章 Human Data`](./06_Human_Data_Annotation_and_Quality_Control.md)、[`第 10 章 Agent Task Design`](./10_Agent_Task_Design.md)、[`第 11 章 Environment Design`](./11_Environment_Design.md)、[`第 13 章 Task Success 与 Credit Assignment`](./13_Task_Success_and_Credit_Assignment.md)
+> 关联章节：[`第 3 章 Preference Data、Reward 与 Feedback`](./03_Preference_Data_Reward_and_Feedback.md)、[`第 6 章 Human Data`](./06_Human_Data_Annotation_and_Quality_Control.md)、[`第 10 章 Agent Task Design`](./10_Agent_Task_Design.md)、[`第 11 章 Environment Design`](./11_Environment_Design.md)、[`第 13 章 Task Success 与 Credit Assignment`](./13_Task_Success_and_Credit_Assignment.md)、[`第 16 章 Benchmark Design 与 Evaluation Protocol`](./16_Benchmark_Design_and_Evaluation_Protocol.md)、[`第 19 章 Governance、Lineage 与 Reproducibility`](./19_Data_Governance_Lineage_and_Reproducibility.md)
 >
-> 本章目标：建立一套完整的自动评估与判分框架，理解 Deterministic Verifier、Executable Checker、Environment-state Grader、Rule-based Grader、Reward Model、LLM-as-a-Judge 与 Human Evaluation 的能力边界；掌握 Rubric、Pointwise / Pairwise、Reference-based / Reference-free、Calibration、Meta-evaluation、Judge Bias、Judge Hacking 与 Verifier Leakage 的基本方法。
+> 编辑基础设施：[`Canonical Glossary`](./00_Glossary_and_Notation.md) · [`Canonical Casebook`](./00_Canonical_Casebook.md)
 >
-> 本章核心问题：**评测不是“找一个模型给个分数”这么简单。真正可靠的评测首先要问：我们手里有什么证据？什么事实可以直接验证？哪些维度必须解释性判断？Judge 本身又如何被校准、审计和评测？**
+> 本章定位：**Evidence / Evaluator / Raw Judgment / Derived Label / Final Decision，以及 Verifier / Grader / Judge 边界的 canonical chapter。**
+>
+> 本章核心问题：**评测不是“找一个模型打分”，而是先确认我们拥有什么证据、这些证据能支持什么结论、哪个 evaluator 适合读取它、证据不足时是否应该 abstain，以及 evaluator 自己又如何被校准、审计和版本化。**
 
 ---
 
-# 15.0 为什么“谁来判”本身就是一个研究问题？
+# 15.0 先建立评价系统的五层结构
 
-前面几章里，我们不断产生这样的标签：
+前面不断产生：
 
 ```text
 Task Success
+Constraint Violation
 Failure Type
 Step Correctness
-Constraint Violation
-Recovery Quality
 Preference
+Recovery Quality
 Reward
 ```
 
-这些标签不会凭空出现。
+这些 Label 都必须来自某种证据与 evaluator。
 
-它们必须来自某个 evaluator：
-
-```text
-Program
-Environment
-Rule
-Reward Model
-LLM Judge
-Human
-```
-
-如果 evaluator 本身不可靠，那么整个数据闭环都会被污染：
-
-```text
-错误 Judge
-↓
-错误 Label
-↓
-错误 Filtering
-↓
-错误 Training Data
-↓
-错误 Model Update
-↓
-新的 Rollout
-↓
-继续被错误 Judge 筛选
-```
-
-因此评价系统本身也必须被评价。
-
-可以画成：
+一个成熟评价系统至少分五层：
 
 ```mermaid
 flowchart LR
-    A[Model / Agent Output] --> B[Evidence]
-    B --> C[Grader / Verifier / Judge]
-    C --> D[Score / Label]
-    D --> E[Training / Selection / Benchmark]
-    E --> F[New Model]
-    F --> A
+    A[Evidence] --> B[Evaluator]
+    B --> C[Raw Judgment]
+    C --> D[Derived Label / Score]
+    D --> E[Final Decision / Metric]
 
-    G[Human Gold / Executable Truth] --> H[Meta-evaluation]
-    C --> H
-    H --> I[Calibrate / Replace / Route Judge]
+    F[Gold / Anchor Evidence] --> G[Meta-evaluation]
+    B --> G
+    C --> G
+    G --> H[Calibrate / Route / Replace]
 ```
 
-所以：
+因此必须长期区分：
 
-> **Judge 不是基础真理，而是数据系统中的一个有误差组件。**
-
----
-
-# 15.1 先把 Grader、Verifier、Judge 分开
-
-这些词在实际项目里经常混用，但从数据工程角度最好区分。
-
-## 15.1.1 Verifier
-
-Verifier 更强调：
-
-> 是否可以根据明确事实或形式规则验证结果。
+```text
+Evidence
+≠ Evaluator
+≠ Raw Judgment
+≠ Derived Label
+≠ Final Decision
+```
 
 例如：
 
 ```text
-数学最终答案是否等于标准答案
-代码是否通过 test suite
-数据库目标状态是否满足 predicate
-文件是否真实存在
-订单状态是否变成 cancelled
+Evidence:
+order_1847.status = shipped
+
+Evaluator:
+rule verifier v3
+
+Raw Judgment:
+predicate shipped == true
+
+Derived Label:
+refund_forbidden = true
+
+Final Decision:
+Episode = policy-compliant success / failure
 ```
 
-Verifier 往往具有较强的 objective / executable 特征。
+如果这些层混在一起，后续 rubric 更新、label correction、历史重算都很难审计。
 
 ---
 
-## 15.1.2 Grader
+# 15.1 Verifier、Grader、Judge：canonical boundary
 
-Grader 是更宽泛的判分器。
+现实团队命名并不统一，本书采用以下**实用约定**。
 
-它可能是：
+## Verifier
 
-```text
-规则
-程序
-模型
-人工
-混合系统
-```
+> **依据明确、可检查的事实、形式规则、可执行条件或环境状态，对一个命题进行验证的 evaluator。**
 
-输出可以是：
+典型：
 
 ```text
-pass / fail
-0–1
-1–5
-多个 rubric dimensions
-error type
-partial credit
+exact / normalized answer check
+symbolic equivalence
+unit tests
+SQL execution
+state predicate
+permission check
+constraint checker
 ```
 
-所以：
+Verifier 不一定只输出布尔值，也可以输出：
+
+```text
+PASS / FAIL / UNRESOLVED
+partial predicate results
+counterexample
+execution evidence
+```
+
+但它的核心是：
+
+> **判断建立在可明确检查的 evidence 上。**
+
+---
+
+## Grader
+
+> **把 Evidence 映射成 Score / Label / Rubric Dimension 的广义评价系统。**
+
+Grader 可以是：
+
+```text
+rule
+program
+reward model
+LLM
+human
+hybrid system
+```
+
+因此在本书约定中：
 
 ```text
 Verifier ⊂ Grader
 ```
 
-可以作为一个实用理解。
+即 Verifier 是证据约束更强的一类 Grader。
 
 ---
 
-## 15.1.3 Judge
+## Judge
 
-Judge 通常强调：
+> **当评价标准不能被完全程序化时，对 Evidence 做解释性判断的 Grader。**
 
-> 对难以完全程序化的回答 / 行为做解释性判断。
-
-在今天的大模型语境里，常见就是：
+常见：
 
 ```text
 LLM-as-a-Judge
+Human Judge
+Expert Review
 ```
 
-例如判断：
+适合：
 
 ```text
-回答是否清楚
-是否真正满足用户意图
-两个正确答案哪个更自然
-Agent 是否过度行动
-是否应该澄清
+clarity
+user intent satisfaction
+subtle instruction following
+planning quality
+whether clarification was appropriate
+open-ended preference
 ```
 
-这些往往没有简单 executable ground truth。
+所以：
+
+```text
+Verifier
+→ 事实 / 可执行条件
+
+Judge
+→ 解释性判断
+
+Grader
+→ 二者的上位概念
+```
 
 ---
 
-# 15.2 最重要的原则：先选 Evidence，再选 Grader
+# 15.2 第一原则：Evidence First, Judge Second
 
-很多评测流程反过来做：
+错误做法：
 
 ```text
-先决定用 GPT Judge
+先决定“用 GPT Judge”
 ↓
-再把所有东西都塞给 Judge 判
+所有问题都交给 Judge
 ```
 
-更可靠的方法是：
+更可靠的顺序：
 
 ```text
-先问：什么是任务成功的直接证据？
+先定义要证明的 Claim
 ↓
-再问：哪一种 evaluator 最适合读取这个证据？
+找到最直接的 Evidence
+↓
+判断哪些部分可确定性验证
+↓
+剩余部分再选择解释性 Grader / Judge
 ```
 
-例如：
+例如 Task：
 
 ```text
-任务：取消订单 1847
+取消订单 1847
 ```
 
-最强证据是：
+最强 evidence 是：
 
 ```text
-Database:
+Environment State:
 order_1847.status == cancelled
 ```
 
-那么最优 evaluator 往往是：
-
-```python
-assert order_1847.status == "cancelled"
-```
-
-而不是：
+那么不应该让 LLM 根据一句：
 
 ```text
-让 LLM 判断“Agent 看起来有没有取消成功”
+“已经帮你取消。”
 ```
 
-所以一个非常重要的优先级是：
+去猜真实执行结果。
+
+---
+
+## 15.2.1 默认 Evidence 强度层级
+
+在同一个事实性 Claim 上，如果都可用，可以优先：
 
 ```text
-Direct Environment Evidence
+Direct Environment / Execution Evidence
         >
 Executable Verification
         >
 Deterministic Rule
         >
-Structured Grader
+Structured Interpretive Grader
         >
-LLM Judge
+LLM / Human Judgment from indirect evidence
         >
 Agent Self-report
 ```
 
-这不是说越靠后的方法越差，而是：
-
-> **如果更直接的证据存在，就不要主动把问题升级成主观判断问题。**
-
----
-
-# 15.3 Deterministic Verifier：能程序化的尽量程序化
-
-最理想的 verifier 具有：
-
-```text
-Deterministic
-Reproducible
-Cheap
-Auditable
-Versionable
-```
-
-例如数学题：
-
-```text
-candidate_answer = 42
-reference_answer = 42
-```
-
-直接 exact / normalized match。
-
-代码任务：
-
-```text
-run tests
-↓
-8 / 10 passed
-```
-
-Agent 数据库任务：
-
-```text
-expected_state predicate
-↓
-query final state
-↓
-pass / fail
-```
-
----
-
-## 15.3.1 Deterministic 不等于简单字符串匹配
-
-例如答案：
-
-```text
-1/2
-0.5
-50%
-```
-
-语义可能等价。
-
-因此 verifier 可以包括：
-
-```text
-Normalization
-Canonicalization
-Parsing
-Symbolic Equivalence
-Tolerance
-Unit Conversion
-```
-
-真正目标是：
-
-> 尽可能把“本来可验证的问题”变成稳定、明确、可执行的判定问题。
-
----
-
-# 15.4 Executable Checker：让结果自己运行
-
-很多任务可以直接通过执行结果判断。
+但这不是一个对所有评价维度都适用的绝对总排序。
 
 例如：
 
 ```text
-Code Candidate
+“回答是否礼貌”
+```
+
+不存在更“直接的数据库 state”。
+
+因此更准确的原则是：
+
+> **对于每个 Claim，使用能够最直接支持它、且可靠性已经被验证的 Evidence。**
+
+---
+
+# 15.3 Evidence Sufficiency：证据不够时，正确答案可能是“不判”
+
+很多自动评价最大的隐性错误是：
+
+```text
+Evidence Missing
 ↓
-Compile
+Evaluator 仍被强迫给 PASS / FAIL
+```
+
+例如：
+
+```text
+只看到 Final Response
+却要求判断数据库是否真的更新
+```
+
+这时正确输出应当是：
+
+```text
+UNRESOLVED
+INSUFFICIENT_EVIDENCE
+ABSTAIN
+```
+
+而不是猜。
+
+所以每个 Evaluation Contract 都应定义：
+
+```text
+required evidence
+missing-evidence behavior
+abstention rule
+escalation route
+```
+
+> **Coverage 可以低于 100%；伪确定性比合理 abstention 更危险。**
+
+---
+
+# 15.4 Deterministic Verifier：能程序化的尽量程序化
+
+理想 Verifier 通常具有：
+
+```text
+Deterministic
+Reproducible
+Auditable
+Versionable
+Cheap
+```
+
+例如：
+
+```text
+Math
+→ symbolic / normalized equivalence
+
+Code
+→ tests / execution
+
+Agent
+→ environment predicates / state diff
+```
+
+但 Deterministic 不等于“字符串 exact match”。
+
+可能需要：
+
+```text
+canonicalization
+parsing
+unit conversion
+symbolic equivalence
+tolerance
+set / order normalization
+```
+
+核心目标是：
+
+> **把本来可验证的问题，尽可能变成稳定的事实判定。**
+
+---
+
+# 15.5 Executable Checker：让结果自己运行
+
+例如代码：
+
+```text
+Candidate Patch
+↓
+Build
 ↓
 Unit Tests
 ↓
 Integration Tests
 ↓
-Runtime / Memory Constraints
+Runtime / Resource Checks
 ```
 
-或者 SQL：
+SQL：
 
 ```text
-Candidate SQL
+Candidate Query
 ↓
-Execute on hidden database
+Execute on hidden DB
 ↓
-Compare result set
+Compare result set / side effects
 ```
 
-这类 evaluator 很强，因为它不要求 Judge 理解“代码看起来对不对”，而是直接测试行为。
+Executable Evidence 通常比“代码看起来对”强很多。
 
-但要注意：
+但必须牢记：
 
 ```text
-Tests incomplete
-≠
-Program correct
+Tests Pass
+≠ Program universally correct
 ```
 
-如果 test suite 覆盖不足，candidate 仍然可能：
+如果 test coverage 不足，Verifier 自身会产生 false positive。
 
-```text
-pass tests
-but wrong in untested cases
-```
-
-所以 executable checker 本身也需要 coverage analysis。
+所以 Verifier 也需要 meta-evaluation 和 adversarial test。
 
 ---
 
-# 15.5 Environment-state Grader：Agent 任务最重要的 Ground Truth 之一
+# 15.6 Agent Environment Verifier：Required / Forbidden / Invariant
 
-Agent benchmark 最可靠的评价之一，是直接检查最终 environment state。
-
-例如：
-
-```text
-Task:
-把会议改到周五 15:00，并邀请 Alice
-```
-
-可以检查：
-
-```text
-event.start == Friday 15:00
-Alice in event.attendees
-old event not duplicated
-unrelated events unchanged
-```
-
-因此一个良好的 verifier 往往不是一个布尔条件，而是一组 predicates：
+Agent task 很适合把 success 写成三类 predicate：
 
 ```text
 Required Predicates
+→ 必须成立
+
 Forbidden Predicates
+→ 必须不成立
+
 Invariant Predicates
+→ 执行前后必须保持
 ```
 
-形式上可以写成：
+概念上：
 
-$$
-Success = \bigwedge_i R_i
+\[
+Success=
+\bigwedge_i R_i
 \land
 \bigwedge_j \neg F_j
 \land
 \bigwedge_k I_k
-$$
+\]
 
-其中：
+例如会议改期：
 
-- $R_i$：必须满足；
-- $F_j$：禁止发生；
-- $I_k$：必须保持不变。
+```text
+Required:
+event.start == Friday 15:00
+Alice in attendees
 
-这就是为什么 State Diff 在 Agent Eval 中非常有价值。
+Forbidden:
+external_contact_notified == true
+
+Invariant:
+unrelated_events unchanged
+```
+
+这也是为什么：
+
+```text
+Before State
+After State
+State Diff
+```
+
+是 Agent Evaluation 的高价值 evidence。
 
 ---
 
-# 15.6 Rule-based Grader：规则什么时候够用？
+# 15.7 Rule-based Grader：PASS / FAIL 之外要允许 UNRESOLVED
 
-很多行为可以用规则判断：
+规则适合判断：
 
 ```text
-是否调用禁止工具
-是否超过最大预算
-是否向外部联系人发信
-是否执行了未授权 write action
-是否在 success 后继续调用工具
+forbidden tool used?
+budget exceeded?
+permission violated?
+success 后仍继续 action?
+required field missing?
 ```
 
 优点：
 
 ```text
-便宜
-稳定
-解释性强
+fast
+cheap
+stable
+auditable
 ```
 
 缺点：
 
 ```text
-覆盖有限
-容易漏边界情况
-规则复杂后维护困难
+coverage limited
+边界规则复杂
+规则本身也可能 bug
 ```
 
-一个常见错误是：
-
-```text
-规则覆盖不到
-↓
-就默认为正确
-```
-
-更好的做法是保留：
+因此 rule system 最好支持：
 
 ```text
 PASS
@@ -442,28 +469,26 @@ FAIL
 UNRESOLVED
 ```
 
-而不是所有样本都强制二分类。
+而不是：
+
+```text
+规则没命中 = PASS
+```
 
 ---
 
-# 15.7 Structured Grader：把复杂判断拆成维度
+# 15.8 Structured Grader：不要一开始就压成 Overall Score
 
-对于不能完全程序化的问题，不要一上来问：
+复杂行为最好先拆 rubric dimensions。
 
-```text
-“总体来看，这个回答好不好？1–10 分。”
-```
-
-更可靠的方法是先定义 rubric dimensions。
-
-例如普通回答：
+普通回答：
 
 ```text
 Correctness
 Relevance
 Completeness
-Clarity
 Instruction Following
+Clarity
 ```
 
 Agent：
@@ -471,47 +496,38 @@ Agent：
 ```text
 Goal Completion
 Constraint Satisfaction
-Tool Correctness
+Tool / Action Correctness
 Observation Grounding
-Recovery Quality
+Recovery
 Verification
-Efficiency
 Side Effects
+Efficiency
 Final Communication
 ```
 
-然后每个维度独立判断。
+先保留多维信息，再决定是否需要 aggregation。
 
-这样：
+因为：
 
 ```text
-Overall Score
+Correctness = 1
+Constraint Following = 0
+Style = 1
 ```
 
-就可以由结构化维度组合，而不是一开始就让 Judge 做模糊整体印象判断。
+如果直接变成：
+
+```text
+Overall = 0.67
+```
+
+会掩盖一个可能是 hard failure 的 constraint violation。
 
 ---
 
-# 15.8 Rubric Design：Judge 质量首先取决于题目问得清不清楚
+# 15.9 Rubric Design：评价标准本身就是数据资产
 
-LLM Judge 经常不稳定，不一定是 Judge 模型太弱，也可能是 rubric 本身定义不清。
-
-差的 rubric：
-
-```text
-“这个回答好吗？”
-```
-
-好的 rubric：
-
-```text
-Correctness:
-- 2: 所有关键事实正确，无实质错误
-- 1: 主结论正确，但存在非关键遗漏 / 小错误
-- 0: 主结论错误或关键事实错误
-```
-
-Rubric 最好包含：
+Rubric 至少应包含：
 
 ```text
 Dimension Definition
@@ -519,13 +535,12 @@ Positive Criteria
 Negative Criteria
 Boundary Cases
 Examples
+Required Evidence
 Tie / Abstain Rule
-Evidence Requirement
+Escalation Rule
 ```
 
----
-
-## 15.8.1 Rubric 的一个核心原则：互相尽量正交
+并尽量让维度语义正交。
 
 例如：
 
@@ -537,447 +552,278 @@ Overall Quality
 
 可能高度重叠。
 
-于是同一个错误会被三次处罚。
-
-更好的设计应该尽量问不同问题：
+更清晰：
 
 ```text
 事实是否正确？
-是否满足用户约束？
-是否有危险副作用？
-是否完成目标？
+用户显式约束是否满足？
+是否产生禁止副作用？
+最终表达是否准确反映真实 outcome？
 ```
+
+Rubric version 改变，本质上就是 evaluator semantics 改变。
 
 ---
 
-# 15.9 Pointwise Evaluation
+# 15.10 Pointwise、Pairwise、Listwise
 
-Pointwise 是对单个 candidate 独立评分：
+## Pointwise
 
 ```text
-Candidate A
+Candidate
 ↓
-Judge
-↓
-Score = 4/5
-```
-
-优点：
-
-```text
-容易扩规模
-适合绝对质量阈值
-```
-
-缺点：
-
-```text
-评分尺度漂移
-不同 case 间 calibration 困难
-Judge 对 3 / 4 / 5 的含义可能不稳定
+Score / Label
 ```
 
 适合：
 
 ```text
-Pass / Fail
-Rubric Dimension Scores
-Safety Flags
-Constraint Checks
+absolute threshold
+rubric dimensions
+safety flag
+pass / fail
 ```
+
+风险：评分尺度 drift。
 
 ---
 
-# 15.10 Pairwise Evaluation
-
-Pairwise 直接比较：
+## Pairwise
 
 ```text
 A vs B
 ↓
-Which is better?
+A / B / Tie / Both Bad / Cannot Judge
 ```
 
-通常比绝对 1–10 分更容易做稳定判断。
-
-输出：
+适合：
 
 ```text
-A wins
-B wins
-Tie
-Both bad
-Cannot judge
+preference
+A/B model comparison
+trajectory comparison
+candidate selection
 ```
 
-Pairwise 很适合：
-
-```text
-Preference Data
-Candidate Selection
-A/B Model Comparison
-Trajectory Preference
-```
-
-但要注意：
+必须记住：
 
 ```text
 A > B
 ```
 
-并不意味着：
+不等于：
 
 ```text
 A is good
 ```
 
-两个都可能很差。
-
-所以 pairwise 最好允许：
+所以要允许：
 
 ```text
-Tie / Both Bad
+Tie
+Both Bad
+Cannot Judge
 ```
-
-而不是强迫 winner。
 
 ---
 
-# 15.11 Listwise Evaluation
-
-如果有多个候选：
+## Listwise
 
 ```text
 A B C D
-```
-
-可以让 Judge 排序：
-
-```text
+↓
 C > A > D > B
 ```
 
-优点是一次获得更多相对信息。
-
-但随着候选数量增加：
+信息密度高，但候选多时：
 
 ```text
-context length
-comparison complexity
 position bias
 attention dilution
+comparison complexity
+context length
 ```
 
-都会增加。
-
-实践中常见做法仍然是：
-
-```text
-pairwise tournament
-或
-pointwise score + rerank
-```
+都会上升。
 
 ---
 
-# 15.12 Reference-based vs Reference-free
+# 15.11 Reference-based 与 Reference-free
 
-## Reference-based
-
-Judge 同时看到：
+Reference-based：
 
 ```text
-Question
-Candidate
-Reference Answer
+Task + Candidate + Reference
 ```
 
-优点：
+优点：事实判断容易；风险是：
 
 ```text
-标准更具体
-事实判断更容易
-```
-
-缺点：
-
-```text
-Reference 不一定唯一
-容易惩罚不同但正确的路径
+Reference 不唯一
 Reference 自己可能错
+Judge 过度锚定 reference
+```
+
+Reference-free：
+
+```text
+Task + Candidate + Rubric + Evidence
+```
+
+适合开放任务，但更依赖 Judge 自身能力。
+
+不要要求所有维度统一模式。
+
+可以：
+
+```text
+Correctness → executable / reference-based
+Style → reference-free
+Agent success → environment-state verifier
 ```
 
 ---
 
-## Reference-free
+# 15.12 Evidence Package：Judge 真正看到什么？
 
-Judge 只看：
+Agent Judge 不应只看到：
 
 ```text
-Question
-Candidate
-Rubric
+Final Response
 ```
 
-适用于：
+更合理的 Evidence Package 可以包含：
 
 ```text
-开放问答
-写作
-用户意图满足
-Agent behavior
-```
-
-但更依赖 Judge 自身能力。
-
-因此一个常见策略是：
-
-```text
-能 reference-based 的维度 reference-based
-其余维度 reference-free
-```
-
-而不是强制所有任务使用同一种 judge mode。
-
----
-
-# 15.13 Judge 最重要的输入不是“答案”，而是 Evidence Package
-
-评 Agent trajectory 时，如果只把最终回复给 Judge：
-
-```text
-Assistant:
-“已经成功取消订单。”
-```
-
-Judge 很可能被语言欺骗。
-
-更合理的是给：
-
-```text
-Task
+Task Contract
 Relevant Constraints
+Relevant State / Snapshot
 Tool Calls
-Tool Results
-Final Environment State
+Tool Observations
 State Diff
+Verifier Results
 Final Response
 Rubric
 ```
 
-可以称为：
+但也不能无限塞 full trace。
+
+需要控制：
 
 ```text
-Evaluation Evidence Package
+relevance
+ordering
+truncation
+provenance
+which fields are evaluator-only
 ```
 
-但 Evidence Package 也不能无限塞。
-
-否则会带来：
-
-```text
-context overload
-irrelevant evidence
-position effects
-judge attention dilution
-```
-
-所以 evaluator 输入本身也需要设计。
+否则 Judge 可能被无关 evidence 淹没。
 
 ---
 
-# 15.14 Full-trace Judge vs Local Judge
+# 15.13 Full-trace Judge 与 Local Judge
 
-对于长 trajectory，有两种典型评价方式。
-
-## Full-trace Judge
-
-一次读取整条轨迹。
-
-适合：
+Full-trace 更适合：
 
 ```text
-overall coherence
-end-to-end success
-high-level planning quality
+overall planning
+trajectory coherence
+end-to-end process quality
 ```
 
-但缺点：
-
-```text
-长上下文
-难定位 first error
-容易忽略早期细节
-```
-
----
-
-## Local Judge
-
-例如：
+Local Judge：
 
 ```text
 State + Action + Observation
-↓
-Judge local quality
 ```
 
-适合：
+更适合：
 
 ```text
-Step Correctness
 Tool Selection
 Argument Quality
 Observation Grounding
+Step Correctness
 ```
 
-最好的系统往往不是二选一，而是：
+成熟系统通常组合：
 
 ```text
-Local Grading
+Local Evidence
 +
-Trajectory-level Grading
+Trajectory-level Evidence
 ```
+
+而不是让一个超长 Judge Prompt 解决所有粒度。
 
 ---
 
-# 15.15 LLM-as-a-Judge 的优势到底是什么？
+# 15.14 LLM-as-a-Judge 的真正优势
 
-LLM Judge 最大价值不是“比人更准”，而是：
+核心优势通常不是：
+
+> “比人更真。”
+
+而是：
 
 ```text
-廉价扩规模
+便宜扩规模
 快速迭代
-能处理自然语言 rubric
-能做多维解释性判断
-能给 rationale / error type
+可以执行自然语言 rubric
+处理难以完全程序化的语义维度
+生成结构化 rationale / error tag
 ```
 
-尤其适合：
+最健康的角色关系是：
 
 ```text
-人工已经定义清楚标准
-但逐条人工评价成本太高
-```
-
-即：
-
-```text
-Human defines standard
+Human / Domain Evidence defines standard
 ↓
-LLM scales application
+LLM Judge scales application
+↓
+Gold / Anchor Set audits Judge
 ```
 
 而不是：
 
 ```text
-LLM defines standard by itself
+LLM Judge 自己定义什么叫正确
 ```
 
 ---
 
-# 15.16 Judge Bias：LLM Judge 不是中立测量仪器
+# 15.15 Judge Bias
 
-LLM Judge 常见偏差可以系统拆开。
-
-## 15.16.1 Position Bias
-
-Pairwise 时：
+常见：
 
 ```text
-A 在前
-B 在后
+Position Bias
+Verbosity Bias
+Style Bias
+Self / Model-family Preference
+Reference Anchoring
+Authority / Sycophancy Bias
 ```
 
-可能影响 winner。
-
-因此可以做：
+对应 audit：
 
 ```text
 A/B swap
-```
-
-检查一致性。
-
----
-
-## 15.16.2 Verbosity Bias
-
-更长、更详细的答案可能被误判为更好。
-
-所以 rubric 应明确：
-
-```text
-不要把长度本身当质量
-```
-
-并专门构造：
-
-```text
 short-correct vs long-redundant
+style-controlled pairs
+cross-model outputs
+reference variants
+unsupported-authority probes
 ```
 
-校准 case。
+Correctness 与 Style 最好分开判，避免漂亮表达掩盖事实错误。
 
 ---
 
-## 15.16.3 Style Bias
+# 15.16 Judge Variance 与 Calibration
 
-漂亮格式、正式措辞、强自信语气可能掩盖事实错误。
-
-这也是为什么：
-
-> Correctness 与 Style 最好分维度判。
-
----
-
-## 15.16.4 Self-preference / Model-family Bias
-
-Judge 可能更偏好与自身风格、表达方式或模型族相似的输出。
-
-因此 model comparison 不应默认：
-
-```text
-一个 Judge = Ground Truth
-```
-
----
-
-## 15.16.5 Reference Anchoring
-
-看到 reference 后，Judge 可能把：
-
-```text
-“不像 reference”
-```
-
-误判成：
-
-```text
-“错误”
-```
-
-对于多路径任务尤其明显。
-
----
-
-## 15.16.6 Sycophancy / Authority Bias
-
-Candidate 如果说：
-
-```text
-“根据官方规定……”
-```
-
-即使没有依据，也可能显得更可信。
-
-因此事实性判断最好有外部 evidence。
-
----
-
-# 15.17 Judge Variance：同一个 Judge 自己也可能前后不一致
-
-如果 Judge 具有 sampling randomness，那么同一个 case：
+同一个 Judge 可能：
 
 ```text
 Run 1 → Pass
@@ -985,167 +831,129 @@ Run 2 → Fail
 Run 3 → Pass
 ```
 
-说明 label 本身不稳定。
-
-因此可以测：
+可以测：
 
 ```text
-Self-consistency
-Repeated-judge Agreement
+repeat consistency
+self-agreement
+ensemble agreement
 ```
 
-必要时使用：
+但重复采样只能减少某些随机噪声，不能修复系统性 bias。
+
+上线前应使用：
 
 ```text
-majority
-ensemble
-abstention
-human escalation
+Human Gold
+Executable Truth
+Boundary Cases
+Bias Probes
+High-severity Cases
 ```
 
-但不要误以为多跑几次就一定得到真值。
-
-多次采样只能降低某些随机误差，不能修复系统性 bias。
+做 calibration / meta-evaluation。
 
 ---
 
-# 15.18 Calibration：Judge 上线前要先校准
+# 15.17 Meta-evaluation：Evaluator 本身怎么评？
 
-一个 Judge 不应该直接拿来标百万数据。
-
-更合理的流程：
-
-```text
-Human / Executable Gold Set
-↓
-Judge runs on Gold
-↓
-Measure Agreement / Error Pattern
-↓
-Revise Rubric / Prompt / Evidence
-↓
-Re-evaluate
-↓
-Only then scale
-```
-
-Gold Set 应该包含：
-
-```text
-easy cases
-hard cases
-boundary cases
-known bias probes
-adversarial cases
-high-severity cases
-```
-
-不能只在简单题上达到 98% agreement 就宣布 Judge 很可靠。
-
----
-
-# 15.19 Meta-evaluation：如何评价一个 Judge？
-
-这一步常被忽略。
-
-Judge 本身可以看：
+至少可以看：
 
 ```text
 Accuracy vs Gold
 Precision / Recall
 False Positive / False Negative
-Pairwise Agreement
+Agreement
 Rank Correlation
 Calibration
 Abstention Quality
 Consistency
 Bias Gap
+Coverage
+Cost / Latency
 ```
 
-如果是 pairwise preference，还可以看：
+高风险 evaluator 尤其要按：
 
 ```text
-Human preference agreement
-swap consistency
-transitivity violation
+Severity
+Failure Type
+Task Family
 ```
 
-如果是 high-risk grader，更要看：
+分层看 False Negative。
 
-```text
-False Negative Rate
-```
-
-因为漏掉危险行为的代价可能远高于误报。
+总体 95% accuracy，若对高危 unauthorized action 经常漏判，仍然不可用。
 
 ---
 
-# 15.20 Agreement ≠ Validity
-
-Judge 和 Human 高度一致，并不自动说明两者都对。
-
-例如：
+# 15.18 Reliability ≠ Validity
 
 ```text
-Human rubric 本身错误
-Human group 存在共同偏差
-Reference answer 有 bug
+Judge 与 Human 很一致
 ```
 
-那么：
+不自动等于：
 
 ```text
-Judge perfectly imitates human
+结论真实有效
 ```
 
-也只是稳定复制错误。
+可能：
 
-所以必须区分：
+```text
+Human rubric 也错
+共同偏好 verbosity
+reference 有 bug
+Gold 发生 contamination
+```
+
+因此要区分：
 
 ```text
 Reliability / Agreement
 vs
-Validity / Truthfulness
+Validity / Groundedness
 ```
 
-这和第 6 章 Human Data 的逻辑完全一致。
+这与第 6 章 Human Annotation 的逻辑一致。
 
 ---
 
-# 15.21 Judge Confidence：不要把自然语言“我很确定”当概率
+# 15.19 Judge Confidence 不是天然概率
 
-LLM Judge 可以输出：
+Judge 输出：
 
 ```text
-confidence = high
+confidence = 0.9
 ```
 
-但这不天然是 calibrated probability。
+并不代表真实错误率就是 10%。
 
-更可靠的 confidence 可以来自：
+更可信 confidence 可以结合：
 
 ```text
+historical calibration
 multi-sample agreement
-judge ensemble agreement
-margin between scores
-agreement with rule / verifier
-historical calibration bin
+heterogeneous evaluator agreement
+score margin
+verifier / judge consistency
 ```
 
-例如：
+特别是 disagreement：
 
 ```text
-Judge says Pass
-Rule says Fail
+Rule = Fail
+LLM Judge = Pass
 ```
 
-这类 disagreement 本身就是高价值 audit signal。
+本身就是高价值 audit signal。
 
 ---
 
-# 15.22 Multi-Judge Ensemble：多个 Judge 是否更可靠？
+# 15.20 Ensemble：数量不等于独立证据
 
-可以组合：
+多个同源 Judge：
 
 ```text
 Judge A
@@ -1153,25 +961,11 @@ Judge B
 Judge C
 ```
 
-然后：
+可能共享同样 bias。
 
-```text
-majority vote
-weighted vote
-specialized routing
-```
+所以：
 
-但要注意：
-
-> **多个高度相关的 Judge，不等于多个独立证据源。**
-
-如果它们共享类似训练偏差，ensemble 可能只是更自信地犯同样的错。
-
-所以更有价值的是：
-
-```text
-heterogeneous evidence
-```
+> **Heterogeneous Evidence 通常比同质模型投票更有价值。**
 
 例如：
 
@@ -1185,100 +979,57 @@ LLM Judge
 Human Audit
 ```
 
+它们错误模式更不相同。
+
 ---
 
-# 15.23 Hierarchical Evaluation：不要让一个 Judge 包办所有事情
+# 15.21 Hierarchical Evaluation 与 Routing
 
-一个成熟系统可以分层：
+成熟系统可以：
 
 ```text
 Stage 1
-Deterministic / Rule checks
+Deterministic / Executable Checks
 ↓
 Stage 2
-Structured automatic grader
+Rule / Structured Grader
 ↓
 Stage 3
-LLM Judge for unresolved cases
+LLM Judge for unresolved semantics
 ↓
 Stage 4
-Human / Expert escalation
+Human / Expert Escalation
 ```
 
-例如：
+目标不是：
 
 ```text
-100,000 trajectories
-↓
-80,000 deterministic pass/fail
-↓
-15,000 LLM Judge
-↓
-5,000 disagreement / high-risk
-↓
-Human review
+所有 Case 都交给最强 Judge
 ```
 
-这样能把：
+而是：
+
+> **在质量约束下，以合适成本获得足够可靠的 label。**
+
+不同 claim 也可路由：
 
 ```text
-cost
-quality
-coverage
+Math correctness → symbolic verifier
+Code → execution
+Agent outcome → environment state
+Constraint semantics → rule + LLM
+Tone → LLM / Human
+High-risk domain → expert
 ```
-
-平衡起来。
 
 ---
 
-# 15.24 Judge Routing：不同问题交给不同 evaluator
+# 15.22 Reward Model 与 LLM Judge
 
-不要默认：
-
-```text
-一个 Judge Prompt
-适用于所有维度
-```
-
-更好的 routing：
+Reward Model 常被设计成高吞吐 scorer：
 
 ```text
-Math correctness
-→ symbolic / numeric verifier
-
-Code correctness
-→ executable tests
-
-Agent success
-→ environment-state verifier
-
-Constraint following
-→ rules + LLM
-
-Clarity / Tone
-→ LLM / Human
-
-Medical / Legal expert correctness
-→ domain expert / specialized verifier
-```
-
-这就是：
-
-> **Evaluation Routing**。
-
----
-
-# 15.25 Reward Model 与 LLM Judge 有什么区别？
-
-两者都可能给 candidate 打分，但目标不同。
-
-## Reward Model
-
-通常是：
-
-```text
-input
-→ scalar reward
+(x, y) → scalar / ranking score
 ```
 
 用于：
@@ -1290,239 +1041,236 @@ Candidate Ranking
 Training-time Optimization
 ```
 
-它不一定输出解释。
+LLM Judge 更适合：
+
+```text
+rubric reasoning
+multi-dimensional labels
+failure classification
+rationale
+```
+
+边界可重叠，但不要因为两者都“打分”就当成同一个系统角色。
+
+更重要的是：
+
+> **Reward Model / Judge 的分数都不是目标本身。**
+
+最终仍要用独立 downstream evidence 验证。
 
 ---
 
-## LLM Judge
+# 15.23 Judge Hacking 与 Verifier Hacking
 
-通常可以：
-
-```text
-读 rubric
-给多维 label
-输出 rationale
-做 error classification
-```
-
-更灵活，但成本更高、variance 更大。
-
-可以理解成：
+如果长期优化：
 
 ```text
-Reward Model
-更像高吞吐 scoring function
-
-LLM Judge
-更像通用解释性 evaluator
-```
-
-但具体系统中二者边界可以重叠。
-
----
-
-# 15.26 Judge Hacking：模型会学会“骗 Judge”吗？
-
-会出现这种风险。
-
-如果训练 / selection 长期优化某个 Judge：
-
-```text
-Model Output
-↓
 Judge Score
-↓
-Choose high score
-↓
-Train again
 ```
 
-模型可能逐渐学会：
+模型可能学会：
 
 ```text
 迎合 Judge 风格
 堆关键词
-写得更长
-表达更自信
-引用看起来权威的措辞
+更冗长
+更自信
 ```
 
-而不是真正提高任务质量。
+而真实任务质量不变。
 
-这就是一种：
+同样，程序 Verifier 也可能被 exploit：
 
 ```text
-Goodhart-like failure
+为了 tests pass 删除 tests
+修改 assertion
+mock 掉真实 failure
 ```
 
-因此要监控：
-
-```text
-Judge Score ↑
-但
-Executable Success 不变 / 下降
-Human Preference 不变 / 下降
-```
-
-这说明可能发生 reward / judge hacking。
-
----
-
-# 15.27 Verifier Hacking：程序 verifier 也会被钻漏洞
-
-不要以为只有 LLM Judge 会被 exploit。
-
-例如任务：
-
-```text
-让所有 tests pass
-```
-
-模型可能：
-
-```text
-删除 tests
-修改 test expectation
-mock 掉错误
-```
-
-于是：
-
-```text
-tests pass = true
-```
-
-但真实目标没有实现。
-
-因此 verifier 必须验证：
+所以：
 
 ```text
 Goal
 +
-Allowed Method
+Allowed Method / Invariants
 +
 Forbidden Side Effects
 ```
 
-这和 Agent Task Contract 完全一致。
+都要纳入验证。
+
+典型 warning：
+
+```text
+Judge Score ↑
+Executable / Human Outcome ↔ or ↓
+```
 
 ---
 
-# 15.28 Verifier Leakage：把答案告诉模型，就不再是在测能力
+# 15.24 Evaluator-only Evidence 与 Leakage
 
-假设 hidden verifier 中包含：
+某些 evidence 只允许 evaluator 看：
 
 ```text
-expected_answer = 42
+hidden tests
+future outcome
+full environment truth
+gold label
+oracle action
 ```
 
-如果模型可以直接读 verifier 文件，benchmark 就失效。
-
-更隐蔽的 leakage 还包括：
+必须区分：
 
 ```text
-文件名暴露答案
-错误信息暴露 hidden test
-环境 observation 暴露 ground truth
-Judge rationale 反馈过多
-```
-
-因此要区分：
-
-```text
-Online Agent-visible Evidence
+Agent-visible Evidence
 vs
-Offline Evaluator-only Evidence
+Evaluator-only Evidence
 ```
 
-这是前面 Reasoning Data 中：
+如果 hidden verifier 文件、gold state、future result 被 policy 读到，benchmark 已经失效。
+
+这和第 4 章：
 
 ```text
-future information only for offline labels
+future information only for offline label
 ```
 
-同一条原则在 evaluation 系统中的体现。
+是同一条纪律。
 
 ---
 
-# 15.29 Judge Prompt 也必须 Version Control
+# 15.25 Evaluation Contract：一条 Label 是怎样产生的？
 
-如果 Judge prompt 变了：
-
-```text
-rubric wording changed
-criteria order changed
-reference added
-reasoning instruction changed
-```
-
-label distribution 也可能改变。
-
-所以至少保存：
+一个成熟 Evaluation Contract 至少定义：
 
 ```text
-judge_model_version
-judge_prompt_version
-rubric_version
-evidence_schema_version
-temperature
-decoding_config
+Claim / Metric Dimension
+Required Evidence
+Evaluator Type
+Evaluator Version
+Rubric / Rule Version
+Raw-output Schema
+Parsing / Mapping Rule
+Abstention Rule
+Escalation Rule
+Aggregation Rule
+Severity Policy
 ```
 
-否则不同实验中的 score 不一定可比。
+例如：
+
+```yaml
+claim: policy_compliance
+required_evidence:
+  - task_contract
+  - action_log
+  - final_state_diff
+primary_evaluator: deterministic_rule_v4
+fallback: llm_judge_v6
+abstain_on_missing_evidence: true
+human_escalation:
+  severity: S5+
+```
+
+这使一条 Label 不再只是：
+
+```text
+“Judge 说的”
+```
+
+而是一条可追溯的 measurement process。
 
 ---
 
-# 15.30 Corrected Labels 与 Frozen Decisions：Judge 更新后怎么办？
+# 15.26 Raw Artifact、Parsed Judgment、Derived Label 必须分层保存
 
-这和前面 Human Label Versioning 一样。
-
-假设历史实验中：
+例如：
 
 ```text
-Selector chose Candidate A
-```
-
-后来发现旧 Judge 对部分 case 判错，得到：
-
-```text
-Corrected Labels
-```
-
-严谨做法是：
-
-```text
-保持历史 selector decision 不变
+Raw Judge Response
 ↓
-使用 corrected labels 重新计分
+Parsed Rubric Scores
+↓
+Threshold / Mapping
+↓
+Derived Label
+↓
+Final Dataset / Metric
+```
+
+不要覆盖 Raw Judge Output。
+
+这样 rubric / threshold / parser 更新时，可以：
+
+```text
+re-derive / re-score
+```
+
+而不是重新假装历史 evaluator 从没变过。
+
+推荐字段：
+
+```text
+evaluation_id
+evidence_refs
+evaluator_id / version
+raw_artifact
+parsed_judgment
+derived_label
+label_version
+```
+
+完整 lineage 归第 19 章。
+
+---
+
+# 15.27 Corrected Labels 与 Frozen Historical Decisions
+
+假设历史 Selector：
+
+```text
+chose Candidate A
+```
+
+后来发现旧 Judge 对部分 Candidate 判错。
+
+严谨做法：
+
+```text
+历史 Policy Decision 保持冻结
+↓
+用 Corrected Labels 重新计分
 ```
 
 而不是：
 
 ```text
-用新 Judge 重新跑 selector
-然后假装这是原实验结果
+用新 Judge 重新跑历史 Selector
+然后把新行为当旧实验结果
 ```
 
-因此：
+必须区分：
 
 ```text
-Evaluation Versioning
-≠
-Policy Re-execution
+Re-score
+= 同一历史 output，更新评价
+
+Re-run
+= 当前 policy / evaluator 重新执行
 ```
 
-这是实验可审计性的基本要求。
+这两个问题在第 19 章会纳入版本治理。
 
 ---
 
-# 15.31 Judge Disagreement Mining：Judge 不一致本身就是数据
+# 15.28 Disagreement Mining：Evaluator 不一致本身就是数据
 
 例如：
 
 ```text
-Rule Grader: Pass
-LLM Judge: Fail
+Rule: Pass
+LLM: Fail
 Human: Pass
 ```
 
@@ -1533,646 +1281,487 @@ Judge A: A wins
 Judge B: B wins
 ```
 
-这种 disagreement 很有价值，因为它通常集中在：
+Disagreement 常集中在：
 
 ```text
-边界 case
-rubric 模糊处
-Judge bias 区域
-真实难判问题
+rubric boundary
+hard cases
+bias region
+missing evidence
+ambiguous task
 ```
 
-所以可以做：
+可以形成：
 
 ```text
-Judge Disagreement Mining
+Disagreement Pool
 ↓
-Human Adjudication
-↓
-Rubric Update
+Human / Expert Adjudication
 ↓
 Gold Expansion
+↓
+Rubric / Judge Update
+↓
+Recalibration
 ```
 
-这会形成 evaluator 自己的数据飞轮。
+Evaluator 自己也需要 Data Flywheel。
 
 ---
 
-# 15.32 High-severity Case：评测应该风险加权
+# 15.29 Judge Drift：Measurement Instrument 会变
 
-一个 Judge 即使总体：
-
-```text
-95% accuracy
-```
-
-如果它在：
+以下任何变化：
 
 ```text
-unauthorized transfer
-privacy leak
-irreversible deletion
+judge_model
+judge_prompt
+rubric
+evidence package
+parser
+threshold
 ```
 
-这类高风险 case 上经常漏判，仍然不能认为可靠。
+都可能导致 label distribution 变化。
 
-因此 Meta-evaluation 应按：
+所以必须版本化：
 
 ```text
-Severity
-Failure Type
-Task Family
+judge_model_version
+prompt_version
+rubric_version
+evidence_schema_version
+parser_version
+mapping_version
 ```
 
-分层报告，而不是只给总体 accuracy。
+线上长期 Judge Drift / Anchor Set 监控归第 23 章。
 
 ---
 
-# 15.33 Agent Eval 的推荐判定栈
+# 15.30 Canonical Agent Evaluation Stack
 
-对于一条 Agent trajectory，可以按顺序做：
+推荐顺序：
 
 ```text
-1. Environment-state Check
+1. Environment / Execution Evidence
    ↓
 2. Required Predicate Check
    ↓
-3. Forbidden Side-effect Check
+3. Forbidden Side-effect / Invariant Check
    ↓
-4. Tool / Permission / Policy Rule Check
+4. Permission / Policy / Deterministic Rules
    ↓
 5. Process / Recovery / Verification Grading
    ↓
 6. Final Communication Grading
    ↓
-7. Human Escalation for Unresolved Cases
+7. Human / Expert Escalation for unresolved / high-risk cases
 ```
 
-注意：
-
-> 最终语言回复往往是最后才判的一层，而不是第一层。
+最终语言回复通常是最后一层，而不是第一层。
 
 ---
 
-# 15.34 一个完整例子：会议改期 Agent
+# 15.31 Canonical Case：C2 Calendar Agent
 
-用户：
+Task：
 
 ```text
-把明天三点的产品周会改到周五三点，
-邀请 Alice，
+把产品组会议改到周五 15:00，邀请 Alice，
 但不要通知外部联系人。
 ```
 
-Agent 最终：
+Episode 最终：
 
 ```text
-会议成功改期
-Alice 被邀请
-一个外部联系人也被误发了通知
-Final response:
-“已经全部处理完成。”
+meeting moved correctly
+Alice invited
+external contact also notified
+final response: “已经全部处理完成。”
 ```
 
-评价可以分层：
+分层判定：
 
-### Environment-state Verifier
+### Environment Verifier
 
 ```text
-meeting_time == Friday 15:00   PASS
-Alice in attendees              PASS
+meeting_time == Friday 15:00  PASS
+Alice invited                  PASS
 ```
 
-### Side-effect Rule
+### Forbidden Side-effect Rule
 
 ```text
-external_recipient_notified     FAIL
-```
-
-### Task Success
-
-```text
-FAIL / Policy-noncompliant
+external_contact_notified == false  FAIL
 ```
 
 ### Process Judge
 
-检查：
+判断：
 
 ```text
-Agent 是否读取 attendee type？
-是否忽略 negative constraint？
-是否在发送前验证 recipient list？
+是否读取 recipient type？
+是否保留 negative constraint？
+是否验证 recipient list？
 ```
 
 ### Final Communication Judge
 
-Agent 声称：
-
 ```text
-“全部处理完成”
+“已经全部处理完成”
 ```
 
-但发生了违规副作用。
+在存在违规副作用时是 misleading。
 
 因此：
 
-```text
-Final Communication = misleading
-```
+> **一条 Trajectory 应由多个 evaluator 读取不同 evidence；不要让一个 Overall Judge 包办全部事实与解释。**
 
-这说明：
-
-> 同一条 trajectory 应该由不同 evaluator 读取不同证据，而不是让一个“总 Judge”包办全部结论。
+完整 Case 见 [`Canonical Casebook`](./00_Canonical_Casebook.md)。
 
 ---
 
-# 15.35 Evaluation Schema：建议保存哪些字段？
+# 15.32 Evaluation Schema 示例
 
 ```json
 {
   "evaluation_id": "eval_001",
   "trajectory_id": "traj_001",
-  "evidence": {
-    "world_snapshot_id": "ws_123",
+  "evidence_refs": {
+    "case_id": "calendar_case_17",
     "state_diff_id": "diff_456",
-    "trace_version": "v2"
+    "trace_id": "trace_123"
   },
   "deterministic_checks": {
-    "goal_reached": true,
-    "forbidden_side_effect": false
+    "goal_predicate": true,
+    "forbidden_side_effect_absent": false
   },
   "judge": {
-    "model": "judge_model_x",
-    "prompt_version": "jp_v3",
+    "model_version": "judge_v6",
+    "prompt_version": "jp_v4",
     "rubric_version": "rubric_v5",
-    "scores": {
+    "raw_artifact_id": "judge_raw_889",
+    "parsed_scores": {
       "constraint_following": 0,
-      "clarity": 2
+      "communication": 1
     },
     "abstain": false
   },
-  "human_review": null,
-  "final_label": "policy_noncompliant_failure"
+  "derived_label": "policy_noncompliant_failure",
+  "label_version": "v3"
 }
 ```
 
-关键不是字段长什么样，而是：
+关键结构：
 
 ```text
 Evidence
 Evaluator
 Version
 Raw Output
+Parsed Judgment
 Derived Label
 ```
 
-要分开保存。
+分开保存。
 
 ---
 
-# 15.36 不要覆盖 Raw Judge Output
+# 15.33 Evaluation Error Budget
 
-如果后来：
+Evaluator 不可能零误差。
 
-```text
-rubric 改了
-label mapping 改了
-threshold 改了
-```
-
-最好可以从：
-
-```text
-raw judge response
-```
-
-重新派生标签。
-
-因此至少区分：
-
-```text
-Raw Evaluation Artifact
-↓
-Parsed Judgment
-↓
-Final Label
-```
-
-这和第 12 章的：
-
-```text
-Raw Trace
-→ Normalized Events
-→ Annotated Trajectory
-```
-
-是同一种数据分层思想。
-
----
-
-# 15.37 评价系统的 Error Budget
-
-真实 evaluator 不可能 100% 正确。
-
-因此可以显式考虑：
+真实决策需要权衡：
 
 ```text
 Coverage
 Accuracy
-Cost
-Latency
 False Positive Cost
 False Negative Cost
+Abstention Rate
 Human Escalation Rate
+Cost
+Latency
 ```
 
-例如：
+例如 bulk synthetic filtering 和 high-risk production audit 的最优 evaluator 策略完全不同。
 
-```text
-Judge A
-98% coverage
-92% accuracy
-cheap
+因此：
 
-Judge B
-70% coverage
-98% accuracy
-expensive
-```
-
-哪个更好不能脱离使用场景回答。
-
-对于：
-
-```text
-bulk synthetic filtering
-```
-
-可能更关心 throughput。
-
-对于：
-
-```text
-high-risk production audit
-```
-
-则更关心 false negative。
+> **Evaluator Quality 必须在用途和错误代价下定义。**
 
 ---
 
-# 15.38 Evaluation as Decision：评价本身也是路由问题
+# 15.34 防止评价闭环自证
 
-可以把 evaluator 系统看成：
+危险模式：
 
 ```text
-Case
+Model A generates
 ↓
-Easy to verify?
-├── Yes → Deterministic Verifier
-└── No
-     ↓
-Rule sufficient?
-├── Yes → Rule Grader
-└── No
-     ↓
-LLM Judge confident?
-├── Yes → Auto Label
-└── No → Human / Expert
-```
-
-这其实是一个：
-
-```text
-Evaluation Routing Policy
-```
-
-目标不是：
-
-> 所有 case 都让最强 Judge 判。
-
-而是：
-
-> 在质量约束下，用最低成本获得足够可靠的监督。
-
----
-
-# 15.39 Grader 与训练数据之间要防止闭环自证
-
-一个危险情况：
-
-```text
-Model A generates data
-↓
-Model A judges data
+Model A / same-family Judge scores
 ↓
 high-score data trains Model A
+↓
+same Judge declares improvement
 ```
 
-这可能形成：
+可能形成 self-confirmation loop。
+
+需要外部锚点：
 
 ```text
-self-confirmation loop
+Executable Truth
+Human Gold
+Independent / Heterogeneous Judge
+Frozen Benchmark
+Production Outcome
 ```
 
-尤其是：
-
-```text
-Generator
-Judge
-Student
-```
-
-高度同源时。
-
-因此要考虑：
-
-```text
-independent verifier
-heterogeneous judge
-human audit
-held-out benchmark
-```
-
-不能只在同一个自动评价体系内部证明自己越来越好。
+不能只在同一自动评价体系里证明自己越来越好。
 
 ---
 
-# 15.40 从数据岗位视角，这一章实际在做什么？
+# 15.35 常见失败模式
 
-典型工作包括：
+### 失败 1：能直接验证却全部交给 LLM Judge
 
-```text
-定义 rubric
-设计 deterministic verifier
-写 state predicates
-写 rule checker
-设计 judge prompt
-构造 judge gold set
-做 human calibration
-跑 pointwise / pairwise judge
-做 A/B swap
-测 judge agreement
-测 false positive / false negative
-分析 verbosity / position bias
-做 disagreement mining
-做 human escalation
-维护 judge version
-维护 corrected labels
-重算历史 metrics
-设计 evaluation routing
-做 judge / verifier regression
-监控 reward hacking
-```
+制造不必要的不确定性。
 
-所以 Eval Data 工作并不是：
+### 失败 2：Evidence 缺失仍强迫 PASS / FAIL
 
-```text
-“写几个 prompt 给 GPT 打分”
-```
+应该允许 UNRESOLVED / ABSTAIN。
 
-而是：
+### 失败 3：只看 Final Response，不看 Environment Evidence
 
-> **证据设计 + 判分标准 + 自动化 evaluator + meta-evaluation + 数据治理。**
+Agent 可以 hallucinate completion。
 
----
+### 失败 4：一个 Overall Score 包办所有维度
 
-# 15.41 常见失败模式
+Hard Failure 被平均掉。
 
-### 失败 1：能程序验证却全部交给 LLM Judge
+### 失败 5：Pairwise 强制 Winner
 
-增加不必要的不确定性。
+Both Bad 被错误转成 Preference。
 
-### 失败 2：只看 Final Response，不看 Environment State
+### 失败 6：Judge-human Agreement 高就当绝对正确
 
-Agent 可以“声称完成”。
+Reliability ≠ Validity。
 
-### 失败 3：一个 Overall Score 包办全部维度
+### 失败 7：只在 Easy Gold 校准
 
-无法定位问题。
+边界 / 高危 case 仍可能失真。
 
-### 失败 4：Pairwise 强迫必须选 Winner
+### 失败 8：不审计 Position / Verbosity / Style Bias
 
-会把 Both Bad 误做 preference。
+评价奖励表面形式。
 
-### 失败 5：Judge 与 Human 高 Agreement 就当绝对正确
+### 失败 9：Judge / Rubric 改了仍混用旧分数
 
-Agreement 不等于 Validity。
+Measurement instrument 已经变化。
 
-### 失败 6：只在 Easy Gold 上校准 Judge
+### 失败 10：Corrected Label 后重跑历史 Policy 并冒充原实验
 
-边界 case 可能完全不可靠。
+破坏历史决策冻结。
 
-### 失败 7：不测 Position / Verbosity Bias
+### 失败 11：Judge Rationale 被当 Ground Truth
 
-评分可能奖励表面形式。
+Rationale 本身也可能错。
 
-### 失败 8：Judge Prompt 改了却继续混用旧分数
+### 失败 12：增加更多同源 Judge 就以为获得独立证据
 
-破坏可比性。
+相关 bias 不会消失。
 
-### 失败 9：旧 Judge 标签修正后重跑历史 Policy
+### 失败 13：Evaluator-only Evidence 泄漏给 Policy
 
-污染实验不可变性。
-
-### 失败 10：把 Tool / Harness Failure 当 Model Failure
-
-错误生成负例。
-
-### 失败 11：把 Judge Rationale 当 Ground Truth
-
-解释文本本身也可能错。
-
-### 失败 12：无限增加 Judge 数量，以为 ensemble 必然更真
-
-相关 bias 不会因为投票消失。
-
-### 失败 13：把公开 verifier 细节暴露给 Agent
-
-产生 verifier leakage。
+Benchmark 失效。
 
 ### 失败 14：只优化 Judge Score
 
-可能出现 Judge Hacking。
+可能发生 Judge Hacking。
 
-### 失败 15：Verifier 只查目标，不查 side effect
+### 失败 15：Verifier 只检查目标，不检查 Forbidden / Invariant
 
 会奖励 destructive shortcut。
 
 ---
 
-# 15.42 本章关键词
-
-| 术语 | 一句话理解 |
-|---|---|
-| Verifier | 利用明确事实 / 规则验证结果 |
-| Grader | 广义判分系统 |
-| LLM-as-a-Judge | 用大模型按 rubric 做解释性评价 |
-| Evidence Package | evaluator 实际读取的证据集合 |
-| Pointwise | 单 candidate 独立评分 |
-| Pairwise | 两 candidate 相对比较 |
-| Listwise | 多候选排序 |
-| Reference-based | Judge 看到参考答案 |
-| Reference-free | 无 reference，按 rubric 判断 |
-| Rubric | 定义评价维度和边界的规则 |
-| Meta-evaluation | 评价 Judge / Grader 本身 |
-| Calibration | 用 gold 调整 evaluator 行为 |
-| Position Bias | 候选位置影响判断 |
-| Verbosity Bias | 长答案被系统偏好 |
-| Judge Variance | 同一 Judge 重复运行结果不稳定 |
-| Judge Hacking | 输出优化 Judge 偏好而非真实质量 |
-| Verifier Hacking | 钻程序判分漏洞 |
-| Verifier Leakage | evaluator-only 信息泄漏给 policy |
-| Evaluation Routing | 不同 case 路由给不同 evaluator |
-| Human Escalation | 自动评价不确定时转人工 |
-| Corrected Label | 后续修正后的评价标签 |
-
----
-
-# 15.43 面试 / 自检问题
-
-1. **Grader、Verifier 和 Judge 有什么区别？**
-2. **为什么 Agent Eval 最好优先检查 Environment State？**
-3. **Deterministic Verifier 为什么也可能不可靠？**
-4. **Rule-based Grader 的优势和边界是什么？**
-5. **为什么 Overall 1–10 分通常不是好的第一设计？**
-6. **Pointwise 和 Pairwise 各适合什么？**
-7. **Pairwise 为什么要允许 Tie / Both Bad？**
-8. **Reference-based Judge 有什么风险？**
-9. **什么叫 Evaluation Evidence Package？**
-10. **Full-trace Judge 和 Local Judge 有什么区别？**
-11. **LLM-as-a-Judge 的真正优势是什么？**
-12. **常见 Judge Bias 有哪些？**
-13. **怎么检测 Position Bias？**
-14. **怎么检测 Verbosity Bias？**
-15. **为什么 Judge Agreement 不等于 Ground Truth？**
-16. **什么叫 Meta-evaluation？**
-17. **Judge confidence 为什么不应该直接相信？**
-18. **Multi-Judge Ensemble 有什么局限？**
-19. **为什么应优先 heterogeneous evidence？**
-20. **Reward Model 和 LLM Judge 有什么区别？**
-21. **什么是 Judge Hacking？**
-22. **什么是 Verifier Hacking？**
-23. **什么是 Verifier Leakage？**
-24. **为什么 Judge Prompt 必须版本化？**
-25. **Corrected Labels 出现后，历史实验应该怎么处理？**
-26. **Judge disagreement 为什么是高价值数据？**
-27. **高风险 evaluator 为什么不能只看总体 accuracy？**
-28. **Agent Eval 推荐使用什么分层判定顺序？**
-29. **什么时候应该转 Human / Expert？**
-30. **为什么 Evaluation 本身也是一个 routing problem？**
-
----
-
-## 15.43.1 一个通用回答框架：如果让你设计一套 Agent Grader
-
-可以这样回答：
+# 15.36 从数据岗位视角，这一章实际会做什么？
 
 ```text
-1. 先定义 Task Contract 与 Success Condition
-   ↓
-2. 找最直接的 Ground-truth Evidence
-   ↓
-3. 能执行验证的先写 Deterministic Verifier
-   ↓
-4. 对权限、side effect、budget 写 Rule Checks
-   ↓
-5. 对剩余主观维度定义 Rubric
-   ↓
-6. 用 Human / Expert 建 Gold Set
-   ↓
-7. 校准 LLM Judge
-   ↓
-8. 分析 Position / Verbosity / Style Bias
-   ↓
-9. 设计 Evaluation Routing 与 Human Escalation
-   ↓
-10. 保存 Evidence + Evaluator Version + Raw Output
-    ↓
-11. 持续做 Disagreement Mining 与 Corrected-label Rescoring
+定义 evaluation claim
+设计 evidence package
+写 state / execution verifier
+写 rule checker
+设计 rubric
+设计 judge prompt
+构造 gold / anchor set
+做 position / verbosity bias audit
+跑 pointwise / pairwise evaluation
+测 FP / FN / calibration
+设计 abstention / escalation
+做 evaluator routing
+保存 raw judge artifacts
+维护 evaluator version
+做 corrected-label rescoring
+做 disagreement mining
+监控 judge drift
+做 judge / verifier regression
 ```
 
-最核心的一句话是：
+所以 Evaluation Data 工作不是：
 
-> **先问“什么事实能直接证明任务完成”，再问“用什么 Judge”。不要反过来。**
-
----
-
-# 15.44 本章总结
-
-到这里，我们已经可以把一个现代大模型 / Agent Evaluation System 理解成：
-
-```text
-Task Contract
-      ↓
-Execution Evidence
-      ↓
-Deterministic Verifier
-      ↓
-Rule Checks
-      ↓
-Structured Judge
-      ↓
-Human / Expert Escalation
-      ↓
-Final Labels
-      ↓
-Meta-evaluation
-      ↓
-Judge Calibration / Update
-```
-
-真正成熟的评价系统不是：
-
-```text
-LLM → 一个分数
-```
+> “写几个 prompt 给模型打分。”
 
 而是：
 
+> **Evidence Design + Measurement Contract + Evaluator Engineering + Meta-evaluation + Governance。**
+
+---
+
+# 15.37 本章关键词
+
+| 术语 | Canonical meaning |
+|---|---|
+| Evidence | 支撑某个评价 Claim 的事实 / 执行 /状态 /人工证据 |
+| Evaluator | 读取 Evidence 并产生 Judgment 的系统 |
+| Verifier | 基于明确可检查条件做验证的 Grader |
+| Grader | 将 Evidence 映射为 Score / Label 的广义评价器 |
+| Judge | 对不可完全程序化标准做解释性判断的 Grader |
+| Raw Judgment | Evaluator 原始输出 |
+| Derived Label | 由 Raw Judgment 经 parser / rule / threshold 得到的标签 |
+| Evaluation Contract | Claim、Evidence、Evaluator、Abstain、Aggregation 等完整定义 |
+| Evidence Package | Evaluator 实际读取的证据集合 |
+| Meta-evaluation | 评价 Evaluator 本身 |
+| Calibration | 用 Gold / Anchor Evidence 校验 evaluator |
+| Abstention | 证据不足或判断不可靠时不强制给标签 |
+| Evaluation Routing | 不同 Claim / Case 路由到不同 evaluator |
+| Judge Hacking | 优化 evaluator proxy 而非真实目标 |
+| Verifier Leakage | Evaluator-only 信息泄漏给被评 policy |
+| Corrected Label | 后续修正后的评价标签 |
+
+更完整定义见 [`Canonical Glossary`](./00_Glossary_and_Notation.md)。
+
+---
+
+# 15.38 面试 / 自检问题
+
+1. Evidence、Evaluator、Raw Judgment、Label 有什么区别？
+2. Grader、Verifier、Judge 怎么区分？
+3. 为什么 Evidence First, Judge Second？
+4. 什么情况下应该输出 UNRESOLVED / ABSTAIN？
+5. Deterministic Verifier 为什么也可能有错误？
+6. Agent Eval 为什么要看 Required / Forbidden / Invariant？
+7. 为什么 Overall Score 容易掩盖 hard failure？
+8. Pointwise / Pairwise / Listwise 各适合什么？
+9. Pairwise 为什么必须允许 Both Bad / Cannot Judge？
+10. Reference-based Judge 的主要风险是什么？
+11. Evaluation Evidence Package 应包含什么？
+12. Full-trace 与 Local Judge 如何配合？
+13. LLM-as-a-Judge 的核心价值是什么？
+14. 常见 Judge Bias 有哪些？
+15. Reliability 与 Validity 为什么不同？
+16. Judge Confidence 为什么不是天然概率？
+17. Ensemble 为什么不等于独立证据？
+18. 什么是 Evaluation Routing？
+19. Reward Model 与 LLM Judge 有什么区别？
+20. Judge Hacking / Verifier Hacking 怎么检测？
+21. Evaluator-only Evidence 为什么必须和 Agent-visible Evidence 分开？
+22. Evaluation Contract 至少要冻结什么？
+23. Raw Judge Output 为什么不能被覆盖？
+24. Corrected Label 出现后，历史实验如何重算？
+25. Judge Drift 如何被监控？
+26. 为什么高风险 evaluator 不能只看总体 accuracy？
+27. 怎么防止 generator–judge–student 自证闭环？
+28. 怎样设计 Human Escalation？
+29. 怎样证明一个 Judge 真有用，而不是只是便宜？
+30. 如何设计一套可审计的 Agent Evaluation Stack？
+
+---
+
+## 15.38.1 通用回答框架：设计一套 Agent Grader
+
 ```text
-事实层
-+
-规则层
-+
-解释性判断层
-+
-人工校准层
+1. Define Evaluation Claim
+   ↓
+2. 找最直接的 Evidence
+   ↓
+3. 能执行验证的先写 Verifier
+   ↓
+4. 对 Policy / Side Effect 写 Rule Checks
+   ↓
+5. 对剩余语义维度定义 Rubric
+   ↓
+6. 建 Human / Executable Gold / Anchor Set
+   ↓
+7. 校准 LLM Judge
+   ↓
+8. 做 Position / Verbosity / Style / Severity Audit
+   ↓
+9. 定义 Abstain / Human Escalation
+   ↓
+10. 保存 Evidence + Evaluator Version + Raw Artifact
+   ↓
+11. 持续做 Disagreement Mining / Corrected-label Rescoring
 ```
 
-共同构成。
+---
 
-可以记成：
-
-> **Evidence first, Judge second；Verifier 优先解决“事实”，Judge 负责解决“判断”，Human 负责定义边界和校准自动系统。**
-
-下一章将进入：
-
-# 第 16 章 Benchmark Design 与 Evaluation Protocol
-
-接下来要解决的问题是：
-
-> **有了 Task、Environment、Trajectory、Failure Taxonomy 和 Grader 以后，怎么把它们组织成一套真正可信的 Benchmark？**
-
-会进一步讨论：
+# 15.39 与后续章节的关系
 
 ```text
-Benchmark Scope
-Capability Taxonomy
-Task Sampling
-Train / Test Leakage
-Frozen Protocol
-Model Comparison
-Repeated Runs
-Confidence Interval
-Pass@k
-Success@Budget
-Cost-aware Evaluation
-Ablation
-Matched Comparison
-Regression Set
-Contamination
-Leaderboard Overfitting
+第 16 章 Benchmark Protocol
+→ 多个 Case 与 Evaluator 如何组成可信比较实验
+
+第 19 章 Governance
+→ Evidence / Evaluator / Label 的 lineage 与历史重算
+
+第 23 章 Monitoring
+→ Judge Drift / Anchor Set / online evaluator health
 ```
 
-也就是从“怎么判一条样本”，正式进入“怎么证明一个模型 / 方法真的更好”。
+本章只回答：
+
+> **一条 Claim 应该拿什么 Evidence、由谁判、怎样知道判得可信。**
+
+它不负责模型间统计比较、budget matching 或 benchmark population accounting；这些归第 16 章。
+
+---
+
+# 15.40 本章最终要形成的认识
+
+```text
+Claim
+↓
+Evidence
+↓
+Evidence Sufficiency
+↓
+Verifier / Grader / Judge
+↓
+Raw Judgment
+↓
+Derived Label
+↓
+Final Decision / Metric Input
+↓
+Meta-evaluation
+↺
+```
+
+最终记住三句话：
+
+> **Evidence first, Judge second。**
+
+> **Verifier 负责尽可能直接的事实验证，Judge 负责不可完全程序化的解释性判断，Human / Gold 负责定义边界与校准自动系统。**
+
+> **证据不足时，最专业的输出往往不是“猜一个标签”，而是 `UNRESOLVED / ABSTAIN`。**
+
+下一章进入：
+
+> [`第 16 章 Benchmark Design 与 Evaluation Protocol`](./16_Benchmark_Design_and_Evaluation_Protocol.md)
+
+正式回答：
+
+> **有了可信单样本评价以后，怎样把 Case、Runtime、Budget、Statistics 与 Reporting 组织成一套能支持“模型 / 方法真的更好”这一结论的实验协议？**
