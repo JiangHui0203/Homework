@@ -7906,7 +7906,1528 @@ quota / timeout / token limit 截断没有被系统显式处理。
 
 ### 2.1 What is an Agent?
 
-待补充。
+#### 2.1.1 一个可操作的定义
+
+“Agent”这个词经常被用得过宽：只要接了一个 LLM、能调用一个 Tool，就被称为 Agent。
+
+这种定义在工程讨论里不够有区分度。
+
+对本知识体系而言，我们采用一个更严格、也更有用的定义：
+
+> **Agent 是一个面向目标、能够感知当前状态、根据状态选择 Action、让 Action 作用于 Environment、再根据新的 Observation 继续决策的闭环系统。**
+
+最小结构可以写成：
+
+```text
+Goal
+  ↓
+State / Context
+  ↓
+Policy
+  ↓
+Action
+  ↓
+Environment
+  ↓
+Observation
+  ↓
+State Update
+  └──────────→ 下一轮 Policy
+```
+
+如果用形式化一点的方式表示：
+
+$$
+a_t \sim \pi(a \mid s_t, g)
+$$
+
+其中：
+
+- $g$：Goal；
+- $s_t$：时刻 $t$ 的 Agent State；
+- $\pi$：Policy；
+- $a_t$：当前选择的 Action。
+
+Action 作用于 Environment 后，系统状态发生变化：
+
+$$
+e_{t+1}=T(e_t,a_t)
+$$
+
+Agent 再获得新的 Observation：
+
+$$
+o_{t+1}=O(e_{t+1})
+$$
+
+并据此更新内部状态：
+
+$$
+s_{t+1}=U(s_t,a_t,o_{t+1})
+$$
+
+然后继续下一轮决策。
+
+因此，一个 Agent 最关键的不是“有没有聊天界面”或“有没有 Tool API”，而是：
+
+> **它是否形成了 Goal → Decision → Action → Observation → State Update → Next Decision 的闭环。**
+
+---
+
+#### 2.1.2 Agent 的七个核心要素
+
+为了后面所有章节统一语言，可以先把 Agent 拆成七个核心要素。
+
+```text
+1. Goal
+2. State
+3. Policy
+4. Action
+5. Environment
+6. Observation
+7. Autonomy
+```
+
+这七个概念以后会不断出现。
+
+---
+
+##### 1. Goal：Agent 要完成什么？
+
+Agent 不应该只是：
+
+```text
+一直生成内容
+```
+
+而应该存在某种目标，例如：
+
+```text
+找到正确答案
+修复 failing tests
+预订满足条件的餐厅
+整理并提交一份报告
+把代码仓库更新到通过 CI 的状态
+```
+
+Goal 可能来自用户自然语言，也可能被系统进一步结构化为：
+
+```text
+Task objective
+Constraints
+Success criteria
+Forbidden actions
+Budget
+Deadline
+```
+
+例如用户说：
+
+```text
+把这个 bug 修好，但不要改 public API。
+```
+
+真正的 Goal 不是单纯：
+
+```text
+fix bug
+```
+
+而是：
+
+```text
+objective:
+  tests pass
+
+constraint:
+  public API unchanged
+```
+
+因此：
+
+> **Goal = 要达到的结果 + 必须遵守的约束。**
+
+---
+
+##### 2. State：Agent 当前知道“事情进行到哪了”？
+
+State 描述 Agent 在某一时刻继续决策所需要的内部与运行信息。
+
+例如 Coding Agent 的 State 可能包含：
+
+```text
+user goal
+current plan
+files already inspected
+files modified
+test status
+tool results
+remaining budget
+pending approvals
+retry count
+```
+
+State 不一定全部进入模型 Context。
+
+这是非常重要的区别：
+
+```text
+State
+= 系统当前维护的完整运行状态
+
+Context
+= 当前这一次 inference 真正送给模型看的信息
+```
+
+所以通常：
+
+$$
+Context_t = \phi(State_t)
+$$
+
+其中 $\phi$ 可以理解为 Harness 的 context-building policy。
+
+也就是说：
+
+> **Context 是 State 的一个模型可见投影，而不是 State 本身。**
+
+---
+
+##### 3. Policy：Agent 如何决定下一步？
+
+Policy 回答：
+
+> 在当前 Goal、State 和 Observation 下，下一步应该做什么？
+
+传统 Agent 中，Policy 可以是规则、搜索算法、强化学习策略等。
+
+LLM Agent 中，Policy 往往不是单独一个“裸模型”，而更接近：
+
+```text
+Model
++
+Instructions
++
+Available Tools
++
+Context
++
+Decoding
++
+Harness Policy
+```
+
+共同形成的决策机制。
+
+因此不要简单写：
+
+```text
+Policy = LLM
+```
+
+更准确的是：
+
+> **LLM 是 Agent Policy 的核心决策组件，但完整 Agent Policy 还受到 Harness、Tool availability、permissions、context assembly、budget 等系统机制约束。**
+
+这会在 Agent Harness 一章深入展开。
+
+---
+
+##### 4. Action：Agent 能对世界做什么？
+
+Action 是 Agent 对下一步行为的显式选择。
+
+例如：
+
+```text
+respond_to_user(...)
+search_web(...)
+read_file(...)
+edit_file(...)
+run_tests(...)
+click(...)
+send_email(...)
+delegate_to_subagent(...)
+stop
+```
+
+Action 可以至少分成两类：
+
+```text
+Information-gathering Action
+vs
+Environment-changing Action
+```
+
+例如：
+
+```text
+read_file
+search_web
+inspect_page
+```
+
+主要用于获得信息。
+
+而：
+
+```text
+write_file
+click_submit
+send_email
+update_database
+```
+
+会真正修改 Environment。
+
+两者风险完全不同。
+
+所以：
+
+> **Action Space 决定了 Agent 能力边界，也决定了安全边界。**
+
+---
+
+##### 5. Environment：Agent 在什么世界里行动？
+
+Environment 是 Agent 所处并可以感知或改变的外部系统。
+
+例如：
+
+```text
+Web
+Filesystem
+Git repository
+Operating system
+Database
+SaaS application
+Browser
+Game
+Robot environment
+Conversation
+```
+
+同一个模型，放到不同 Environment 中，会变成能力非常不同的 Agent。
+
+例如：
+
+```text
+LLM + text chat
+```
+
+和：
+
+```text
+same LLM
++ filesystem
++ shell
++ browser
++ git
++ tests
+```
+
+最终系统能力可能完全不同。
+
+因此：
+
+> **Agent Capability 不只由 Model 决定，也由它能进入什么 Environment、拥有怎样的 Action Space 决定。**
+
+---
+
+##### 6. Observation：Agent 怎样知道 Action 后发生了什么？
+
+Agent 不直接拥有完整世界状态。
+
+它通常只能获得 Environment 暴露出来的一部分 Observation，例如：
+
+```text
+tool result
+command stdout
+test failure
+web page
+screenshot
+database rows
+API response
+user reply
+```
+
+完整链路：
+
+```text
+Action_t
+   ↓
+Environment changes
+   ↓
+Observation_{t+1}
+   ↓
+State update
+   ↓
+Decision_{t+1}
+```
+
+Observation 可能：
+
+```text
+incomplete
+noisy
+stale
+wrong
+malicious
+```
+
+所以：
+
+> **Observation ≠ Ground Truth。**
+
+Agent 需要判断来源、freshness、可信度和 completeness。
+
+这也是为什么 Tool Result、网页内容、Screenshot 都不能直接被当作绝对真实状态。
+
+---
+
+##### 7. Autonomy：哪些决策由 Agent 自己选择？
+
+Autonomy 表示系统有多大的决策自由度。
+
+例如：
+
+```text
+Workflow:
+下一步由程序写死
+
+Agent:
+下一步可以根据当前状态动态选择
+```
+
+但 autonomy 不是非黑即白。
+
+更准确的是一个连续谱：
+
+```text
+Low autonomy
+     ↓
+LLM fills one field
+     ↓
+LLM routes between fixed branches
+     ↓
+LLM chooses tools inside bounded loop
+     ↓
+LLM replans based on observations
+     ↓
+LLM delegates to subagents
+     ↓
+Open-ended long-horizon agent
+     ↓
+High autonomy
+```
+
+因此：
+
+> **Agenticness 更适合被理解成程度，而不是一个绝对标签。**
+
+---
+
+#### 2.1.3 最关键的结构：Closed-loop，而不是“一次聪明生成”
+
+普通一次模型调用可以是：
+
+```text
+Input
+  ↓
+LLM
+  ↓
+Output
+```
+
+这是 **open-loop generation**。
+
+Agent 则更接近闭环控制：
+
+```text
+               ┌─────────────────────┐
+               │                     │
+               ▼                     │
+Goal → State → Policy → Action        │
+                         ↓            │
+                     Environment      │
+                         ↓            │
+                    Observation       │
+                         ↓            │
+                    State Update ─────┘
+```
+
+这里最关键的变化是：
+
+> **系统能够看到自己刚才做了什么，以及世界因此发生了什么，再决定下一步。**
+
+例如代码修复：
+
+```text
+读代码
+ ↓
+修改
+ ↓
+跑测试
+ ↓
+看到失败
+ ↓
+重新定位原因
+ ↓
+再次修改
+```
+
+如果没有：
+
+```text
+run_tests
+→ observe failure
+→ change next decision
+```
+
+而只是一次生成一份代码补丁，那么它虽然可能很强，但严格来说更像一次性 code generation，而不是完整闭环 Agent。
+
+---
+
+#### 2.1.4 Chatbot ≠ Agent
+
+最普通 Chatbot：
+
+```text
+User
+ ↓
+LLM
+ ↓
+Text Answer
+```
+
+它可以拥有多轮 conversation history，但这仍然不自动意味着它是 Agent。
+
+多轮聊天解决的是：
+
+```text
+Conversation Context
+```
+
+Agent 更强调：
+
+```text
+Goal-directed stateful interaction
++
+Action
++
+Environment feedback
++
+Repeated decision
+```
+
+例如：
+
+```text
+用户：查一下订单，如果还没发货就取消。
+```
+
+Chatbot 可能：
+
+```text
+“您可以登录订单页查看……”
+```
+
+Agent 则可能：
+
+```text
+query_order
+   ↓
+Observation: not shipped
+   ↓
+cancel_order
+   ↓
+Observation: cancelled
+   ↓
+verify
+   ↓
+report result
+```
+
+因此：
+
+> **Conversation 是一种交互形式；Agent 是一种决策与行动结构。**
+
+一个 Agent 可以通过聊天界面提供服务，但“有聊天界面”本身不等于 Agent。
+
+---
+
+#### 2.1.5 Tool-calling LLM ≠ 完整 Agent
+
+上一章已经讲过 Function Calling。
+
+假设系统只有：
+
+```text
+User
+ ↓
+LLM
+ ↓
+one tool call
+ ↓
+execute
+ ↓
+return result
+```
+
+它已经比普通 Chatbot 更有行动能力，但依然未必需要称为完整 Agent。
+
+真正 Agent-like 的地方通常在于：
+
+```text
+tool result
+   ↓
+State Update
+   ↓
+LLM 再次判断
+   ↓
+可能继续调用其他 Tool
+   ↓
+直到满足 Termination
+```
+
+所以可以粗略写成：
+
+```text
+Tool Calling
+= Action Interface
+
+Agent
+= Action Interface
++ State
++ Loop
++ Observation
++ Goal-directed Policy
++ Termination
+```
+
+也就是说：
+
+> **Tool Calling 是 Agent 的 building block，不是 Agent 的充分条件。**
+
+---
+
+#### 2.1.6 Workflow ≠ Agent，但二者不是互斥概念
+
+Workflow 的典型特征是控制流主要由开发者提前写死：
+
+```text
+Step A
+  ↓
+Step B
+  ↓
+if x:
+    Step C
+else:
+    Step D
+```
+
+Agent 则允许 Policy 在运行时根据 State / Observation 决定：
+
+```text
+现在应该：
+search？
+ask user？
+call tool？
+replan？
+retry？
+stop？
+```
+
+所以一个非常实用的边界是：
+
+```text
+Workflow
+= developer-defined control flow
+
+Agent
+= policy-selected control flow
+```
+
+但真实系统经常是混合结构。
+
+例如：
+
+```text
+Fixed Workflow
+   ↓
+Agent Node
+   ↓
+Fixed Validation
+   ↓
+Agent Recovery Loop
+   ↓
+Human Approval
+```
+
+因此不要形成错误二分法：
+
+```text
+Agent 和 Workflow 完全对立
+```
+
+更合理的是：
+
+> **Workflow 决定哪些部分应该确定性执行；Agent 决定哪些部分值得让模型根据当前状态动态决策。**
+
+---
+
+#### 2.1.7 Agenticness：Agent 是连续谱，不是开关
+
+可以画一条 autonomy / agenticness spectrum：
+
+```text
+Level 0
+Pure deterministic program
+    ↓
+Level 1
+LLM as stateless function
+    ↓
+Level 2
+LLM inside fixed workflow
+    ↓
+Level 3
+LLM router / tool selector
+    ↓
+Level 4
+Bounded tool-using loop
+    ↓
+Level 5
+Planning + replanning agent
+    ↓
+Level 6
+Long-horizon agent + subagents
+```
+
+级别越高通常意味着：
+
+```text
+dynamic decision ↑
+autonomy ↑
+flexibility ↑
+```
+
+同时往往也意味着：
+
+```text
+variance ↑
+cost ↑
+failure surface ↑
+evaluation difficulty ↑
+safety burden ↑
+```
+
+因此：
+
+> **更 Agentic 不等于更先进，也不等于更适合。**
+
+如果一个业务流程能够用确定性 workflow 稳定解决，就没有必要为了“Agent”这个标签把它改成自由循环。
+
+---
+
+#### 2.1.8 State、Context、Environment 三者必须分开
+
+这是 Agent 体系里最容易混乱的一组概念。
+
+可以记成：
+
+```text
+Environment
+= 外部世界真实发生了什么
+
+State
+= 系统为了继续执行而维护了什么
+
+Context
+= 当前这一轮模型实际看到了什么
+```
+
+例如 Coding Agent：
+
+```text
+Environment:
+磁盘上的真实代码
+Git 状态
+测试环境
+
+State:
+已修改哪些文件
+当前计划
+测试是否通过
+剩余步骤
+预算
+
+Context:
+这轮给模型的用户要求
+相关代码片段
+最新 diff
+测试错误
+```
+
+于是可能发生：
+
+```text
+Environment 已变化
+但 State 未同步
+```
+
+或者：
+
+```text
+State 正确
+但 Context 没把最新状态给模型
+```
+
+这两种都会失败。
+
+所以后面会反复出现：
+
+```text
+Environment–State Synchronization
+State–Context Projection
+```
+
+这是 Harness 与 Runtime 的核心工程问题之一。
+
+---
+
+#### 2.1.9 Agent 往往处在 Partial Observability 下
+
+现实 Agent 很少能直接看到 Environment 的全部状态。
+
+浏览器 Agent 只能看到当前 viewport。
+
+Coding Agent 不会一次把整个 repository 放进 Context。
+
+数据库 Agent 可能只能看到 query result。
+
+因此更接近：
+
+```text
+Environment State e_t
+       ↓
+Observation function
+       ↓
+Observation o_t
+       ↓
+Agent estimates what matters
+```
+
+这和经典 **POMDP（Partially Observable Markov Decision Process）** 的思想很接近。
+
+这里不要求现在深入强化学习形式化，只需要理解：
+
+> **Agent 决策通常不是基于完整世界，而是基于不完整 Observation 和内部 State 对世界的近似表示。**
+
+因此 Agent 经常需要主动获得更多信息：
+
+```text
+search
+inspect
+scroll
+read
+query
+ask user
+run test
+```
+
+这些 Action 的目的不是立即改变任务结果，而是：
+
+> **减少不确定性。**
+
+---
+
+#### 2.1.10 Action 不只是“改变世界”，也可以是“获取信息”
+
+因此 Action 可以再分：
+
+```text
+Epistemic / Information-gathering Action
+vs
+State-changing / Effectful Action
+```
+
+信息型 Action：
+
+```text
+search_web
+read_file
+query_database
+run_test
+take_screenshot
+ask_user
+```
+
+它们的主要价值是：
+
+```text
+improve information state
+```
+
+状态改变型 Action：
+
+```text
+edit_file
+submit_form
+delete_record
+send_email
+purchase_item
+```
+
+它们会：
+
+```text
+change Environment
+```
+
+一个成熟 Agent 的能力，很大程度上来自它知道：
+
+> **什么时候应该先获取信息，而不是立刻行动。**
+
+这也是 Planning、Verification 和 Safety 的共同基础。
+
+---
+
+#### 2.1.11 Policy 不等于“LLM 自由发挥”
+
+一个常见错误理解是：
+
+```text
+Agent Policy
+=
+把所有工具给 LLM，然后让它自己决定
+```
+
+真实可靠系统更接近：
+
+```text
+Policy
+=
+Model Decision
+constrained by
+Harness Policy
+Runtime State
+Permissions
+Budget
+Available Tools
+Structured Contracts
+```
+
+例如模型想调用：
+
+```text
+delete_file(...)
+```
+
+但当前 Permission Policy 不允许，那么：
+
+```text
+Model proposed action
+≠
+System executed action
+```
+
+因此完整 Agent Policy 实际包含两层：
+
+```text
+Model-side proposal
++
+System-side control
+```
+
+这也是为什么后面单独设置 **Agent Harness** 这一层。
+
+---
+
+#### 2.1.12 Goal 不能只存在于 Prompt 里
+
+如果任务很短，User Prompt 本身可能就足够表示 Goal。
+
+但长任务中：
+
+```text
+原始用户要求
++
+后续澄清
++
+环境变化
++
+子任务
++
+中间计划
+```
+
+会不断累积。
+
+如果 Agent 只靠长对话自然语言“记住目标”，就容易 Goal Drift。
+
+因此系统常常需要把核心目标结构化：
+
+```json
+{
+  "objective": "fix failing tests",
+  "constraints": [
+    "do not change public API",
+    "do not modify generated files"
+  ],
+  "success_criteria": [
+    "all target tests pass"
+  ]
+}
+```
+
+然后 Harness 确保这些关键约束持续进入 Context 或参与验证。
+
+所以：
+
+> **Prompt 提出 Goal，State / Harness 负责让 Goal 在长轨迹中保持可执行。**
+
+---
+
+#### 2.1.13 Termination 是 Agent 的一等决策
+
+Agent 不仅要决定：
+
+```text
+下一步做什么？
+```
+
+还必须决定：
+
+```text
+任务什么时候真的完成？
+```
+
+因此：
+
+```text
+STOP
+```
+
+也可以看作 Action Space 中的一种特殊 Action。
+
+Termination 可能来自：
+
+```text
+Model says done
+Verifier says success
+Environment reaches target state
+No more valid actions
+Budget exhausted
+Hard step limit
+Human stops task
+```
+
+最危险的两类错误：
+
+```text
+Premature Termination
+→ 任务没做完就说完成
+
+Non-termination
+→ 已经完成还继续 search / retry / act
+```
+
+所以完成判定不能只依赖一句：
+
+```text
+“我已经完成了。”
+```
+
+成熟 Agent 应尽可能把 termination 与：
+
+```text
+success criteria
+environment verification
+budget / policy guards
+```
+
+结合。
+
+---
+
+#### 2.1.14 Autonomy ≠ Authority
+
+这一点在 Agent 安全里极其重要。
+
+```text
+Autonomy
+= Agent 能自主决定想做什么
+
+Authority
+= 系统真正授权它能执行什么
+```
+
+例如：
+
+```text
+Agent 可以自主判断应该发送邮件
+```
+
+并不意味着：
+
+```text
+它可以绕过用户确认直接发送任何邮件
+```
+
+因此应该保持：
+
+```text
+Decision Autonomy
+        ↓
+Policy / Permission Boundary
+        ↓
+Execution Authority
+```
+
+这和前面 Function Calling 的原则一致：
+
+> **Model proposes, system disposes。**
+
+高 Agent autonomy 可以和严格 execution authority 同时存在。
+
+---
+
+#### 2.1.15 Deterministic Agent 和 Stochastic Agent
+
+Agent 不一定必须随机。
+
+如果：
+
+```text
+temperature = 0
+tools deterministic
+environment fixed
+```
+
+很多执行轨迹可能高度稳定。
+
+但真实 Agent 系统仍经常包含随机性：
+
+```text
+sampling
+search ranking
+web results
+network timing
+environment changes
+parallel scheduling
+non-deterministic tools
+```
+
+因此同一个 task 可能：
+
+```text
+run 1 → success
+run 2 → fail
+```
+
+这意味着 Agent Evaluation 往往不能只问：
+
+```text
+“这道题成功了吗？”
+```
+
+还要问：
+
+```text
+成功率是多少？
+失败模式稳定吗？
+variance 多大？
+```
+
+后面 Evaluation 一章会深入。
+
+---
+
+#### 2.1.16 Agent、Planner、Reasoner 不是同一个概念
+
+模型可能很会 Planning：
+
+```text
+1. search
+2. compare
+3. verify
+4. answer
+```
+
+但如果系统并不真正执行 Action，那么它只是生成了 Plan。
+
+同理，一个强 reasoning model：
+
+```text
+思考很深
+```
+
+也不自动是 Agent。
+
+因此：
+
+```text
+Reasoner
+→ decides / reasons
+
+Planner
+→ proposes action sequence
+
+Agent
+→ reasons / plans AND interacts with Environment
+```
+
+Agent 的关键增加项是：
+
+> **真实的 Action–Observation loop。**
+
+---
+
+#### 2.1.17 Agent 不要求一定使用 LLM
+
+“Agent”是比“LLM Agent”更广的概念。
+
+传统系统中早就存在：
+
+```text
+rule-based agents
+game-playing agents
+robot agents
+RL agents
+planning agents
+```
+
+LLM 的作用是让 Policy 获得更强的：
+
+```text
+language understanding
+general reasoning
+tool selection
+planning
+adaptation
+```
+
+所以：
+
+```text
+Agent
+⊃
+LLM Agent
+```
+
+我们这份文档主要讨论的是：
+
+> **以大语言模型为核心决策组件的现代软件 Agent。**
+
+这一点有助于避免把所有 Agent 概念错误地归因于 LLM。
+
+---
+
+#### 2.1.18 一个最小 Agent Loop
+
+可以用下面的伪代码表示：
+
+```python
+state = initialize(task)
+budget = initialize_budget()
+
+while True:
+    observation = observe_environment(state)
+
+    context = build_context(
+        goal=state.goal,
+        state=state,
+        observation=observation,
+    )
+
+    proposed_action = policy(context)
+
+    action = apply_policy_and_permissions(
+        proposed_action,
+        state,
+        budget,
+    )
+
+    if action.type == "stop":
+        return finalize(state)
+
+    result = execute(action)
+
+    state = update_state(
+        state,
+        action,
+        result,
+    )
+
+    if success_check(state):
+        return finalize(state)
+
+    if budget.exhausted():
+        return stop_with_budget_state(state)
+```
+
+这段代码里已经包含了 Agent 最核心的结构：
+
+```text
+Goal
+State
+Observation
+Policy
+Action
+Environment
+State Update
+Termination
+```
+
+后面所有复杂能力，例如：
+
+```text
+Memory
+Planning
+Reflection
+MCP
+Subagent
+Recovery
+RSI
+```
+
+本质上都是在扩展这套基本闭环。
+
+---
+
+#### 2.1.19 一个 Coding Agent 例子
+
+用户：
+
+```text
+修复这个 repository 里导致 unit test 失败的 bug，
+不要改 public API。
+```
+
+初始：
+
+```text
+Goal:
+tests pass
+
+Constraint:
+public API unchanged
+```
+
+然后：
+
+```text
+State_0
+  ↓
+Action: run_tests
+  ↓
+Observation: test_x failed
+  ↓
+State_1
+  ↓
+Action: inspect relevant file
+  ↓
+Observation: code
+  ↓
+State_2
+  ↓
+Action: edit_file
+  ↓
+Environment changes
+  ↓
+Action: run_tests
+  ↓
+Observation: all tests pass
+  ↓
+Verifier:
+public API unchanged?
+  ↓
+yes
+  ↓
+STOP
+```
+
+这里每个概念都能找到：
+
+```text
+Goal        → 修 bug
+State       → 当前修改和测试状态
+Policy      → 决定 inspect / edit / test
+Action      → 文件和 shell 操作
+Environment → repository + test runtime
+Observation → code / test output
+Autonomy    → 动态选择下一步
+Termination → tests pass + constraints verified
+```
+
+这就是比“LLM 会写代码”更准确的 Coding Agent 描述。
+
+---
+
+#### 2.1.20 常见 Failure Modes
+
+**1. Stateless Agent**
+
+每轮都像第一次见任务一样，没有可靠维护进度。
+
+**2. Open-loop Execution**
+
+先生成完整长计划，然后不根据真实 Observation 调整。
+
+**3. Observation Ignored**
+
+Tool / test 已经返回关键信息，但下一步仍沿旧计划执行。
+
+**4. State–Environment Mismatch**
+
+Environment 已变化，内部 State 仍是旧状态。
+
+**5. State–Context Mismatch**
+
+Runtime State 正确，但 Harness 没把关键状态给模型。
+
+**6. Goal Drift**
+
+轨迹变长后忘记原始目标或约束。
+
+**7. Action without Verification**
+
+执行了 Action 就默认成功，没有重新观察 Environment。
+
+**8. Premature Termination**
+
+模型语言上“觉得完成”，实际 Success Criteria 没满足。
+
+**9. Infinite / Wasteful Loop**
+
+反复 search、retry 或调用同一 Tool。
+
+**10. Excessive Autonomy**
+
+模型获得了不必要的高风险 Action Space。
+
+**11. Authority Confusion**
+
+把模型提出 Action 误当成系统授权 Action。
+
+**12. Over-agentization**
+
+原本简单确定性的任务，被强行做成复杂自主循环，成本和失败面反而扩大。
+
+---
+
+#### 2.1.21 Agent 设计的基本原则
+
+**原则一：先定义 Goal 和 Success Criteria，再谈 Agent。**
+
+否则系统不知道什么时候算完成。
+
+**原则二：State 必须显式存在。**
+
+不要把全部运行状态都隐含在聊天文本里。
+
+**原则三：Context 是 State 的选择性投影。**
+
+不是所有 State 都需要每轮塞给模型。
+
+**原则四：Action Space 应该最小充分。**
+
+Agent 只获得完成任务真正需要的能力。
+
+**原则五：重要 Action 后重新 Observe。**
+
+不要默认 Environment 按预期变化。
+
+**原则六：Autonomy 与 Authority 分离。**
+
+Agent 可以自主判断，但执行权限由系统控制。
+
+**原则七：容易确定性解决的部分用 Workflow。**
+
+把真正需要动态判断的部分交给 Agent。
+
+**原则八：Termination 必须可验证。**
+
+“模型说完成”不是充分条件。
+
+**原则九：Agent Loop 必须有 Budget Guard。**
+
+任何循环都不应该无界。
+
+**原则十：评价 Agent 要看 Trajectory，不只看 Final Answer。**
+
+因为失败常发生在中间决策与环境交互过程中。
+
+---
+
+#### 2.1.22 与相邻概念的边界
+
+| 概念 | 核心含义 | 与 Agent 的关系 |
+|---|---|---|
+| LLM | 语言模型 / 决策组件 | 可以成为 Policy 的核心，但不是完整 Agent |
+| Chatbot | 对话式交互系统 | 可以使用 LLM，但不一定拥有 Environment Action Loop |
+| Function Calling | 模型表达 Tool Action 的接口 | Agent 的 Action Interface 之一 |
+| Tool Use | 调用外部能力 | Agent Action Space 的重要组成 |
+| Workflow | 开发者预定义控制流 | 可包围或包含 Agent，也可与 Agent 混合 |
+| Policy | 当前状态下选择 Action 的机制 | Agent 的决策核心 |
+| State | 当前执行所需的运行信息 | 支持跨 step 决策 |
+| Context | 当前 inference 模型真正看到的信息 | State 的模型可见投影 |
+| Environment | Agent 所处并可交互的外部世界 | Action 的作用对象 |
+| Observation | Agent 从 Environment 获得的信息 | 下一轮决策依据 |
+| Planning | 生成未来行动结构 | Agent 的可选能力，不等于 Agent 本身 |
+| Harness | 组织 Policy、Context、Tools、Permissions、Loop | Agent 的系统控制层 |
+| Runtime | 真正承载 Action 执行和状态运行 | Agent 的执行基础设施 |
+
+---
+
+#### 2.1.23 面试掌握边界
+
+这一节至少需要稳定回答：
+
+1. **什么是 Agent？**  
+   面向目标、维护状态、根据 Observation 动态选择 Action、与 Environment 交互并形成反馈闭环的系统。
+
+2. **Agent 和普通 LLM 有什么区别？**  
+   LLM 主要完成一次条件生成；Agent 在更高层加入 State、Action、Environment、Observation、Loop 和 Termination。
+
+3. **Agent 和 Chatbot 有什么区别？**  
+   Chatbot 强调对话交互；Agent 强调目标驱动的行动闭环。聊天可以是 Agent 的接口，但不是定义条件。
+
+4. **Function Calling 就是 Agent 吗？**  
+   不是。Function Calling 只是 Action Interface；Agent 还需要 State、Observation、Loop、Goal 和 Termination。
+
+5. **Agent 和 Workflow 有什么区别？**  
+   Workflow 的控制流主要由开发者预定义；Agent 允许 Policy 根据运行时 State / Observation 动态决定路径。真实系统通常混合二者。
+
+6. **State、Context 和 Environment 有什么区别？**  
+   Environment 是外部真实世界；State 是系统维护的运行状态；Context 是某一轮模型真正看到的 State / Observation 子集。
+
+7. **为什么 Agent 是 Closed-loop System？**  
+   因为 Action 后会获取 Observation，并用新的状态改变下一步决策。
+
+8. **Observation 是 Ground Truth 吗？**  
+   不一定。Observation 可能不完整、过期、错误或恶意。
+
+9. **Agent 为什么需要主动 Search / Read / Ask？**  
+   因为现实环境通常部分可观测，需要通过 information-gathering actions 减少不确定性。
+
+10. **Autonomy 和 Permission 有什么区别？**  
+    Autonomy 是 Agent 自主决定想做什么；Permission / Authority 决定系统真正允许它执行什么。
+
+11. **为什么更 Agentic 不一定更好？**  
+    自由度越高通常意味着更高 variance、cost、failure surface 和 safety burden；确定性问题应该优先用简单 Workflow。
+
+12. **什么时候一个系统更值得叫 Agent？**  
+    当任务需要多步、状态依赖、环境反馈、运行时动态决策和恢复，而不是一次固定生成或固定流程即可完成。
+
+如果继续追问 Action、Observation、State 如何一步一步循环，就进入下一节 **2.2 Agent Loop**；如果追问 ReAct 如何把 reasoning 和 action 交错，进入 **2.3 ReAct**；如果追问“哪些控制应该写在系统里”，则进入第三层 **Agent Harness**。
+
+---
+
+#### 2.1.24 本节一句话总结
+
+> **Agent 不是“LLM + Tools”这么简单，而是一个围绕 Goal 运行的闭环决策系统：它维护 State，通过 Policy 基于当前 Observation 选择 Action，让 Action 作用于 Environment，再根据新的 Observation 更新 State 并继续决策；LLM、Tool、Memory、Planning、Harness 都是在这套基本闭环中的不同组件。**
+
 
 ### 2.2 Agent Loop
 
@@ -8390,7 +9911,7 @@ Model
 | 层 | 章节 | 状态 |
 |---|---|---|
 | I | 1. LLM Foundation for Agents | 已完成：1.1–1.8 |
-| I | 2. Agent Decision Loop | 待写 |
+| I | 2. Agent Decision Loop | 进行中：2.1 已完成 |
 | II | 3. Tool Use & Action | 待写 |
 | II | 4. Context, Memory & Retrieval | 待写 |
 | II | 5. Capability Extension & Protocols | 待写 |
@@ -8405,4 +9926,4 @@ Model
 | IV | 14. Recursive Self-Improvement | 待写 |
 | IV | 15. Harness RSI & Model–Harness Co-evolution | 待写 |
 
-下一步：进入 **I. Model & Decision Core → 2. Agent Decision Loop → 2.1 What is an Agent?**。
+下一步：继续 **I. Model & Decision Core → 2. Agent Decision Loop → 2.2 Agent Loop**。
