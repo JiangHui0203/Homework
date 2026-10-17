@@ -1,0 +1,1567 @@
+name: Patch Agent Knowledge 1.8
+
+on:
+  push:
+    branches: [agent-doc-1-8-budget]
+    paths: [.github/workflows/agent-doc-1-8-patch.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch document
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('Agent_Knowledge_System.md')
+          s = p.read_text(encoding='utf-8')
+
+          old = "### 1.8 Token / Cost / Latency Budget\n\n待补充。"
+          assert old in s, '1.8 placeholder not found'
+
+          new = r'''### 1.8 Token / Cost / Latency Budget
+
+#### 1.8.1 为什么 Agent 必须把 Budget 当成一等公民？
+
+前面几节讨论了模型怎样生成、怎样获得 Context、怎样调用 Tool、怎样处理多模态 Observation。
+
+如果只看“能不能做”，一个 Agent 很容易自然演化成：
+
+```text
+多想几步
+多搜几次
+多开几个候选
+多叫几个 subagent
+失败就 retry
+不确定就再调用一次更强模型
+```
+
+这些操作都可能提高某些任务上的成功率，但它们全部有代价。
+
+真实 Agent 至少同时受到几类资源约束：
+
+```text
+Token Budget
+Model-call Budget
+Tool-call Budget
+Money / Compute Budget
+Latency Budget
+Wall-clock Deadline
+Concurrency / Rate-limit Budget
+Human-attention Budget
+```
+
+因此 Agent 系统真正的问题不是：
+
+> “怎样让模型尽可能多地思考？”
+
+而是：
+
+> **在有限资源下，怎样把额外计算分配给最值得的状态？**
+
+可以把目标抽象为：
+
+$$
+\max \; \text{Task Utility}
+$$
+
+subject to：
+
+$$
+\text{Cost} \le B_c,
+\quad
+\text{Latency} \le B_l,
+\quad
+\text{Steps} \le B_s
+$$
+
+对于 Agent，这种预算意识不是后期性能优化，而是系统设计的一部分。
+
+---
+
+#### 1.8.2 Token 到底花在哪里？
+
+一次 Agent model call 的输入通常不只是 User Prompt。
+
+可以粗略分解为：
+
+```text
+System / Agent Instructions
++
+User Goal
++
+Conversation History
++
+Current State
++
+Tool Definitions
++
+Retrieved Memory
++
+Retrieved Documents
++
+Previous Actions
++
+Tool Observations
++
+Multimodal Observations
++
+Current Prompt
+```
+
+然后还有模型输出：
+
+```text
+Reasoning / Decision
+Tool Call Arguments
+Structured State
+Final Answer
+```
+
+所以一次调用的 token 成本可以粗略写成：
+
+$$
+T_i = T_i^{in} + T_i^{out}
+$$
+
+一个完整 Agent trajectory 则是：
+
+$$
+T_{total}=\sum_{i=1}^{N} \left(T_i^{in}+T_i^{out}\right)
+$$
+
+其中 $N$ 是 model call 次数。
+
+最容易被忽略的是：
+
+> **同一段历史如果在每轮都重新进入 Context，会在累计成本中被重复计算。**
+
+例如一个 20-step Agent，即使每一步只新产生少量内容，后期每次调用都可能携带越来越大的 trajectory history。
+
+因此 Context Growth 不只是“窗口会不会爆”，也是 Cost Growth 问题。
+
+---
+
+#### 1.8.3 输入 Token、输出 Token与推理计算不是同一种成本
+
+不同模型平台对计费和内部推理计算的暴露方式不同，但概念上至少需要区分：
+
+```text
+Input processing
+Output generation
+Internal reasoning / inference compute
+```
+
+输入主要受：
+
+- Context 长度；
+- Tool definitions；
+- RAG / Memory；
+- History；
+- 图片 / 音频等多模态输入；
+
+影响。
+
+输出主要受：
+
+- reasoning / response length；
+- structured object size；
+- tool arguments；
+- final answer；
+
+影响。
+
+对于支持更高 reasoning effort 的模型，还可能存在：
+
+> **用户最终看不到全部中间推理，但系统仍然消耗更多 inference compute。**
+
+因此不能把：
+
+```text
+visible output tokens
+```
+
+简单等同于：
+
+```text
+total reasoning cost
+```
+
+在 Agent Evaluation 中，更稳妥的是把供应商可观测到的 usage、model calls、wall time 和费用一起记录，而不是只统计最终文本长度。
+
+---
+
+#### 1.8.4 Model Call Count 往往和 Token 一样重要
+
+假设两种 Agent：
+
+```text
+Agent A:
+1 次模型调用
+8000 input tokens
+1500 output tokens
+
+Agent B:
+8 次模型调用
+每次约 1000 input tokens
+200 output tokens
+```
+
+它们总 token 数可能相近，但实际延迟和系统开销未必相同。
+
+每一次 model call 都可能额外引入：
+
+```text
+request overhead
+queueing
+network latency
+model scheduling
+TTFT
+context serialization
+rate-limit pressure
+```
+
+因此 Agent 成本不能只看：
+
+```text
+total_tokens
+```
+
+还要看：
+
+```text
+number_of_model_calls
+```
+
+尤其 ReAct 类 Agent 如果把每个小动作都拆成独立 model call，往往会出现明显的 round-trip latency。
+
+---
+
+#### 1.8.5 一次 Agent Task 的总成本怎样分解？
+
+可以使用一个抽象成本模型：
+
+$$
+C_{total}
+=
+C_{model}
++
+C_{tool}
++
+C_{compute}
++
+C_{storage}
++
+C_{human}
+$$
+
+其中：
+
+### 1. Model Cost
+
+包括：
+
+```text
+input tokens
+output tokens
+reasoning compute
+model-call overhead
+```
+
+### 2. Tool Cost
+
+例如：
+
+```text
+web search API
+maps API
+database query
+paid SaaS API
+browser session
+```
+
+### 3. Compute Cost
+
+例如：
+
+```text
+sandbox
+code execution
+GPU job
+container
+video processing
+```
+
+### 4. Storage / Retrieval Cost
+
+例如：
+
+```text
+vector DB
+memory store
+artifact storage
+logs / traces
+```
+
+### 5. Human Cost
+
+例如：
+
+```text
+approval
+review
+manual correction
+human evaluation
+```
+
+所以“这个 Agent 一次任务用了多少钱”并不只是 LLM API 价格。
+
+---
+
+#### 1.8.6 Latency 不是所有步骤时间的简单相加
+
+如果所有步骤严格串行：
+
+```text
+LLM 1
+ ↓
+Tool 1
+ ↓
+LLM 2
+ ↓
+Tool 2
+ ↓
+LLM 3
+```
+
+总延迟近似为：
+
+$$
+L_{total}
+\approx
+\sum_i L_i
+$$
+
+但如果一些任务可以并行：
+
+```text
+                 ┌→ Search A ─┐
+Agent Decision ──┼→ Search B ─┼→ Aggregate
+                 └→ Search C ─┘
+```
+
+那么 wall-clock latency 更接近关键路径：
+
+$$
+L_{total}\approx \text{CriticalPath}(G)
+$$
+
+而不是所有分支耗时之和。
+
+这说明：
+
+> **并行可以降低 latency，但通常不会降低总 compute / API cost，甚至会提高成本。**
+
+例如同时启动 5 个 search 分支：
+
+```text
+latency ↓
+coverage ↑
+cost ↑
+concurrency ↑
+noise ↑
+```
+
+所以并行化也是一种 trade-off，而不是免费加速。
+
+---
+
+#### 1.8.7 Agent Latency 可以怎样拆？
+
+一次模型调用常见的 latency 组成包括：
+
+```text
+Request / Queueing
+      ↓
+Time To First Token (TTFT)
+      ↓
+Token Generation Time
+```
+
+Agent 级别还要再加：
+
+```text
+Tool Execution Time
+Browser / Network Time
+Sandbox Startup
+Code Execution
+Human Approval Wait
+Retry / Recovery
+Orchestration Overhead
+```
+
+因此一次完整任务可以看成：
+
+```text
+Model Think
+→ Tool Wait
+→ Model Think
+→ Tool Wait
+→ Verification
+→ Final Response
+```
+
+在用户体验中，最重要的通常是：
+
+> **End-to-end wall-clock latency。**
+
+而不是某一个模型 benchmark 上的 tokens/s。
+
+---
+
+#### 1.8.8 为什么不能只看平均 Latency？
+
+线上系统通常至少要区分：
+
+```text
+p50
+p90
+p95
+p99
+```
+
+原因是 Agent 任务经常存在长尾：
+
+```text
+大多数任务 5 秒结束
+少数任务多轮 search + retry + tool timeout
+→ 可能需要几十秒甚至更久
+```
+
+平均值可能掩盖这种 long-tail failure。
+
+例如：
+
+```text
+p50 = 5s
+p95 = 18s
+p99 = 55s
+```
+
+这比单纯：
+
+```text
+average = 7.2s
+```
+
+更能描述真实用户体验。
+
+同理，Cost 也应该关注长尾任务：
+
+```text
+为什么少数 case 会消耗十倍 token？
+是否发生 loop？
+是否在反复 retry？
+是否 context 不断膨胀？
+```
+
+---
+
+#### 1.8.9 Tool Call 也有 Cost 和 Latency
+
+Agent 讨论成本时经常只盯着 LLM。
+
+但 Tool 可能比模型更慢或更贵。
+
+例如：
+
+```text
+LLM decision: 500 ms
+↓
+external browser task: 8 s
+```
+
+此时优化模型生成速度的收益非常有限。
+
+同样，一个 Tool Call 可能涉及：
+
+```text
+API billing
+network
+authentication
+remote compute
+rate limit
+queue
+large payload
+```
+
+所以 Tool Selection 不仅是 correctness 问题，也是资源分配问题。
+
+例如：
+
+```text
+本地 calculator
+vs
+启动浏览器搜索
+```
+
+如果两者都能解决任务，系统应该考虑：
+
+```text
+reliability
+latency
+cost
+freshness
+```
+
+而不是只问“哪个工具能用”。
+
+---
+
+#### 1.8.10 Retry 为什么可能造成 Cost Explosion？
+
+一个最简单的 retry policy：
+
+```text
+失败
+ ↓
+再试一次
+```
+
+看起来合理。
+
+但在 Agent 中可能形成：
+
+```text
+Tool fails
+ ↓
+LLM rethinks
+ ↓
+Tool retry
+ ↓
+new error
+ ↓
+LLM rethinks
+ ↓
+Tool retry
+ ↓
+...
+```
+
+如果没有明确上限，单个 task 的成本可能快速膨胀。
+
+可以粗略写成：
+
+$$
+E[C]
+=
+C_0 + P(f_1)C_1 + P(f_1,f_2)C_2 + \cdots
+$$
+
+真实系统通常需要：
+
+```text
+max_retry
+retry backoff
+retryable error taxonomy
+fallback model / tool
+budget-aware termination
+```
+
+所以 Recovery Policy 必须同时考虑：
+
+> **这次 retry 还有没有足够大的期望收益？**
+
+---
+
+#### 1.8.11 More Thinking Is Not Always Better
+
+一个常见直觉是：
+
+```text
+更多 reasoning
+→ 更高准确率
+```
+
+但这并不总成立。
+
+额外推理可能：
+
+```text
+修正错误
+补充验证
+探索更好的路径
+```
+
+也可能：
+
+```text
+把原本正确答案改错
+引入新假设
+过度搜索
+偏离目标
+产生更多错误工具调用
+```
+
+因此质量随计算量变化可能是：
+
+```text
+Quality
+  ↑
+  │       /
+  │   ___/ \__
+  │__/
+  └────────────→ Compute
+```
+
+而不是严格单调上升。
+
+这也是 test-time reasoning / search / self-refinement 中非常重要的观点：
+
+> **关键不是“永远多算”，而是“什么时候额外计算值得”。**
+
+---
+
+#### 1.8.12 Exploration 的成本为什么尤其高？
+
+假设普通 Greedy Agent 只走一条 trajectory：
+
+```text
+State
+ ↓
+Action
+ ↓
+Observation
+ ↓
+...
+```
+
+而 Search Agent 在某个节点生成 $K$ 个候选：
+
+```text
+          Candidate 1
+        /
+State ─ Candidate 2
+        \
+          Candidate K
+```
+
+然后还要：
+
+```text
+score
+verify
+select
+```
+
+如果每个候选都继续 rollout，计算量甚至可能指数式增长。
+
+因此 Agent Search 通常需要控制：
+
+```text
+branching factor
+search depth
+candidate count
+rollout length
+verification cost
+pruning policy
+```
+
+这也是为什么：
+
+```text
+Sampling
+≠
+Free diversity
+```
+
+每一个被真正执行或评估的候选都需要资源。
+
+---
+
+#### 1.8.13 Verification 也不是免费的
+
+“加一个 verifier”经常被当作提高可靠性的通用方法。
+
+但 verifier 可能需要：
+
+```text
+another model call
+another tool call
+code execution
+retrieval
+environment replay
+human review
+```
+
+所以：
+
+```text
+Generate
+ ↓
+Verify
+ ↓
+Repair
+ ↓
+Verify again
+```
+
+可能显著增加成本与延迟。
+
+真正的问题应该是：
+
+> **在哪些状态上 verification 的 expected value 足够高？**
+
+例如：
+
+```text
+低风险、易验证动作
+→ cheap deterministic check
+
+高风险不可逆动作
+→ stronger verification / approval
+
+普通自然语言回答
+→ 未必每次都值得启用昂贵 verifier
+```
+
+后面讲 Harness 时，我们会把它正式写成 **Verification Policy**。
+
+---
+
+#### 1.8.14 Subagent / Multi-Agent 的预算问题
+
+多 Agent 架构很容易出现一种错觉：
+
+> “多叫几个 Agent 一起想，效果应该更好。”
+
+但如果 Supervisor 启动 5 个 Subagents：
+
+```text
+Supervisor
+├── Research Agent
+├── Coding Agent
+├── Critic Agent
+├── Planner Agent
+└── Reviewer Agent
+```
+
+意味着可能增加：
+
+```text
+5× model context
+更多 tool calls
+更多 message passing
+更多 aggregation
+更多 coordination failure
+```
+
+因此必须问：
+
+```text
+这个 Subagent 是否提供了新增能力？
+是否可以并行降低 latency？
+是否只是重复思考？
+它带来的质量增益是否超过额外成本？
+```
+
+Multi-Agent 不应该被当成“免费 ensemble”。
+
+---
+
+#### 1.8.15 Budget 应该成为 Agent State
+
+成熟 Agent 不应该只在外部账单里看到 Cost。
+
+预算本身应该进入运行状态，例如：
+
+```json
+{
+  "steps_used": 8,
+  "max_steps": 20,
+  "model_calls_used": 11,
+  "tool_calls_used": 6,
+  "token_budget_remaining": 18000,
+  "cost_budget_remaining": 0.42,
+  "deadline_ms_remaining": 12000
+}
+```
+
+然后 Harness 可以根据它做确定性控制：
+
+```text
+budget sufficient
+→ continue
+
+budget low
+→ compress context / use cheaper path
+
+budget exhausted
+→ stop / return best known result / ask user
+```
+
+这比把：
+
+```text
+“请节省 token”
+```
+
+写在 Prompt 里可靠得多。
+
+因此：
+
+> **Budget 是 Runtime / Harness State，不只是 Prompt Instruction。**
+
+---
+
+#### 1.8.16 常见的 Budget Guards
+
+Agent Harness 常见的硬限制包括：
+
+```text
+max_steps
+max_model_calls
+max_tool_calls
+max_tokens
+max_cost
+max_wall_time
+max_retry
+max_search_depth
+max_parallel_workers
+```
+
+这些 Guard 的作用不是单纯省钱。
+
+它们还可以防止：
+
+```text
+infinite loop
+tool loop
+retry storm
+runaway search
+context explosion
+unbounded subagent spawning
+```
+
+因此 budget control 也是 reliability mechanism。
+
+---
+
+#### 1.8.17 Static Budget vs Dynamic Budget
+
+最简单的方法是所有任务使用同一个固定预算：
+
+```text
+每题最多 10 个 Agent steps
+```
+
+这叫 **Static Budget**。
+
+优点：
+
+```text
+简单
+可预测
+易评测
+```
+
+但问题是任务难度不同：
+
+```text
+简单任务
+→ 10 steps 太浪费
+
+困难任务
+→ 10 steps 可能不够
+```
+
+更高级的是 **Dynamic Budget Allocation**：
+
+```text
+当前状态容易
+→ early exit
+
+当前状态高置信
+→ 少算
+
+当前状态不确定但可修复
+→ allocate extra compute
+
+当前状态已经明显无望
+→ stop instead of burning budget
+```
+
+抽象地说，就是估计：
+
+$$
+\text{Expected Gain from Extra Compute}
+$$
+
+是否大于：
+
+$$
+\text{Marginal Cost}
+$$
+
+如果：
+
+$$
+E[\Delta U \mid s_t] > \lambda \Delta C
+$$
+
+才值得继续。
+
+这里 $s_t$ 表示当前 Agent state。
+
+这正是 test-time compute allocation 的核心思想之一。
+
+---
+
+#### 1.8.18 Early Exit：最便宜的计算是“不再计算”
+
+如果当前状态已经满足：
+
+```text
+答案足够确定
+任务已经完成
+verification 已通过
+目标状态已经到达
+```
+
+继续调用模型可能只有成本，没有收益。
+
+因此需要明确的：
+
+```text
+Completion Check
+Confidence / Sufficiency Check
+Stop Condition
+```
+
+典型路径：
+
+```text
+Current State
+    ↓
+Is task complete?
+ ┌───────┴───────┐
+Yes             No
+ ↓               ↓
+Stop          Continue
+```
+
+注意：
+
+> **Early Exit 不是“少想一点”的简单启发式，而是资源分配策略。**
+
+它需要尽量避免两类错误：
+
+```text
+Premature Stop
+Unnecessary Continue
+```
+
+---
+
+#### 1.8.19 Escalation：不是每一步都需要最强模型
+
+另一类常见策略是 Model Routing / Escalation：
+
+```text
+cheap / fast model
+       ↓
+Can solve confidently?
+   ┌───────┴───────┐
+  Yes              No
+   ↓                ↓
+ return       stronger model
+```
+
+或者：
+
+```text
+small model → routine routing / extraction
+large model → hard reasoning / ambiguous state
+```
+
+这种策略可以降低平均成本和延迟。
+
+但需要注意：
+
+```text
+router 也会犯错
+fallback 本身有成本
+模型间 context / capability 不完全一致
+```
+
+所以真正要评估的是整条 routed system，而不是只比较两个模型单独 benchmark。
+
+---
+
+#### 1.8.20 Caching：省 Token、Latency 和 Tool Cost
+
+Agent 中常见缓存对象包括：
+
+```text
+Prompt / Prefix Cache
+Tool Result Cache
+Web / API Cache
+Retrieval Cache
+Embedding Cache
+Artifact Cache
+```
+
+例如某个固定 system instruction + tool definitions 每一轮都重复：
+
+```text
+Fixed Prefix
++
+Dynamic State
+```
+
+如果平台支持 prefix / prompt caching，可以减少重复处理成本。
+
+Tool Result 也可以缓存：
+
+```text
+query = "company policy vacation"
+```
+
+如果短时间内反复查询相同稳定数据，不一定需要每次调用远程系统。
+
+但缓存有一个核心问题：
+
+> **Staleness。**
+
+所以必须考虑：
+
+```text
+TTL
+source freshness
+invalidation
+version
+user / permission scope
+```
+
+不能为了省成本，把旧 Observation 当成当前事实。
+
+---
+
+#### 1.8.21 Context Compression 本质上也是成本控制
+
+当 trajectory 变长时，可以：
+
+```text
+完整保留所有历史
+```
+
+也可以：
+
+```text
+Old History
+   ↓
+Summarize / Compact
+   ↓
+Short State Representation
+```
+
+这样可以减少后续每一次 model call 的输入成本。
+
+但 compression 会引入：
+
+```text
+information loss
+wrong summary
+lost provenance
+lost constraints
+```
+
+所以这是典型 trade-off：
+
+```text
+Smaller Context
+   ↓
+Cost / Latency ↓
+
+but
+
+Information Fidelity ↓
+```
+
+因此 Context Policy 不应该只追求 token 最少，而应追求：
+
+> **单位 Context Budget 中保留尽可能高的决策价值。**
+
+---
+
+#### 1.8.22 Parallelism：降低 Wall-clock，不一定降低 Cost
+
+假设有三个独立检索任务。
+
+串行：
+
+```text
+A: 3s
+B: 4s
+C: 2s
+
+Total ≈ 9s
+```
+
+并行：
+
+```text
+A ─┐
+B ─┼→ join
+C ─┘
+
+Total ≈ max(3,4,2) = 4s + overhead
+```
+
+但计算量仍然接近：
+
+```text
+3 calls
+```
+
+甚至因为 speculative parallel work，最终可能有部分结果根本没被使用。
+
+所以：
+
+```text
+Parallelism
+→ wall-clock latency optimization
+
+not necessarily
+→ total resource optimization
+```
+
+还需要考虑：
+
+```text
+rate limits
+connection limits
+memory
+API quotas
+fan-out explosion
+```
+
+---
+
+#### 1.8.23 Throughput 和单任务 Latency 不是一回事
+
+一个系统服务大量用户时，还需要考虑：
+
+```text
+Latency
+= 单个请求多久完成
+
+Throughput
+= 单位时间能完成多少请求
+```
+
+提高并发有时会提升 throughput，但也可能引入：
+
+```text
+queueing
+GPU saturation
+rate limiting
+contention
+```
+
+于是单个任务的 latency 反而变差。
+
+因此线上 Agent 需要同时看：
+
+```text
+request latency
+requests per second
+active sessions
+queue depth
+resource utilization
+```
+
+这部分更偏 Runtime / Infrastructure，会在第三层继续展开。
+
+---
+
+#### 1.8.24 Cost、Latency、Quality 通常形成 Pareto Trade-off
+
+假设有三种策略：
+
+| Strategy | Accuracy | Cost | Latency |
+|---|---:|---:|---:|
+| Fast | 78% | low | low |
+| Balanced | 85% | medium | medium |
+| Heavy Search | 87% | very high | high |
+
+不能只说：
+
+```text
+87% 最好
+```
+
+因为 2% 的增益可能付出了 5 倍成本。
+
+真正要看的是：
+
+> 是否存在另一种方案，在至少一个维度更好、其他维度不更差？
+
+这就是 **Pareto Frontier** 的思想。
+
+可以想象：
+
+```text
+Quality ↑
+        │               ● Heavy
+        │          ● Balanced
+        │      ●
+        │  ● Fast
+        └────────────────────→ Cost
+```
+
+位于 frontier 上的策略代表不同预算条件下的合理选择。
+
+Agent Evaluation 因此应该同时报告：
+
+```text
+Task Success
+Tokens
+Model Calls
+Tool Calls
+Cost
+Latency
+Reliability
+```
+
+而不是只报告单一 Accuracy。
+
+---
+
+#### 1.8.25 常见的 Cost-normalized 指标
+
+不同项目会定义不同指标，但思路通常类似。
+
+例如：
+
+### Success per Dollar
+
+$$
+\frac{\text{Successful Tasks}}{\text{Total Cost}}
+$$
+
+### Cost per Successful Task
+
+$$
+\frac{\text{Total Cost}}{\text{Successful Tasks}}
+$$
+
+### Tokens per Task
+
+$$
+\frac{\text{Total Tokens}}{N}
+$$
+
+### Tool Calls per Success
+
+$$
+\frac{\text{Total Tool Calls}}{\text{Successful Tasks}}
+$$
+
+但这些比值也要小心。
+
+例如一个极便宜但几乎不成功的系统，某些归一化指标可能看起来仍然奇怪。
+
+因此通常应该同时展示原始指标与 Pareto 曲线，而不是压缩成一个魔法分数。
+
+---
+
+#### 1.8.26 Budget Exhaustion 时应该发生什么？
+
+Agent 一定要定义：
+
+```text
+如果预算用完，但任务还没完成怎么办？
+```
+
+可能策略包括：
+
+```text
+return best-known partial result
+ask user for more budget / permission
+save checkpoint and pause
+switch to cheaper strategy
+stop with explicit failure state
+```
+
+最糟糕的是：
+
+```text
+预算悄悄耗尽
+→ runtime 强行终止
+→ 用户只看到不完整回答
+```
+
+因此 budget exhaustion 应该是一种显式状态：
+
+```json
+{
+  "status": "budget_exhausted",
+  "completed_steps": [...],
+  "remaining_work": [...]
+}
+```
+
+这样 Harness 才能进行可靠 recovery。
+
+---
+
+#### 1.8.27 Budget 与 Safety 有什么关系？
+
+Budget 看起来像性能问题，但其实也有安全含义。
+
+例如攻击者可以诱导 Agent：
+
+```text
+不断打开新网页
+不断产生 subagent
+不断调用昂贵 API
+不断 retry
+```
+
+这属于一种 **resource exhaustion / economic denial-of-service** 风险。
+
+所以系统应该防止：
+
+```text
+unbounded recursion
+unbounded tool calls
+unbounded fan-out
+unbounded context growth
+```
+
+因此：
+
+> **Budget Guard 同时是 Cost Control、Reliability Guard 和 Safety Boundary。**
+
+---
+
+#### 1.8.28 一个最小 Budget-aware Agent Loop
+
+可以把前面的 Agent loop 扩展成：
+
+```python
+while not done:
+    if budget.exhausted():
+        return handle_budget_exhaustion(state)
+
+    context = build_context(state, budget)
+    response = llm(context)
+    budget.record_model_call(response.usage)
+
+    if response.tool_call:
+        if not budget.can_afford_tool(response.tool_call):
+            return handle_budget_exhaustion(state)
+
+        result = execute_tool(response.tool_call)
+        budget.record_tool_call(result.cost, result.latency)
+        state.observe(result)
+    else:
+        done = completion_check(response, state)
+```
+
+真正系统还会再加入：
+
+```text
+retry policy
+parallelism
+caching
+approval
+checkpoint
+verification
+```
+
+但这里已经体现核心思想：
+
+> **Agent 的每一次行动都在消耗有限资源，资源状态应该参与控制逻辑。**
+
+---
+
+#### 1.8.29 常见 Failure Modes
+
+**1. Context Cost Explosion**  
+轨迹越长，每轮都携带完整 history，输入成本不断上升。
+
+**2. Excessive Reasoning**  
+任务已经可以完成，却继续生成大量 reasoning。
+
+**3. Tool Overuse**  
+能直接回答的问题反复 search / browse。
+
+**4. Retry Storm**  
+错误恢复没有上限，同一个失败动作不断重试。
+
+**5. Subagent Fan-out**  
+Supervisor 无限制创建 workers。
+
+**6. Search Explosion**  
+branching factor × depth 导致候选数量快速增长。
+
+**7. Verification Overkill**  
+低风险任务使用昂贵多阶段 verifier。
+
+**8. Premature Cheap Exit**  
+为了省成本过早停止，质量明显下降。
+
+**9. Expensive Model Everywhere**  
+所有步骤都使用最高成本模型，包括简单分类和路由。
+
+**10. Stale Cache**  
+为了降低 Tool 成本，错误复用已经过期结果。
+
+**11. Parallel Waste**  
+大量并行分支最终没有被消费，但已经产生费用。
+
+**12. Tail-latency Blindness**  
+只看平均 latency，忽略少量非常慢的任务。
+
+**13. Cost Blind Evaluation**  
+只比较 accuracy，不记录 token、calls 和费用。
+
+**14. Hidden Budget Failure**  
+Runtime 触发 quota / token / timeout 后，Agent 不知道为什么被截断。
+
+---
+
+#### 1.8.30 Agent 工程中的 Budget 原则
+
+**原则一：Budget 是 State，不只是账单。**  
+运行时应该知道剩余 steps、tokens、cost、time。
+
+**原则二：不要默认 More Compute = Better。**  
+额外 reasoning、search、verification 都必须有期望收益。
+
+**原则三：同时记录 Token 和 Call Count。**  
+两者对成本与 latency 的影响不同。
+
+**原则四：Tool 也有资源成本。**  
+不要只优化 LLM API。
+
+**原则五：Latency 看 Critical Path。**  
+并行能减少 wall-clock，但可能提高 total cost。
+
+**原则六：长尾比平均值重要。**  
+至少关注 p50 / p95 / p99 和异常高成本 case。
+
+**原则七：给所有循环加 Hard Guard。**  
+steps、retry、search depth、subagents 都应该有上限。
+
+**原则八：优先把额外计算分配给“不确定且可修复”的状态。**  
+简单状态 early exit，明显无望状态也不应无限烧预算。
+
+**原则九：Caching 要和 Freshness 一起设计。**  
+便宜的旧信息不一定比昂贵的新信息更有价值。
+
+**原则十：评测 Quality–Cost–Latency 的 Pareto Frontier。**  
+不要只用 accuracy 给 Agent 排名。
+
+---
+
+#### 1.8.31 与相邻概念的边界
+
+| 概念 | 核心问题 | 与 Budget 的关系 |
+|---|---|---|
+| Context Window | 一次 inference 最多能装多少信息 | 容量约束；Context 越长通常意味着更多处理成本 |
+| Context Engineering | 哪些信息值得放进 Context | 直接影响 token efficiency |
+| Sampling / Search | 是否探索多个生成路径 | 候选数量决定额外 compute |
+| Function Calling | 怎样表达 Action | 每次 Tool Call 都可能产生 latency / money / side effect cost |
+| Verification | 怎样判断当前结果可靠 | 提高可靠性，但也消耗额外资源 |
+| Harness | Agent 应该何时继续、停止、retry、spawn | Budget Policy 的主要控制层 |
+| Runtime | 实际执行与资源调度 | 负责 timeout、quota、concurrency、deadline 等硬限制 |
+| Evaluation | 怎样衡量 Agent 效果 | 应同时测 task success、tokens、cost、latency、calls |
+| Safety | 怎样限制危险或滥用行为 | Budget Guard 可阻止 resource exhaustion |
+| Test-time Compute | 推理时额外分配多少计算 | Budget allocation 的核心对象之一 |
+
+---
+
+#### 1.8.32 面试掌握边界
+
+这一节至少需要稳定回答：
+
+1. **为什么 Agent 比单轮 Chat 更容易贵？**  
+   因为 Agent 会进行多轮 model call、重复携带 history、调用外部 Tool、retry、verification、search 和 subagent，成本会沿 trajectory 累积。
+
+2. **为什么只统计 total tokens 不够？**  
+   Model call count、Tool call、外部 API、sandbox、并发与 round-trip latency 都会影响真实成本和延迟。
+
+3. **Agent latency 应该怎么理解？**  
+   看 end-to-end wall-clock；串行链路近似求和，并行链路主要看 critical path，同时要关注 p95 / p99 长尾。
+
+4. **并行一定更省吗？**  
+   不一定。它通常降低 wall-clock latency，但可能增加总调用数、compute 和费用。
+
+5. **为什么 retry 不能无限做？**  
+   Retry 会放大 cost 和 latency，还可能产生 side effect，需要 max retry、error taxonomy、idempotency 和 budget guard。
+
+6. **为什么 More Thinking 不一定更好？**  
+   额外推理既可能 repair，也可能 degradation；真正目标是把额外 compute 分配给期望收益高的状态。
+
+7. **什么是 Dynamic Budget Allocation？**  
+   根据任务难度、当前 uncertainty、可修复性、剩余资源等动态决定是否继续 reasoning、search 或 verification，而不是所有任务固定算同样多。
+
+8. **Budget 为什么应该放在 Harness / Runtime，而不只是 Prompt？**  
+   因为 max steps、deadline、quota、cost ceiling 等需要硬执行，不能依赖模型自觉遵守“请节省 token”。
+
+9. **怎样评测一个更贵但更准的 Agent 值不值得？**  
+   同时比较 quality、cost、latency、reliability，观察 Pareto frontier，而不是只看 accuracy。
+
+10. **Cache 的主要风险是什么？**  
+    Staleness、权限作用域错误和 invalidation 失败；省成本不能牺牲事实新鲜度。
+
+11. **Subagent 为什么可能很贵？**  
+    每个 subagent 都可能拥有独立 context、model calls、tools 和 trajectory，还需要 supervisor 协调与聚合。
+
+12. **预算耗尽时 Agent 应该怎么办？**  
+    进入显式 `budget_exhausted` 状态，根据产品策略返回 best-known result、保存 checkpoint、请求更多预算或明确失败，而不是悄悄截断。
+
+如果继续追问 Agent 到底怎样决定“继续还是停止”，进入下一章 **2. Agent Decision Loop**；如果追问 max steps、retry、deadline 怎样真正执行，进入第三层 **7. Agent Harness / 8. Runtime**；如果追问如何科学比较 quality–cost trade-off，进入 **9. Observability & Evaluation**。
+
+---
+
+#### 1.8.33 本节一句话总结
+
+> **Agent 的推理、搜索、工具调用、验证和多 Agent 协作都在消耗有限资源；真正成熟的 Agent 不是“尽可能多算”，而是在 Token、Cost、Latency、Steps 与 Deadline 的硬约束下，把额外计算动态分配给最值得的状态，并用 Quality–Cost–Latency–Reliability 的 Pareto trade-off 评估整体系统。**'''
+
+          s = s.replace(old, new, 1)
+
+          old_progress = '| I | 1. LLM Foundation for Agents | 进行中：1.1–1.7 已完成 |'
+          if old_progress in s:
+              s = s.replace(old_progress, '| I | 1. LLM Foundation for Agents | 已完成：1.1–1.8 |', 1)
+
+          old_next = '下一步：继续 **I. Model & Decision Core → 1.8 Token / Cost / Latency Budget**。'
+          if old_next in s:
+              s = s.replace(old_next, '下一步：进入 **I. Model & Decision Core → 2. Agent Decision Loop → 2.1 What is an Agent?**。', 1)
+
+          p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Commit patch
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo 'No changes to commit'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Agent_Knowledge_System.md
+          git commit -m 'docs: add token cost latency budget foundations for agents'
+          git push
