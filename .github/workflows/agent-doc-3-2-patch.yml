@@ -1,0 +1,32 @@
+name: Patch Agent Knowledge 3.2
+
+on:
+  push:
+    branches:
+      - agent-doc-3-2-tool-schema
+    paths:
+      - '.github/workflows/agent-doc-3-2-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent-doc-3-2-tool-schema
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Patch document
+        run: python .tmp/patch_agent_3_2.py
+      - name: Commit update
+        run: |
+          git config user.name "A_Jiang"
+          git config user.email "79295145+JiangHui0203@users.noreply.github.com"
+          git add Agent_Knowledge_System.md
+          git diff --cached --quiet && exit 0
+          git commit -m "docs: add Tool Schema foundations"
+          git push
