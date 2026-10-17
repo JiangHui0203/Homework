@@ -1,403 +1,281 @@
-# 2. Pretraining、Instruction、SFT 与 Post-training Data
+# 第 2 章 Pretraining、Instruction、SFT 与 Post-training Data：不同阶段到底在教模型什么
 
-> 本章目标：把“大模型训练数据”这个经常被混在一起的概念拆开。
+> 所属体系：[`LLM_Agent_Data_Knowledge_System.md`](../LLM_Agent_Data_Knowledge_System.md)
 >
-> 核心问题：**模型从“会续写文本”到“会听懂指令、遵循约束、调用工具并完成任务”，各阶段的数据究竟在教它什么？**
-
-如果只记一句话，可以先记：
-
-```text
-Pretraining：学“世界和语言长什么样”
-Instruction / SFT：学“用户让我做事时应该怎么回应”
-Preference / RL：学“多个可行行为里哪一种更值得选择”
-Agent Data：学“在环境里如何连续决策并真正把事情做完”
-```
-
-但现实中这些边界并不是绝对的。现代模型会使用 continued pretraining、instruction tuning、SFT、preference optimization、RL、verifiable reward 等多种阶段，数据也会交叉复用。理解它们时，不要只按“训练算法名字”分类，更要看**这批数据提供了什么监督信号**。
+> 前置章节：[`第 1 章 Data Objects & Learning Signals`](./01_Data_Objects_and_Learning_Signals.md)
+>
+> 关联章节：[`第 3 章 Preference Data`](./03_Preference_Data_Reward_and_Feedback.md)、[`第 4 章 Reasoning Data`](./04_Reasoning_Data_and_Process_Supervision.md)、[`第 5 章 Agent Trajectory Data`](./05_Tool_Use_and_Agent_Trajectory_Data.md)、[`第 16 章 Benchmark Design`](./16_Benchmark_Design_and_Evaluation_Protocol.md)、[`第 20 章 Data Curation`](./20_Data_Quality_Filtering_Deduplication_and_Mixture.md)
+>
+> 编辑基础设施：[`Canonical Glossary`](./00_Glossary_and_Notation.md)
+>
+> 本章定位：**训练阶段与 Data Purpose 的 canonical overview。它负责说明 Pretraining / Continued Pretraining / Instruction / SFT / Preference / Reward / RL / Agent Training 分别消费什么经验、提供什么 learning signal；Filtering / Dedup / Mixture 的完整技术细节归第 20 章。**
+>
+> 本章核心问题：**模型从“会续写文本”到“会按用户要求行动并在环境中完成任务”，不同训练阶段到底希望它学会什么，因此需要什么类型的数据？**
 
 ---
 
-## 2.1 Pretraining Data：先学会预测“接下来会出现什么”
-
-### 2.1.1 Pretraining Data 是什么？
-
-最经典的 decoder-only LLM 预训练目标是 next-token prediction。
-
-给定 token 序列：
-
-$$
-x_1, x_2, \ldots, x_T
-$$
-
-模型学习最大化：
-
-$$
-\sum_{t=1}^{T} \log P(x_t \mid x_{<t})
-$$
-
-或者等价地最小化 token-level cross entropy。
-
-此时数据通常不是：
-
-```text
-Question → Answer
-```
-
-而只是大量自然产生的 token sequence，例如：
-
-```text
-网页文章
-书籍
-百科
-论坛
-新闻
-代码仓库
-论文
-文档
-问答网站
-多语言文本
-数学内容
-```
-
-模型不需要显式知道“这条数据是在教历史知识还是教语法”。它只是在巨量语料中学习统计规律、语言结构、事实关联、代码模式、推理模式和世界知识。
-
-因此：
-
-> **Pretraining Data 的基本监督信号不是人工标签，而是文本本身的下一个 token。**
-
----
-
-### 2.1.2 为什么预训练数据规模可以特别大？
-
-因为它天然属于 self-supervised learning。
-
-原始文本：
-
-```text
-深度学习模型通常通过梯度下降优化参数。
-```
-
-可以自动变成许多训练位置：
-
-```text
-深度 → 学习
-深度 学习 → 模型
-深度 学习 模型 → 通常
-...
-```
-
-不需要人工逐条标注。
-
-这解释了一个重要现象：
+# 2.0 先记住一条主线
 
 ```text
 Pretraining
-数据量巨大
-人工标注比例低
-监督信号自动产生
+→ 学语言、知识、模式与世界分布
 
-Post-training
-数据量通常小得多
-但单条数据更贵、更有目的性
+Instruction / SFT
+→ 学“收到任务以后应该怎样响应 / 行动”
+
+Preference / Reward / RL
+→ 学“多个可行行为中哪一种更值得选择”
+
+Reasoning / Process Data
+→ 学中间 state / decision 怎样更可靠
+
+Agent Data
+→ 学在外部环境中连续决策直到任务完成
 ```
 
-所以“数据量”不能脱离训练阶段比较。
+这不是互斥分箱。
+
+同一条 experience 可以被转换后用于多个阶段；真正应该问的是：
+
+> **当前训练目标准备从这条数据里提取什么 learning signal？**
 
 ---
 
-### 2.1.3 预训练数据常见来源
+# 2.1 Pretraining Data：让模型学习“世界和语言长什么样”
 
-可以粗略分成：
+经典 decoder-only LLM 的目标是 next-token prediction：
 
-#### Web Data
+\[
+\max \sum_{t=1}^{T}\log P(x_t\mid x_{<t})
+\]
+
+数据通常是大规模自然 token sequence：
 
 ```text
-网页
-论坛
-博客
-新闻
-知识站点
-公开文档
+Web
+Books
+Code
+Papers
+Technical Docs
+Forums
+Multilingual Text
+Math / Structured Content
 ```
 
-优势是规模大、覆盖广；问题是噪声、广告、重复、SEO 文本、低质生成内容和隐私/版权风险都更明显。
+Pretraining 不依赖人工逐条给 label；文本本身提供 self-supervised signal。
 
-#### Books / Long-form Text
+因此它通常具有：
+
+```text
+规模最大
+单条目的性较弱
+覆盖最广
+数据分布本身极其重要
+```
+
+---
+
+# 2.2 Pretraining Data 的工作不是“下载语料”
+
+一个典型 pipeline：
+
+```text
+Source Acquisition
+↓
+Parsing / Extraction
+↓
+Normalization
+↓
+Language / Domain Identification
+↓
+Validity / Rights / Privacy
+↓
+Quality Filtering
+↓
+Dedup / Contamination Handling
+↓
+Mixture / Sampling
+↓
+Tokenization / Sharding
+```
+
+这里每一步都会重塑模型看到的世界。
+
+但本章只建立概览：
+
+```text
+Dedup / Mixture / Filtering
+→ Ch20
+
+Contamination 对 Eval 的影响
+→ Ch16
+
+Provenance / Rights / Version
+→ Ch19
+```
+
+避免在训练阶段总览章里重复完整 Data Curation 理论。
+
+---
+
+# 2.3 Pretraining Data 的几个典型来源
+
+## Web
+
+优势：
+
+```text
+规模
+覆盖
+长尾知识
+```
+
+风险：
+
+```text
+noise
+SEO / spam
+duplicate
+synthetic pollution
+privacy / rights
+```
+
+## Books / Long-form
 
 更容易提供：
 
-- 长篇连贯结构；
-- 复杂叙事；
-- 跨段依赖；
-- 高质量自然语言。
-
-#### Code
-
-代码数据不只教“写代码”，还提供非常强的结构信号：
-
 ```text
-syntax
-function dependency
-API usage
-tests
-error handling
-program structure
+long coherence
+narrative structure
+cross-paragraph dependency
 ```
 
-这也是为什么代码能力与 Agent 的工具调用、结构化输出、程序化推理有一定关联。
+## Code
 
-#### Academic / Technical Data
+除了编程知识，还提供：
 
-包括论文、教材、技术文档、规范、专业资料等。它们对专业领域知识、符号系统、推理表达和术语覆盖很重要。
+```text
+formal syntax
+API patterns
+dependency structure
+test / error-handling patterns
+```
 
-#### Multilingual Data
+## Academic / Technical
 
-决定模型对不同语言的覆盖程度。这里不是“只要混进去就行”，还要处理语言识别、语种比例、翻译腔、跨语言重复和资源极不平衡的问题。
+提供：
+
+```text
+专业术语
+符号系统
+技术结构
+领域知识
+```
+
+## Multilingual
+
+需要处理：
+
+```text
+language imbalance
+translationese
+cross-language duplication
+low-resource coverage
+```
 
 ---
 
-### 2.1.4 预训练数据真正的工作，不是“下载完就训练”
+# 2.4 Pretraining、Continued Pretraining 与 Domain Adaptation
 
-一个简化 pipeline 往往更像：
+有时基础模型已有通用 pretraining，再针对：
 
 ```text
-Raw Sources
-    ↓
-Ingestion / Parsing
-    ↓
-Normalization
-    ↓
-Language / Domain Identification
-    ↓
-Quality Filtering
-    ↓
-Safety / Privacy Filtering
-    ↓
-Deduplication
-    ↓
-Contamination Check
-    ↓
-Sampling / Mixture
-    ↓
-Tokenization
-    ↓
-Training Shards
+Finance
+Medical
+Code
+Long Context
+Multilingual
+Company Knowledge
 ```
 
-每一步都可能改变最终模型能力。
+继续做语言模型训练。
 
-例如：
+这类通常可理解为：
 
-- 网页解析错了，会留下导航栏、乱码和广告；
-- 去重过弱，会让高频网站被重复记忆；
-- 去重过强，也可能误删真正不同但主题相近的文本；
-- 质量过滤器偏英语风格，可能误伤其他语言；
-- 代码过滤过重，会让模型丢失长尾 API；
-- benchmark contamination 没查好，会让评测分数失真。
+```text
+Continued Pretraining / Domain-adaptive Pretraining
+```
 
-因此预训练数据工程的核心不是简单 ETL，而是：
+它和 SFT 的区别仍然是主要 learning signal：
 
-> **通过数据分布设计，塑造基础模型能看到怎样的世界。**
+```text
+Continued Pretraining
+→ token prediction on domain corpus
+
+SFT
+→ imitate desired response / behavior
+```
+
+所以“用了专业数据”本身不能判断它属于哪个阶段。
 
 ---
 
-### 2.1.5 Deduplication 为什么重要？
+# 2.5 Instruction Data：从文本分布走向任务响应
 
-重复数据会带来至少三个问题。
-
-#### 1. 浪费训练预算
-
-如果同一篇文章出现 100 次，模型相当于反复花 token 预算学习同一个东西。
-
-#### 2. 扭曲真实分布
-
-某个网站因为爬虫结构被重复抓取，并不意味着这个知识在真实世界里应该占 100 倍权重。
-
-#### 3. 放大记忆与 contamination
-
-如果 benchmark 题目或其近似版本反复出现，模型评测时可能是在“见过题”而不是泛化。
-
-去重可以发生在多个层级：
+Instruction Data 显式建立：
 
 ```text
-exact duplicate
-near duplicate
-paragraph-level duplicate
-document-level duplicate
-semantic duplicate
-```
-
-后面 Data Curation 会详细展开。
-
----
-
-### 2.1.6 Pretraining contamination 是什么？
-
-假设某 benchmark 的测试题出现在预训练语料里：
-
-```text
-Benchmark test item
-        ↓
-进入 pretraining corpus
-        ↓
-模型训练时见过
-        ↓
-Benchmark evaluation
-```
-
-那么测试分数可能混入记忆效应。
-
-这里需要区分：
-
-- exact contamination：测试题原文直接出现；
-- near contamination：轻微改写版本出现；
-- solution contamination：题目或答案解析出现；
-- benchmark-family exposure：没见过该测试题，但见过大量高度模板化同源题。
-
-因此 contamination 不是简单 grep 一次就能完全解决的问题。
-
----
-
-### 2.1.7 Pretraining Data 与 Instruction Data 的根本区别
-
-看两个例子。
-
-#### Pretraining-like text
-
-```text
-牛顿第二定律描述了物体受到的合外力与加速度之间的关系……
-```
-
-#### Instruction Data
-
-```text
-User:
-请用高中生能理解的方式解释牛顿第二定律。
-
-Assistant:
-你可以把它理解成……
-```
-
-两者都可能教模型“牛顿第二定律”，但学习信号不同。
-
-前者主要让模型学习：
-
-> **什么文本通常接在什么文本后面。**
-
-后者额外让模型学习：
-
-> **当用户以这种方式提出需求时，应该采取怎样的响应行为。**
-
-因此不能简单认为：
-
-> “预训练里有大量问答网页，所以就不需要 instruction tuning。”
-
-模型在预训练阶段可能学会了问答文本的统计模式，但未必稳定学会**把当前用户指令当作需要遵循的任务**。
-
----
-
-## 2.2 Instruction Data：把“文本续写”变成“任务响应”
-
-### 2.2.1 什么是 Instruction Data？
-
-最基本结构是：
-
-```text
-Instruction
-    ↓
-Desired Response
+User Intent / Instruction
+↓
+Desired Behavior
 ```
 
 例如：
 
-```json
-{
-  "instruction": "把下面这段话改得更正式",
-  "input": "这个方案还行，就是有点贵。",
-  "output": "该方案整体可行，但成本相对较高。"
-}
-```
-
-Instruction Data 的重点不是只提供知识，而是显式建立：
-
 ```text
-用户意图
-   ↓
-期望行为
+Summarize
+Translate
+Rewrite
+Extract
+Classify
+Solve
+Write Code
+Follow Format
+Use Tool
+Refuse / Clarify
 ```
 
-这种映射。
+它的重点不是只教知识，而是教：
+
+> **当前这段输入是一个需要遵循的任务。**
 
 ---
 
-### 2.2.2 Instruction Data 可以教什么？
+# 2.6 Single-turn、Multi-turn 与 Role Structure
 
-它可以教的不只是“回答知识问题”。
-
-常见能力包括：
-
-```text
-问答
-摘要
-翻译
-改写
-分类
-信息抽取
-数学求解
-代码生成
-结构化输出
-格式遵循
-角色约束
-拒绝不安全请求
-多轮对话
-工具调用
-Agent 任务分解
-```
-
-因此 instruction data 往往需要按 capability taxonomy 来设计，而不是随机收集问题。
-
----
-
-### 2.2.3 Single-turn 与 Multi-turn Instruction
-
-#### Single-turn
+### Single-turn
 
 ```text
 User → Assistant
 ```
 
-适合教局部能力。
+适合局部能力。
 
-#### Multi-turn
+### Multi-turn
+
+可以训练：
 
 ```text
-User
-↓
-Assistant
-↓
-User clarification / correction
-↓
-Assistant update
-↓
-...
+constraint retention
+reference resolution
+user correction handling
+state maintenance
+clarification
 ```
 
-多轮数据能教模型：
+### Role Structure
 
-- 继承前文约束；
-- 解析指代；
-- 根据用户纠正更新答案；
-- 不重复已经问过的问题；
-- 维持任务状态；
-- 处理上下文冲突。
-
-Agent 场景里多轮数据尤其重要，因为一次任务往往不会在一轮内完成。
-
----
-
-### 2.2.4 Message Role 也是数据的一部分
-
-现代 chat 模型的数据常具有角色结构：
+现代模型还需要区分：
 
 ```text
 System
@@ -407,927 +285,582 @@ Assistant
 Tool
 ```
 
-从数据视角看，模型必须学到的不只是文本内容，还包括**不同消息来源之间的控制关系和语义边界**。
+所以 message role 和优先级本身也是输入分布的一部分。
+
+---
+
+# 2.7 Formatting Constraint 也是 Behavior
 
 例如：
 
-```text
-System: 只能使用提供的工具查询库存。
-User: 你直接猜一个库存数字给我。
-```
+> “只返回 JSON，不要解释。”
 
-一个好的 instruction / SFT sample 不应该只训练语言流畅度，还需要训练：
+对 API / Agent pipeline 来说：
 
 ```text
-遵循高优先级约束
-识别用户意图
-知道何时需要工具
-不虚构环境状态
+内容正确但格式不合法
 ```
 
-因此 instruction data 的 schema 本身会影响模型行为。
+仍可能是 task failure。
+
+因此 Instruction / SFT 数据需要覆盖：
+
+```text
+format constraints
+positive constraints
+negative constraints
+conditional constraints
+cross-turn constraints
+```
 
 ---
 
-### 2.2.5 Formatting Constraint 也是能力
+# 2.8 SFT：用 Demonstration 教模型“应该怎么做”
 
-例如：
-
-```text
-“只返回 JSON，不要解释。”
-```
-
-模型要学会：
-
-```json
-{"label":"positive"}
-```
-
-而不是：
+SFT 的核心可以写成：
 
 ```text
-当然可以！结果如下：
-{"label":"positive"}
+Context x
+→ Desired Behavior y*
 ```
 
-在人类看来后者也“回答对了”，但对 API / Agent pipeline 来说可能已经失败。
+模型最大化：
 
-因此 instruction following 数据里必须覆盖：
+\[
+\log P(y^*\mid x)
+\]
 
-- 长约束；
-- 多约束；
-- 格式约束；
-- 正负约束；
-- 条件约束；
-- 跨轮约束。
+从数据角度：
+
+> **SFT 是 demonstration imitation。**
+
+因此 SFT 的关键不是“有答案”，而是 target behavior 是否值得被模仿。
 
 ---
 
-## 2.3 SFT Data：用示范告诉模型“应该怎么做”
+# 2.9 SFT Data 可以从哪里来？
 
-### 2.3.1 SFT 是什么？
-
-SFT = Supervised Fine-Tuning。
-
-最直观地说，就是给模型大量高质量 demonstration：
+常见来源：
 
 ```text
-Prompt x
-   ↓
-Desired Response y*
+Human / Expert Demonstration
+Curated Existing Data
+Teacher Model + Verification
+Successful Agent Rollout
+Human-corrected Model Output
+Programmatic Construction
 ```
 
-然后最大化目标回答 token 的条件概率：
+不同 source 的核心风险不同：
 
-$$
-\log P(y^* \mid x)
-$$
+```text
+Human
+→ cost / consistency
 
-从 learning signal 的角度：
+Teacher
+→ teacher bias / shared blind spot
 
-> **SFT 是 imitation learning：让模型模仿被认为是正确、优质的示范。**
+Rollout
+→ success does not guarantee ideal policy
+
+Programmatic
+→ coverage / realism
+```
+
+因此 Source 不能替代 Quality / Downstream Validation。
 
 ---
 
-### 2.3.2 一条 SFT 数据长什么样？
+# 2.10 成功轨迹不自动等于好 SFT
 
-最简单：
-
-```json
-{
-  "messages": [
-    {"role": "user", "content": "法国首都是哪里？"},
-    {"role": "assistant", "content": "巴黎。"}
-  ]
-}
-```
-
-复杂一点可以包含多轮：
+两个 Agent trajectory 都成功：
 
 ```text
-System
-↓
-User
-↓
-Assistant
-↓
-User
-↓
-Assistant
+A
+3 个必要 tool calls
+
+B
+17 个 calls
+多次错误后偶然恢复
 ```
 
-Agent SFT 还可能包含：
+如果直接：
 
 ```text
-User task
-↓
-Assistant tool call
-↓
-Tool observation
-↓
-Assistant next tool call
-↓
-Tool observation
-↓
-Assistant final response
+success = positive SFT
 ```
 
-所以 SFT 并不等于“问答数据”。**任何希望模型直接模仿的行为序列，都可以成为 SFT demonstration。**
+模型可能学到无效甚至危险习惯。
+
+所以 SFT demonstration 还要考虑：
+
+```text
+policy validity
+side effects
+observation grounding
+efficiency
+verification behavior
+```
+
+详细 Agent Data 见第 5 / 12 章。
 
 ---
 
-### 2.3.3 SFT 数据从哪里来？
+# 2.11 SFT 的天然局限：主要展示“好行为”，不擅长表达相对边界
 
-#### Human-written / Expert-written
-
-优点：
-
-- 可控；
-- 能表达真正专家行为；
-- 适合复杂领域与高标准任务。
-
-缺点：
-
-- 贵；
-- 慢；
-- 难扩展；
-- 标注者风格可能高度集中。
-
-#### Existing High-quality Data
-
-例如公开 instruction 数据、领域数据、历史产品数据。
-
-问题是需要特别关注：
-
-- license；
-- 数据质量；
-- 训练/评测泄漏；
-- schema 是否一致；
-- 是否真的适配当前模型和产品目标。
-
-#### Synthetic Data
-
-常见流程：
+SFT 很擅长：
 
 ```text
-Task / Seed
-   ↓
-Teacher Model
-   ↓
-Candidate Response
-   ↓
-Filter / Verify
-   ↓
-SFT Data
+这里应该怎么做
 ```
 
-现代 SFT 中 synthetic data 很常见，但核心不是“模型生成了就能训”，而是**生成 + 验证 + 筛选**。
-
-#### Successful Rollout
-
-对于 Agent：
+但较弱于：
 
 ```text
-任务
-↓
-模型跑出若干 trajectory
-↓
-环境验证 success
-↓
-筛掉异常路径
-↓
-成功轨迹作为 demonstration
+为什么 A 比 B 好
+什么时候不该这样做
+两个都对时哪个更优
+near-miss 错在哪里
 ```
 
-这会自然连接到后面的 rejection sampling 和 agent trajectory data。
+这些问题自然引出：
+
+```text
+Preference
+Reward
+Process Supervision
+Hard Negative
+```
+
+也就是后续 Post-training Data。
 
 ---
 
-### 2.3.4 SFT 最擅长教什么？
+# 2.12 Post-training 是一个大集合
 
-SFT 非常适合教：
-
-#### 1. 输出格式
+本书采用宽义：
 
 ```text
-JSON
-XML
-tool call schema
-固定模板
+Post-training Data
+├── SFT Demonstration
+├── Preference / Ranking
+├── Reward Model Data
+├── Critique / Correction
+├── Process Supervision
+├── RL Rollout
+├── Verifier / Judge Data
+├── Safety / Alignment Data
+└── Agent Trajectory / Tool Feedback
 ```
 
-#### 2. 交互习惯
+所以：
 
-例如：
+> **SFT Data ⊂ Post-training Data。**
 
-```text
-什么时候先澄清
-什么时候直接回答
-什么时候调用工具
-怎样引用工具结果
-```
-
-#### 3. 行为模式
-
-```text
-遇到代码题 → 写代码 + 测试
-遇到搜索任务 → 先查证再回答
-遇到工具错误 → 根据 observation 修正
-```
-
-#### 4. 风格
-
-例如简洁、专业、结构化、避免废话。
-
-#### 5. 基础任务能力的激活与对齐
-
-预训练模型可能“知道”某些知识或模式，但 SFT 帮助它把这些能力稳定地映射到用户指令上。
+不要把 Post-training 简化成“DPO / RLHF”。
 
 ---
 
-### 2.3.5 Positive-only Imitation 的局限
+# 2.13 Preference Data：从“示范”转向“相对选择”
 
-SFT 常常只告诉模型：
-
-> “这是一个好答案，请模仿。”
-
-但没有直接告诉模型：
-
-> “这个看起来也合理的答案为什么更差？”
-
-例如：
+基本形式：
 
 ```text
-Prompt
+Context
+├── A
+└── B
 
-Good response A
-Bad-but-plausible response B
-```
-
-如果训练集只有 A，模型能学到 A 的模式，但并没有显式获得：
-
-```text
 A > B
 ```
 
-这种相对偏好信号。
+它适合学习：
 
-因此 SFT 的典型局限包括：
+```text
+style trade-off
+constraint fidelity
+hard negative boundary
+efficiency
+trajectory preference
+```
 
-- 难表达“两个都能做，但哪个更好”；
-- 难利用大量失败 candidate 的信息；
-- 对细微风格和行为偏好的区分能力有限；
-- 对 long-horizon credit assignment 支持有限。
-
-这就是为什么 SFT 后面经常还会接 Preference Optimization / RL。
+完整定义与 bias 见第 3 章。
 
 ---
 
-### 2.3.6 SFT 数据不是越“完美”越好
+# 2.14 Reward / RL Data：让 Outcome 与 Policy Update 连起来
 
-一个常见误区是：
-
-> 只要所有回答都非常完美，SFT 就一定最好。
-
-实际要考虑目标分布。
-
-如果线上用户经常给出：
+RL 场景常出现：
 
 ```text
-错别字
-模糊需求
-半句话
-多约束
-互相冲突的要求
-工具失败
+State / Task
+↓
+Policy Rollout
+↓
+Outcome / Verifier / Reward
+↓
+Policy Update
 ```
 
-而训练数据全部是：
+重要术语边界：
 
 ```text
-清晰、完整、标准、单轮 instruction
+Outcome
+= 世界实际发生什么
+
+Reward
+= 用来优化 policy 的信号
 ```
 
-模型会面临 distribution shift。
-
-因此高质量不等于“干净得不真实”。高质量数据应该是：
-
-> **真实覆盖目标行为分布，同时拥有可靠监督信号。**
+详细区分见第 13 章。
 
 ---
 
-## 2.4 Post-training Data：从“会生成”到“会按目标行为”
+# 2.15 On-policy 与 Off-policy Data
 
-### 2.4.1 Post-training 是什么？
+### On-policy
 
-广义上，pretraining 之后为了塑造模型行为进行的训练，都可以归到 post-training 讨论范围。
-
-一个非常简化的框架是：
-
-```text
-Base Model
-   ↓
-SFT
-   ↓
-Preference / Reward Modeling
-   ↓
-RL / Preference Optimization
-   ↓
-Capability / Safety / Tool-use refinement
-   ↓
-Deployed Model
-```
-
-现实中的训练 recipe 可能并不会严格按这个顺序，也可能循环多轮。
-
----
-
-### 2.4.2 Post-training Data 不等于 SFT Data
-
-这是非常容易混淆的一点。
-
-```text
-SFT Data ⊂ Post-training Data
-```
-
-Post-training 还可能包括：
-
-```text
-Preference pairs
-Ranked candidates
-Reward labels
-Critiques
-Step-level process labels
-RL rollout
-Verifier outcome
-Tool execution feedback
-Safety adversarial data
-Agent success / failure trajectory
-```
-
-因此，当岗位说“负责 post-training data”时，实际工作可能远远超过 instruction-response 标注。
-
----
-
-### 2.4.3 Post-training 的核心：从“模仿答案”升级到“优化行为”
-
-可以这样理解：
-
-#### SFT 问：
-
-> 一个好示范长什么样？
-
-#### Preference 问：
-
-> 两个答案里哪个更好？
-
-#### Reward 问：
-
-> 这条行为到底有多好？
-
-#### RL / rollout 问：
-
-> 当前模型自己会走出哪些路径，哪些路径值得强化？
-
-#### Agent environment 问：
-
-> 这条轨迹有没有真实完成任务？
-
-所以 post-training data 越往后，越接近**模型当前策略产生的实际行为分布**。
-
----
-
-### 2.4.4 On-policy 与 Off-policy 数据直觉
-
-不用先陷入严格 RL 定义，可以先建立一个数据直觉。
-
-#### Off-policy-like
-
-数据主要来自别的分布：
-
-```text
-人工专家答案
-teacher model 输出
-历史模型 trajectory
-公开数据集
-```
-
-当前模型只是去学习它们。
-
-#### On-policy-like
-
-让**当前模型本身**去 rollout：
+来自当前 policy：
 
 ```text
 Current Model
-    ↓
-Generate candidates / trajectories
-    ↓
-Reward / Verify
-    ↓
-Use feedback to improve Current Model
+→ Current Rollouts
 ```
 
-优点是数据直接暴露当前模型真正会犯的错误。
+优点：贴当前真实错误分布。
 
-这也是为什么后续 Agent data flywheel 会特别关注线上 trace 和 current-policy rollout。
+### Off-policy
+
+来自：
+
+```text
+Teacher
+Old Model
+Human
+Historical Logs
+Other Policy
+```
+
+优点：便于复用、覆盖更广。
+
+但可能与当前 policy 分布不一致。
+
+所以：
+
+> **Data Source 与 Current Model 的距离本身就是数据属性。**
 
 ---
 
-### 2.4.5 Verifiable Tasks 为什么越来越重要？
+# 2.16 Verifiable Data 为什么特别重要？
 
-如果任务结果可以自动验证：
-
-```text
-数学答案 → symbolic / exact verifier
-代码 → unit tests / execution
-Agent → final environment state
-数据库任务 → SQL / state check
-网页任务 → target state
-```
-
-那么可以低成本跑大量 rollout：
+有些任务可以得到高可信外部 outcome：
 
 ```text
-1 task
-↓
-N trajectories
-↓
-automatic verification
-↓
-success / failure
-↓
-training signal
+Math exact / symbolic result
+Code unit tests
+SQL execution
+Final Environment State
+Schema / Constraint Check
 ```
 
-这比“每一条都请人工专家判断”更容易扩展。
+这类数据适合大规模：
 
-因此现在很多 reasoning / agent data pipeline 都在追求：
+```text
+Rollout
+→ Verify
+→ Rank / Reward / Filter
+```
 
-> **生成成本可控 + 结果可验证 + 能大规模 rollout。**
+因为监督不完全依赖主观 Judge。
+
+Evaluator 层级见第 15 章。
 
 ---
 
-## 2.5 Data Mixture：为什么“配数据”本身就是研究问题？
+# 2.17 Reasoning / Process Data
 
-假设你有：
+Reasoning Data 的对象可能是：
 
 ```text
-数学数据 100 万
-代码数据 80 万
-通用问答 500 万
-多轮对话 20 万
-工具调用 5 万
-安全数据 10 万
+Reasoning State
+Step
+Transition
+Alternative Continuation
+Critique
+Correction
 ```
 
-训练时直接全部拼起来，并不意味着模型会得到理想能力。
+它解决：
 
-真正的问题是：
+```text
+最终 answer 对了，但过程是否可靠？
+错误从哪里开始？
+当前 state 是否值得继续 / repair？
+```
 
-> **每一种数据应该以多大权重进入训练？**
-
-这就是 mixture design。
+完整理论见第 4 章。
 
 ---
 
-### 2.5.1 为什么不能简单按原始数据量采样？
+# 2.18 Agent Training Data
 
-假设：
-
-```text
-General chat = 90%
-Tool-use = 1%
-```
-
-如果严格按原始比例训练，模型几乎很少见到 tool-use。
-
-结果可能是：
-
-> 明明收集了 10 万条工具数据，但它在总 token 中被淹没，能力提升很小。
-
-因此常用方法包括：
+Agent 数据进一步引入：
 
 ```text
-oversampling
-undersampling
-source weighting
-domain weighting
-capability weighting
+Task Case
+Tool Contract
+Environment
+Trajectory
+Observation
+Final State
+Side Effects
 ```
+
+可能被转换为：
+
+```text
+Trajectory SFT
+Tool Preference
+Recovery Data
+State-action Supervision
+RL Rollout
+Regression Case
+```
+
+因此 Agent Training 的基本对象经常不是“回答”，而是 Experience。
 
 ---
 
-### 2.5.2 Token 比 Sample Count 更接近真实训练权重
+# 2.19 不同训练阶段的简化对照
 
-1000 条短分类数据与 1000 条长 Agent trajectory，不是同一个量级。
-
-例如：
-
-```text
-Dataset A
-1000 samples × 100 tokens = 100k tokens
-
-Dataset B
-1000 samples × 5000 tokens = 5M tokens
-```
-
-如果只看 sample count，会严重误判 mixture。
-
-所以需要同时跟踪：
-
-```text
-sample count
-token count
-source share
-capability share
-language share
-length distribution
-```
-
----
-
-### 2.5.3 Domain Balancing
-
-例如医学模型不应该简单变成：
-
-```text
-99% 医学
-1% 通用能力
-```
-
-因为可能造成 general capability regression。
-
-所以数据配比常常是在优化：
-
-```text
-目标领域提升
-        vs
-通用能力保持
-```
-
-这就是典型 trade-off。
-
----
-
-### 2.5.4 Curriculum：数据顺序也可能重要
-
-Curriculum learning 的直觉是：
-
-```text
-基础 → 复杂
-简单 → 困难
-短任务 → 长任务
-单工具 → 多工具
-```
-
-例如 Agent 训练可以设计成：
-
-```text
-Stage 1: 单步 function calling
-Stage 2: 两步工具链
-Stage 3: 多工具依赖
-Stage 4: 长时程任务 + failure recovery
-```
-
-但 curriculum 不是天然优于随机混合；是否有效必须通过实验验证。
-
----
-
-### 2.5.5 Mixture 的核心不是“平均”，而是目标函数
-
-更正确的思考是：
-
-```text
-我们希望优化哪些能力？
-↓
-每种能力目前差多少？
-↓
-什么数据最可能提供有效学习信号？
-↓
-训练预算有多少？
-↓
-如何配比？
-```
-
-也就是：
-
-> **Mixture 是一种资源分配问题。**
-
----
-
-## 2.6 Continued Pretraining、SFT、Preference：不要只看数据格式
-
-一条文本长得像问答，不意味着它一定是 SFT；一条自然语言文档也可能用于 continued pretraining。
-
-判断数据类型时应问：
-
-```text
-训练目标是什么？
-loss 作用在哪些 token？
-模型是在模仿 demonstration，还是比较 candidate？
-有没有 reward / verifier？
-数据是当前模型 rollout 的吗？
-```
-
-一个简化对照表：
-
-| 阶段 | 典型数据 | 主要学习信号 | 最主要作用 |
+| 阶段 / 目的 | 主要数据对象 | 核心 Learning Signal | 典型问题 |
 |---|---|---|---|
-| Pretraining | 海量 token sequence | next-token prediction | 语言、知识、通用模式 |
-| Continued Pretraining | 领域原始语料 | next-token prediction | 增强领域分布覆盖 |
-| Instruction Tuning | instruction-response | demonstration | 建立指令到行为映射 |
-| SFT | 高质量目标行为 | imitation | 稳定行为、格式和能力 |
-| Preference Optimization | chosen / rejected | relative preference | 学“哪个更好” |
-| Reward Modeling | candidate + score/rank | reward signal | 学评价函数 |
-| RL / Verifiable RL | rollout + reward | outcome / reward | 优化当前策略 |
-| Agent Training | task + environment + trajectory | action/outcome/process signal | 学连续决策与任务完成 |
+| Pretraining | token sequence | next-token prediction | 世界与语言长什么样 |
+| Continued PT | domain sequence | domain token prediction | 专业分布怎么补 |
+| SFT | context + demo | imitation | 应该怎么响应 / 行动 |
+| Preference | candidates + relative label | comparison | 哪个行为更好 |
+| RM / Grader Training | candidates + score/ranking | learned evaluation | 怎样预测质量 |
+| RL | rollout + reward | outcome-conditioned policy update | 怎样提高长期行为 |
+| Process Supervision | state / step / transition | local feedback | 中间决策哪里错 |
+| Agent Training | task + environment + trajectory | action/outcome feedback | 怎样完成真实任务 |
+
+这张表是本章核心导航，不等于所有训练系统都必须按完全相同阶段实现。
 
 ---
 
-## 2.7 一个完整案例：教模型学会“查库存再回答”
+# 2.20 Data Mixture：这里只建立“曝光”概念
 
-假设目标能力是：
-
-> 用户问商品库存时，模型不能凭记忆猜，要调用库存工具并根据真实返回回答。
-
-### 只靠 Pretraining 会怎样？
-
-模型可能见过：
+一个训练 run 往往同时消费：
 
 ```text
-“某商品通常有库存……”
+General SFT
+Tool-use
+Recovery
+Reasoning
+Safety
+Domain Data
 ```
 
-于是它学会生成看起来合理的库存回答，但它并不知道当前真实库存。
-
-### 加 SFT
-
-训练示范：
+真正需要关注的是：
 
 ```text
-User:
-A100 显卡还有货吗？
-
-Assistant tool call:
-check_inventory(product="A100")
-
-Tool:
-{"stock": 3}
-
-Assistant:
-目前还有 3 件库存。
+Sample Share
+Token Share
+Training Exposure
+Loss Weight
 ```
 
-模型开始学会：
+而不是只报：
 
 ```text
-库存问题 → 调库存工具 → 基于 observation 回答
+“用了 100k Agent Data”
 ```
 
-### 再加入失败数据 / Preference
-
-候选 A：
-
-```text
-我猜应该还有货。
-```
-
-候选 B：
-
-```text
-先调用 check_inventory，再根据返回回答。
-```
-
-标签：
-
-```text
-B > A
-```
-
-模型进一步学到：
-
-> “直接猜”比“真实查询”差。
-
-### 再做 Agent rollout
-
-让当前模型自己处理 1 万个库存任务：
-
-```text
-成功
-漏调用工具
-参数错误
-调用后忽略 observation
-工具失败后仍声称成功
-```
-
-环境自动判定最终 answer 是否与 inventory state 一致。
-
-此时数据工作已经从：
-
-> 写标准答案
-
-升级成：
-
-> **构造任务 → 运行模型 → 收集轨迹 → 验证状态 → 分析失败 → 回流训练。**
-
-这就是后面 Agent Data Flywheel 的雏形。
+Mixture、Dedup、Weighting 的完整理论统一见第 20 章。
 
 ---
 
-## 2.8 一条训练数据到底“好不好”，看什么？
+# 2.21 Curriculum：顺序也是 Training Policy
 
-不能只问“有没有语法错误”。
-
-对于 SFT / Post-training Data，可以从以下维度检查：
-
-### Correctness
-
-答案、工具调用、状态变化是否真实正确？
-
-### Instruction Following
-
-是否真正满足用户所有显式约束？
-
-### Behavioral Validity
-
-这个行为是不是我们希望模型以后模仿的？
-
-例如一个答案事实正确，但先胡乱调用了 8 次无关工具，也不应作为理想 Agent demonstration。
-
-### Difficulty
-
-是不是模型已经 99.9% 都会了？如果是，新增 10 万条可能边际价值很低。
-
-### Diversity
-
-是否只是模板替换？
+即使使用同一批数据：
 
 ```text
-查询订单 1
-查询订单 2
-查询订单 3
-...
+Random Mix
+Easy → Hard
+Foundation → Frontier
+Dynamic Curriculum
 ```
 
-表面上有 1 万条，实际 decision pattern 只有一种。
+也可能产生不同学习结果。
 
-### Coverage
-
-是否覆盖真正重要的 failure mode？
-
-### Verifiability
-
-标签能否可靠验证？
-
-### Naturalness
-
-是否符合真实用户分布，而不是全是模型生成的“教科书式问题”？
-
-### Learning Value
-
-最终要问：
-
-> **这条数据加入训练后，是否有机会改变模型在目标能力上的行为？**
-
-这比“这条数据看起来不错”更重要。
+Curriculum 的 acquisition / frontier 逻辑见第 9 章；是否真的有效必须由第 21 章 Data Experiment 验证。
 
 ---
 
-## 2.9 常见失败模式
+# 2.22 Training Data 与 Evaluation Data 必须有目的边界
 
-### 失败 1：把所有“训练数据”都叫 SFT Data
-
-会混淆 demonstration、preference、reward、rollout 等完全不同的学习信号。
-
-### 失败 2：Teacher 越强，Synthetic Data 就一定越好
-
-Teacher 也会带来系统性偏差、风格单一和错误模式。强 teacher 不等于自动得到高价值 student data。
-
-### 失败 3：只看数据条数，不看 token 和 decision diversity
-
-Agent trajectory 往往很长，只看 sample count 容易误判实际训练权重；模板化 synthetic data 又可能造成“条数很多、决策模式很少”。
-
-### 失败 4：只做正例，不分析失败
-
-如果当前模型最常犯的是：
+训练资产用于：
 
 ```text
-漏工具调用
+改变模型
 ```
 
-但新增数据都只是普通高质量问答，那么数据并没有瞄准真正瓶颈。
-
-### 失败 5：训练集质量很好，但和线上分布不一致
-
-例如线上大量是模糊、多轮、短句、错别字、工具错误，而训练集全是标准单轮问题。
-
-### 失败 6：训练数据和 Eval 混在一起
-
-一旦 benchmark case 被有针对性地加入训练，再使用同一 benchmark 宣称能力提升，就可能把“泛化提升”和“记住测试集”混淆。
-
-### 失败 7：Data Mixture 没有版本记录
-
-如果最终只知道：
+Evaluation Asset 用于：
 
 ```text
-“我们加了一批代码数据，效果涨了。”
+测量模型
 ```
 
-却不知道：
+如果：
 
 ```text
-加了多少？
-哪些 source？
-多少 token？
-采样权重多少？
-过滤了什么？
-模型版本是什么？
+Hidden Eval Failure
+→ 原题直接进入训练
+→ 还用同一题证明 capability gain
 ```
 
-这个实验几乎无法复现，也无法沉淀为数据策略。
+就混淆了：
+
+```text
+case repair
+```
+
+和：
+
+```text
+generalization
+```
+
+Benchmark / contamination discipline 见第 16 / 19 章。
 
 ---
 
-## 2.10 从数据岗位视角，这一章对应哪些实际工作？
+# 2.23 一个 Inventory Agent 的阶段映射例子
 
-可能是：
+目标：让 Agent 正确处理“查实时库存”。
+
+### Pretraining
+
+学到：
 
 ```text
-抓取 / 接入原始语料
-清洗 HTML / 文档
-语言识别
-质量打分
-去重
-PII / safety filtering
-benchmark contamination 检查
-instruction taxonomy 设计
-SFT 样本生产
-teacher model 批量生成
-candidate filtering
-数据配比
-token 统计
-训练集版本管理
-训练前质量 audit
-训练后 capability regression analysis
+商品、库存、API 等一般语言与知识模式
 ```
 
-所以“做大模型数据”并不等于一个单独岗位动作，而是一整条从**数据来源 → 数据结构 → 学习信号 → 训练目标 → 效果验证**的链路。
+### SFT
+
+示范：
+
+```text
+需要实时信息时调用 inventory tool
+```
+
+### Preference
+
+比较：
+
+```text
+真实查询 > 凭记忆猜库存
+```
+
+### Agent Rollout / RL
+
+在环境中：
+
+```text
+query inventory
+→ observation
+→ answer / fallback
+```
+
+根据真实 outcome 提供 feedback。
+
+所以同一个 capability 会横跨多个阶段；每个阶段教的是不同层次。
 
 ---
 
-## 2.11 本章关键词
+# 2.24 常见失败模式
 
-| 术语 | 一句话理解 |
-|---|---|
-| Pretraining Data | 用于 next-token learning 的大规模原始语料 |
-| Self-supervised Learning | 监督信号从数据本身自动构造 |
-| Instruction Data | 显式描述“用户要求 → 期望响应”的数据 |
-| SFT | 用高质量 demonstration 让模型模仿目标行为 |
-| Continued Pretraining | 在目标领域语料上继续做语言模型训练 |
-| Post-training | 预训练之后用于塑造能力和行为的一系列训练阶段 |
-| Data Mixture | 多种数据源 / 能力数据的训练配比 |
-| Oversampling | 提高某类数据在训练中的采样权重 |
-| Curriculum | 按难度或能力阶段组织训练数据 |
-| Contamination | 测试信息泄漏进入训练数据 |
-| On-policy Rollout | 由当前策略自身生成训练经验 |
-| Verifiable Task | 结果可通过规则、执行或环境状态可靠验证的任务 |
+1. **Pretraining Data = 原始网页。** 忽略解析、过滤、分布设计。
+2. **有大量 QA 文本就不需要 Instruction Tuning。** 统计模式不等于稳定任务遵循。
+3. **SFT 成功样本全部值得模仿。** Outcome success 不等于 policy ideal。
+4. **Post-training = DPO。** 它远比 preference optimization 更宽。
+5. **Teacher 更强 = Synthetic 自动更好。** Teacher bias 仍会被复制。
+6. **On-policy / Off-policy 不区分。** 当前模型真实错误分布可能被错估。
+7. **数据量直接跨阶段比较。** 1B pretraining tokens 与 10k expert trajectories 不是同一量纲。
+8. **Sample count = exposure。** 长轨迹可能获得更多 token weight。
+9. **Mixture / curriculum 凭直觉。** 必须实验验证。
+10. **Training / Eval 边界模糊。** 容易产生 contamination 与过强 claim。
 
 ---
 
-## 2.12 面试 / 自检问题
+# 2.25 从数据岗位视角，本章实际在做什么？
 
-学完这一章至少应该能够回答：
-
-1. **Pretraining Data 和 SFT Data 的根本区别是什么？**
-2. **Instruction tuning 和 SFT 是完全同义的吗？**
-3. **为什么 SFT 通常不够，还需要 preference / reward？**
-4. **为什么 synthetic SFT data 不能 teacher 生成完直接用？**
-5. **为什么 Agent 数据不能只统计 sample 数？**
-6. **Data mixture 为什么会显著影响模型能力？**
-7. **什么是 contamination，它为什么会让 benchmark 失真？**
-8. **continued pretraining 和 SFT 分别适合解决什么问题？**
-9. **为什么 current-model rollout 对后训练数据特别重要？**
-10. **如果新增 10 万条数据模型没涨，你会从哪些角度排查？**
-
-第 10 题可以使用一个通用分析框架：
+典型工作包括：
 
 ```text
-数据真的正确吗？
-↓
-数据覆盖目标 failure 吗？
-↓
-数据对当前模型有难度吗？
-↓
-数据在 mixture 中权重够吗？
-↓
-监督信号和目标行为一致吗？
-↓
-训练是否真的消费了这些数据？
-↓
-Eval 是否能测到预期能力？
-↓
-是否发生其他能力 regression？
+判断数据属于什么 training purpose
+设计 instruction / SFT schema
+构建 teacher / human demo
+维护 role / formatting constraints
+区分 on-policy / off-policy rollout
+准备 preference / reward / process data
+规划 data mixture 的目标曝光
+维护 train / eval 边界
 ```
 
-这条链路以后会反复出现。
+真正成熟的判断不是：
+
+> “这是一批高质量数据。”
+
+而是：
+
+> **“它要在哪个训练阶段，以什么 learning signal，被当前模型怎样消费？”**
+
+---
+
+# 2.26 面试 / 自检问题
+
+1. Pretraining 与 SFT 的核心 learning signal 有什么区别？
+2. Continued Pretraining 与 SFT 怎样区分？
+3. Instruction Data 为什么不只是知识数据？
+4. Role / Format 为什么也属于模型输入分布？
+5. 什么样的成功 trajectory 不适合直接做 SFT？
+6. 为什么 `SFT Data ⊂ Post-training Data`？
+7. Preference / Reward / Process Data 分别解决什么？
+8. On-policy 与 Off-policy Data 有什么区别？
+9. 为什么 Verifiable Data 对规模化 Post-training 特别重要？
+10. Agent Training Data 为什么比 response data 更复杂？
+11. Sample Count 为什么不等于 Training Exposure？
+12. Mixture 与 Curriculum 有什么区别？
+13. 为什么 Training Data 与 Eval Data 必须隔离？
+14. 同一个 capability 为什么可能同时需要 SFT、Preference 和 RL？
+15. 如果模型会输出正确 Tool JSON 但实际任务仍经常失败，你会往哪个数据层继续查？
+
+---
+
+# 2.27 本章最终心智模型
+
+```text
+Pretraining
+学分布
+↓
+SFT
+学示范行为
+↓
+Preference / Reward
+学相对选择
+↓
+Process / Agent Data
+学 state-conditioned decision
+↓
+RL / Continued Improvement
+把 outcome 反馈到 policy
+```
+
+一句话：
+
+> **训练阶段的名字不是重点；重点是这批数据正在向模型提供什么 learning signal，以及它试图改变哪一层行为。**
+
+下一章第 3 章将专门进入：
+
+> **当一个“正确示范”不足以定义理想行为时，怎样用 Preference、Reward 与 Feedback 表达行为之间的相对优劣？**
