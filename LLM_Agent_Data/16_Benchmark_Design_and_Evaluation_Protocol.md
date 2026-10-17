@@ -1,125 +1,145 @@
-# 第 16 章 Benchmark Design 与 Evaluation Protocol：如何证明模型、Agent 或方法真的更好
+# 第 16 章 Benchmark Design 与 Evaluation Protocol：一个“更好”的结论到底怎样才成立
 
 > 所属体系：[`LLM_Agent_Data_Knowledge_System.md`](../LLM_Agent_Data_Knowledge_System.md)
 >
 > 前置章节：[`第 15 章 Grader、Verifier 与 LLM-as-a-Judge`](./15_Grader_Verifier_and_LLM_as_a_Judge.md)
 >
-> 关联章节：[`第 9 章 Hard Case Mining 与 Curriculum`](./09_Hard_Case_Mining_and_Curriculum.md)、[`第 10 章 Agent Task Design`](./10_Agent_Task_Design.md)、[`第 11 章 Environment Design`](./11_Environment_Design.md)、[`第 13 章 Task Success 与 Credit Assignment`](./13_Task_Success_and_Credit_Assignment.md)、[`第 14 章 Agent Failure Taxonomy`](./14_Agent_Failure_Taxonomy.md)
+> 关联章节：[`第 9 章 Hard Case Mining 与 Curriculum`](./09_Hard_Case_Mining_and_Curriculum.md)、[`第 10 章 Agent Task Design`](./10_Agent_Task_Design.md)、[`第 11 章 Environment Design`](./11_Environment_Design.md)、[`第 13 章 Task Success 与 Credit Assignment`](./13_Task_Success_and_Credit_Assignment.md)、[`第 14 章 Agent Failure Taxonomy`](./14_Agent_Failure_Taxonomy.md)、[`第 21 章 Data Experiments`](./21_Data_Experiments_and_Causal_Validation.md)、[`第 23 章 Monitoring 与 Drift`](./23_Data_Monitoring_Online_Feedback_and_Drift_Detection.md)
 >
-> 本章目标：建立一套完整的 Benchmark / Evaluation Protocol 设计框架，理解 Capability Taxonomy、Benchmark Scope、Sampling、Frozen Protocol、Matched / Paired Comparison、Repeated Runs、Confidence Interval、Pass@k、Success@Budget、Cost-aware Evaluation、Ablation、Regression Set、Contamination 与 Leaderboard Overfitting 等概念之间的关系。
+> 编辑基础设施：[`Canonical Glossary`](./00_Glossary_and_Notation.md) · [`Canonical Casebook`](./00_Canonical_Casebook.md)
 >
-> 本章核心问题：**评测的目标不是“跑一个分数”，而是在受控条件下回答一个清楚的科学或产品问题：到底是哪种能力发生了变化、变化有多大、是否稳定、代价是多少，以及这个结论在什么范围内成立。**
+> 本章定位：**Benchmark Object / Evaluation Protocol / Evaluation Run / Report、Population Accounting、Paired / Matched Comparison、Budget Matching、Statistics、Claim Scope 的 canonical chapter。**
+>
+> 本章核心问题：**评测不是“跑一个分数”，而是在受控条件下回答：测的到底是什么能力、对哪一群 case 成立、比较是否公平、提升是否稳定、代价是多少、退化发生在哪里，以及这些证据究竟允许我们把结论说到多大。**
 
 ---
 
-# 16.0 Benchmark 不是题库，Evaluation 也不是“跑一下”
+# 16.0 先把四个对象分开：Benchmark、Protocol、Run、Report
 
-最简单的评测看起来像：
+这四个词经常混用。
 
-```text
-Dataset
-↓
-Model A
-↓
-Accuracy = 72%
-```
+## Benchmark
 
-然后：
+> **被定义好的测量对象。**
+
+它包括：
 
 ```text
-Model B
-↓
-Accuracy = 75%
+Cases
+Capability / Slice Metadata
+Evaluation Targets
+Benchmark Version
 ```
 
-很容易得出：
-
-> Model B 更好。
-
-但真正严谨的问题至少包括：
+Agent Benchmark Case 通常还绑定：
 
 ```text
-两个模型是否使用了同样 prompt？
-解码参数是否一致？
-工具版本是否一致？
-环境是否 reset 到相同状态？
-Judge / Verifier 是否同版本？
-75% 比 72% 的差异是否稳定？
-提升集中在哪些 capability？
-是否牺牲了 cost / latency / safety？
-样本是否存在 contamination？
-是否只是对 benchmark 本身过拟合？
+Task Contract
+Environment Snapshot
+Toolset / Permission
+Success / Forbidden Predicates
 ```
-
-因此：
-
-> **Benchmark 是被定义好的测量对象，Evaluation Protocol 是规定“如何测”的实验协议。**
-
-可以画成：
-
-```mermaid
-flowchart LR
-    Q[Research / Product Question] --> C[Capability Definition]
-    C --> B[Benchmark Cases]
-    B --> P[Frozen Evaluation Protocol]
-    P --> R[Runs]
-    R --> G[Grader / Verifier]
-    G --> M[Metrics]
-    M --> A[Statistical / Failure Analysis]
-    A --> D[Decision / Conclusion]
-```
-
-如果其中任意一层定义模糊，最后的数字就很难解释。
 
 ---
 
-# 16.1 先定义 Evaluation Question
+## Evaluation Protocol
 
-一个好的 benchmark 应该先回答：
+> **规定 Benchmark 应怎样被运行、判分、聚合和比较的协议。**
+
+包括：
+
+```text
+Prompt / Runtime
+Generation Config
+Tool / Harness / Environment
+Budget / Stop Rules
+Evaluator
+Metric Definition
+Aggregation
+Seed Policy
+Inclusion / Exclusion Rules
+```
+
+---
+
+## Evaluation Run
+
+> **某个具体 Model / Method 在某个 Benchmark + Protocol 上的一次实际执行。**
+
+它产生：
+
+```text
+Raw Outputs
+Trajectories
+Per-case Evidence
+Labels
+Costs
+Runtime Logs
+```
+
+---
+
+## Evaluation Report
+
+> **把一组 Run 经过预先定义的统计与分析规则转成可解释结论。**
+
+所以：
+
+```text
+Benchmark
+≠ Protocol
+≠ Run
+≠ Report
+```
+
+这一点是后续所有复现与历史重算的基础。
+
+---
+
+# 16.1 先定义 Evaluation Question，不要先找 Dataset
+
+好的评测先问：
 
 > **我们到底想知道什么？**
 
-而不是先找一堆 dataset。
-
-例如下面几个问题完全不同：
+例如：
 
 ```text
-Q1：这个模型数学推理更强吗？
-Q2：这个 Agent 更会用工具吗？
-Q3：这个方法能否减少 harmful tool calls？
-Q4：增加 test-time compute 是否提高正确率？
-Q5：新的 routing policy 是否在相同预算下更优？
-Q6：某个 selector 能否把更好的 candidate 选出来？
+模型数学 reasoning 更强吗？
+Agent 更会处理 negative constraint 吗？
+新 policy 是否减少 harmful write？
+增加 test-time compute 是否值得？
+Selector 是否能在线识别更优 candidate？
+同预算下新方法是否更优？
 ```
 
-对应的 benchmark、protocol 和 metric 都不一样。
+这些问题对应完全不同的：
 
-所以第一步最好明确：
+```text
+Population
+Protocol
+Metric
+Budget
+Statistical Test
+Claim Scope
+```
+
+因此 Evaluation Question 至少明确：
 
 ```text
 Target Capability
-Intervention / Compared Systems
+Target Population
+Compared Systems / Intervention
 Primary Metric
-Secondary Metrics
+Secondary / Guardrail Metrics
 Budget Constraint
 Failure Cost
-Allowed Evidence
 Claim Scope
 ```
 
 ---
 
-# 16.2 Capability Taxonomy：先定义“测什么能力”
-
-Benchmark 最容易犯的错误之一，是：
-
-```text
-Dataset 名字
-=
-Capability 名字
-```
-
-例如：
+# 16.2 Capability Taxonomy：Dataset 名称不是能力名称
 
 ```text
 AIME
@@ -127,11 +147,9 @@ MATH
 LiveBench
 ```
 
-这些是 dataset / benchmark suite 名称，不是能力本身。
+是 benchmark / dataset 名称，不是 capability 本身。
 
-更好的做法是先建立 capability taxonomy。
-
-对于 Agent，可以例如拆成：
+Agent capability 可以拆：
 
 ```text
 Task Understanding
@@ -141,91 +159,75 @@ Tool Selection
 Argument Construction
 Observation Grounding
 State Tracking
-Memory Use
+Memory
 Recovery
 Verification
 Termination
-Safety / Permission Compliance
+Permission / Safety
 Final Communication
 ```
 
-然后一个 benchmark case 可以关联多个 capability。
+好的 taxonomy 应：
 
----
+```text
+可解释
+可操作
+能映射 failure taxonomy
+能映射 data strategy
+不过度绑定某一个 benchmark
+```
 
-## 16.2.1 Capability 不能定义得太宽
-
-例如：
+太宽的：
 
 ```text
 Agent Ability
 ```
 
-几乎无法诊断。
+缺乏诊断性。
 
-太细也会有问题：
-
-```text
-能否在某个特定 API 上正确填写第三个字段
-```
-
-可能缺乏泛化价值。
-
-比较好的 taxonomy 往往满足：
+太窄的：
 
 ```text
-可解释
-可覆盖
-可操作
-能映射到 failure / data strategy
-不过度依赖某个具体 benchmark
+某 API 第三个字段能否填对
 ```
+
+又缺乏迁移价值。
 
 ---
 
-# 16.3 Benchmark Scope：你打算声称多大的结论？
+# 16.3 Scope 与 Claim：评多少，就说多少
 
-如果只测：
-
-```text
-30 道数学题
-```
-
-就声称：
-
-```text
-“方法普遍提升 LLM reasoning”
-```
-
-结论通常过强。
-
-Benchmark Scope 至少应明确：
+Benchmark Scope 至少包括：
 
 ```text
 Domain
 Task Family
 Difficulty Range
 Language
-Tool / Environment Type
+Environment / Tool Type
 Model Family
 Budget Range
-Interaction Length
-Safety / Risk Level
+Interaction Horizon
+Risk Level
 ```
 
-更严谨的写法通常是：
+如果只测一个窄 cohort，就不应直接宣称：
 
-> 在当前模型、当前任务集合、当前预算和当前协议下，观察到……
+```text
+“普遍提升 Agent capability”
+```
 
-而不是轻易升级成：
+更严谨：
 
-> 普遍证明……
+> **在当前模型、任务 population、budget 与 frozen protocol 下，观察到……**
+
+所以 Claim Scope 是 Protocol 的一部分，不是论文写作最后才补的一句话。
 
 ---
 
-# 16.4 Benchmark Case 应该是什么？
+# 16.4 Benchmark Case：不是一个 Prompt String
 
-对于普通 QA：
+普通 QA Case 可能只有：
 
 ```text
 input
@@ -233,170 +235,100 @@ reference / verifier
 metadata
 ```
 
-对于 Agent，更完整的 case 应该接近：
+Agent Case 更接近：
 
 ```text
 Task Contract
 +
 Initial Environment Snapshot
 +
-Toolset / Permissions
+Agent-visible / Hidden Information
 +
-Success Predicates
+Toolset / Permission
 +
-Forbidden Side Effects
+Success / Forbidden / Invariant Predicates
 +
-Termination Rules
+Termination
 +
 Verifier
 +
 Metadata
 ```
 
-也就是：
+因此：
 
 ```text
-benchmark case
-≠
-prompt string
+Benchmark Case
+≠ Prompt
 ```
+
+它应该使用第 10 章的 canonical Case 定义。
 
 ---
 
-# 16.5 Sampling：Benchmark 中的样本从哪里来？
+# 16.5 Benchmark Set 的四种功能
 
-Benchmark 的代表性首先取决于 sampling。
+成熟体系通常同时需要：
 
-常见来源包括：
+## Representative Set
 
-```text
-真实用户日志
-公开 benchmark
-人工设计
-专家设计
-Synthetic generation
-Failure-driven mining
-Adversarial generation
-Counterfactual generation
-```
+近似目标总体分布，用于估计真实平均表现。
 
-每一种 sampling 都有偏差。
+## Challenge / Frontier Set
 
----
-
-## 16.5.1 Random Sampling
-
-优点：
-
-```text
-接近真实总体分布
-适合估计平均表现
-```
-
-缺点：
-
-如果简单 case 占 95%，那么：
-
-```text
-overall success rate
-```
-
-可能非常高，但真正重要的复杂能力没有被测到。
-
----
-
-## 16.5.2 Stratified Sampling
-
-按：
-
-```text
-Capability
-Task Family
-Difficulty
-Risk
-Language
-Tool Type
-```
-
-分层采样。
-
-优点是 coverage 更好。
-
-但最后总体指标是否需要重新按真实分布加权，要单独决定。
-
----
-
-## 16.5.3 Challenge Set
-
-专门收集：
-
-```text
-Hard Cases
-Known Failures
-Boundary Cases
-High-risk Cases
-```
-
-它适合测 capability frontier 和 regression，
-
-但不适合直接当真实总体成功率。
-
-所以：
-
-> **Challenge-set performance ≠ Population performance。**
-
----
-
-# 16.6 Test Set 与 Regression Set 不完全一样
-
-## Test Set
-
-用于估计模型 / 方法在某个目标分布上的能力。
+集中于难例、边界、高价值 capability gap。
 
 ## Regression Set
 
-用于保证：
+确保历史修过的问题不再复发。
+
+## Safety / High-risk Set
+
+集中检查低频但高严重度 failure。
+
+所以：
 
 ```text
-过去修好的问题
-不能再次坏掉
+Challenge Performance
+≠ Population Performance
 ```
 
-Regression set 往往故意集中于：
+也不能用 Regression Set 的比例直接解释线上成功率。
+
+---
+
+# 16.6 Sampling：样本从哪里来，结论就带有什么偏差
+
+来源：
 
 ```text
-historical failures
-high-severity cases
-critical workflows
+Random Production Logs
+Stratified Sampling
+Human / Expert Design
+Synthetic Generation
+Failure Mining
+Adversarial Generation
+Counterfactual Generation
 ```
 
-因此它不一定具有总体代表性。
+Random Sampling 更接近真实 traffic，但容易被大量简单 case 淹没。
 
-一个成熟系统通常同时维护：
+Stratified Sampling 提高 coverage，但若要恢复真实总体指标，可能需要按 reference distribution 重新加权。
+
+Challenge Sampling 适合 frontier，不适合估算 overall population success。
+
+所以 Benchmark Report 应说明：
 
 ```text
-Representative Test Set
-+
-Capability Challenge Set
-+
-Regression Set
-+
-Safety / High-risk Set
+Sampling Frame
+Sampling Policy
+Weights if any
+Selection Bias
 ```
 
 ---
 
-# 16.7 Train / Dev / Test：Agent 场景下怎么切才不泄漏？
-
-普通随机拆分：
-
-```text
-80% train
-10% dev
-10% test
-```
-
-对于 Agent 往往远远不够。
+# 16.7 Split：Agent 场景不能只做随机 Row Split
 
 如果：
 
@@ -409,664 +341,182 @@ Test:
 取消订单 9999
 ```
 
-只是实体 ID 变化。
+很可能只是 surface change。
 
-真正的 workflow 没有变化。
-
-因此可以考虑按：
+更可靠的 holdout 可以按：
 
 ```text
-Task Family
-Workflow
-Tool Combination
-Constraint Pattern
-Environment Layout
-Capability
-Failure Mode
-Domain
+family_id
+workflow_id
+seed_id
+tool combination
+constraint pattern
+environment layout
+failure mode
+domain
 ```
 
-做 group holdout。
+做 group split。
+
+同一个 synthetic seed / workflow 派生出的 sibling cases 应尽量整体分组，避免 family leakage。
 
 ---
 
-# 16.8 Contamination：测试题被模型见过怎么办？
+# 16.8 Contamination 与 Leakage
 
-Benchmark contamination 可能来自：
+至少区分：
 
 ```text
-Pretraining Exposure
-Fine-tuning Exposure
-Prompt Template Leakage
-Reference Leakage
-Synthetic Near-duplicate
-Public Leaderboard Iteration
-Agent Memory Contamination
+Train / Pretraining Contamination
+Near-duplicate Exposure
+Solution / Reference Exposure
+Workflow / Family Leakage
+Leaderboard Overfitting
+Verifier Leakage
+Agent Memory Leakage
 ```
 
-常见检测包括：
+Verifier Leakage 指运行时把：
 
 ```text
-Exact Match
-Near-duplicate Search
-Embedding Similarity
-Template Similarity
-Entity-swapped Duplicate Detection
-```
-
-但 contamination 很难被完全证明“没有”。
-
-因此更实用的是：
-
-```text
-控制可控的泄漏
-记录可能的暴露风险
-使用动态 / private / held-out benchmark
-```
-
----
-
-# 16.9 Benchmark Leakage 与 Verifier Leakage 要区分
-
-## Benchmark Leakage
-
-模型提前见过任务 / 答案模式。
-
-## Verifier Leakage
-
-模型在运行时直接获得：
-
-```text
-hidden answer
 hidden tests
-expected state
+gold state
 future outcome
+oracle action
 ```
 
-两者都会让评测失效，但发生位置不同。
+泄漏给 policy。
 
-特别是 Agent 环境必须明确：
+这与训练前 benchmark contamination 是不同位置的问题。
 
-```text
-Agent-visible State
-vs
-Evaluator-only State
-```
+完整 evaluator-only evidence boundary 见第 15 章。
 
 ---
 
-# 16.10 Frozen Protocol：评测首先要冻结什么？
+# 16.9 Evaluation Contract：真正要冻结的是什么？
 
-如果要比较两个系统，必须尽量保证除被比较变量外其他条件一致。
-
-典型需要冻结：
+可以把协议写成一个显式 Contract：
 
 ```text
-Dataset / Case Version
-Prompt
-Model Version
+Benchmark Version
+Case Manifest
+Inclusion / Exclusion Rule
+Model / Checkpoint
+Prompt / System / Template
 Tokenizer
-Generation Config
-Random Seed Policy
-Toolset
-Tool Schemas
+Decoding / Sampling Config
+Seed Policy
+Toolset / Schema
 Harness
-Environment Snapshot
-Timeout
-Max Steps
+Environment Snapshot / Clock
 Budget
-Judge / Verifier
-Metric Definition
-Post-processing
-```
-
-可以形式化成：
-
-```text
-Protocol =
-Inputs
-+
-Runtime
-+
-Decision Rules
-+
-Evaluation Rules
-```
-
-然后版本化：
-
-```text
-protocol_v1
-protocol_v2
-```
-
----
-
-## 16.10.1 为什么 Frozen Protocol 很重要？
-
-假设方法 B 比 A 高 3%。
-
-但同时：
-
-```text
-Prompt 变了
-Judge 变了
-Tool timeout 变了
-Generation temperature 也变了
-```
-
-那么：
-
-```text
-+3%
-```
-
-根本无法归因。
-
-所以实验设计的核心之一是：
-
-> **只改变你想研究的那个变量。**
-
----
-
-# 16.11 Paired / Matched Comparison：同题比较通常比独立总体比较更强
-
-如果 Model A 和 B 都跑同一批 case，应该优先使用 paired analysis。
-
-对于二元结果，可以得到：
-
-```text
-A correct, B correct
-A correct, B wrong
-A wrong, B correct
-A wrong, B wrong
-```
-
-真正最有信息的是两个 discordant cell：
-
-```text
-A→B improvement
-B→A regression
+Stop / Timeout
+Evaluator / Rubric / Verifier
+Metric Definitions
+Aggregation Rules
+Population Denominators
+Reporting Schema
 ```
 
 即：
 
 ```text
-Wrong → Right
-Right → Wrong
+Evaluation Contract
+=
+Benchmark
++
+Runtime
++
+Budget
++
+Measurement
++
+Reporting Semantics
 ```
 
-这比只报告：
-
-```text
-A = 72%
-B = 75%
-```
-
-更有解释力。
+如果其中一项改变，至少应该产生新的 protocol / run version，而不是悄悄覆盖旧结果。
 
 ---
 
-## 16.11.1 Matched Comparison 的价值
+# 16.10 Frozen Protocol：只改变你真的想研究的变量
 
-Matched comparison 尽量固定：
+例如比较：
 
 ```text
-同一 Task
-同一 Initial State
-同一 Prefix / Agent State
-同一 Environment Snapshot
+Baseline
+vs
+New Selector
+```
+
+就应尽量保持：
+
+```text
+same model
+same prompt
+same candidate generator
+same toolset
+same environment
+same budget semantics
+same evaluator
 ```
 
 只改变：
 
 ```text
-Policy / Candidate / Intervention
+selector
 ```
 
-这样 outcome 差异更容易归因。
+如果 Prompt、Judge、Temperature、Tool timeout 同时都变了，最终 delta 无法归因。
+
+所以：
+
+> **Frozen Protocol 是“可解释差异”的前提。**
 
 ---
 
-# 16.12 Intervention Evaluation：Rescue / Harmful / Neutral
+# 16.11 Population Accounting：先回答“这 80% 到底是谁的 80%？”
 
-对于一个 intervention，可以把 case 分成：
+Routing / Trigger / Abstention 系统尤其容易分母混乱。
 
-```text
-Baseline Fail → Intervention Success
-= Rescue
-
-Baseline Success → Intervention Fail
-= Harmful
-
-Baseline Success → Intervention Success
-= Neutral-positive
-
-Baseline Fail → Intervention Fail
-= Neutral-negative
-```
-
-核心量：
-
-$$
-Net = Rescue - Harmful
-$$
-
-也可以看：
+建议显式区分：
 
 ```text
-Replacement Rate
-Coverage
-Rescue Precision
-Harmful Rate
-Conditional Gain
-```
-
-如果一个方法：
-
-```text
-Rescue = 10
-Harmful = 9
-```
-
-和：
-
-```text
-Rescue = 10
-Harmful = 1
-```
-
-虽然 rescue 数一样，价值完全不同。
-
----
-
-# 16.13 Trigger / Generator / Selector 要分别评价
-
-对于 candidate-based intervention：
-
-```text
-State
+Full Population
 ↓
-Trigger
+Eligible Population
 ↓
-Candidate Generation
+Screened Population
 ↓
-Candidate Scoring
+Triggered Population
 ↓
-Selection
+Intervened Population
 ↓
-Outcome
+Resolved Population
 ```
 
-应该拆开评价：
-
-```text
-Trigger Quality
-Candidate Oracle
-Selector Quality
-End-to-end Net Gain
-Compute Cost
-```
+具体系统不一定全部有这些层，但只要存在，就应分别记录。
 
 例如：
 
 ```text
-Oracle@N 很低
+Trigger Rate
+= Triggered / Screened
 ```
-
-说明 generation 没找到好 candidate。
 
 而：
 
 ```text
-Oracle@N 很高
-实际 selection 很差
+End-to-end Success
+= Successful Final Outcomes / Full Population
 ```
 
-说明 selector 是瓶颈。
-
-不能把所有失败都叫：
-
-```text
-method failure
-```
+不能把 triggered-only success 冒充 full-population success。
 
 ---
 
-# 16.14 Oracle Analysis：先看理论可得上限
+## 16.11.1 Denominator Discipline
 
-如果从 N 个候选里只要有一个正确就算 oracle success：
-
-```text
-Oracle@N
-```
-
-可以回答：
-
-> 当前 candidate generator 给 selector 留了多大的上限？
-
-这对于 Best-of-N / Search / Agent Branching 非常重要。
-
-如果：
-
-```text
-Oracle@8 = 91%
-Selected@8 = 68%
-```
-
-那么很明显：
-
-```text
-Selection Gap = 23 points
-```
-
-而不是 generator 的问题。
-
----
-
-# 16.15 Repeated Runs：有随机性的系统不能只跑一次
-
-如果系统存在：
-
-```text
-sampling
-stochastic tools
-non-deterministic environment
-LLM Judge variance
-```
-
-一次 run 只是一个 realization。
-
-应该考虑：
-
-```text
-multiple seeds
-multiple rollouts
-multiple judge runs
-```
-
-但注意：
-
-> 多跑几次不是为了“挑最好的一次”，而是估计 variance。
-
----
-
-# 16.16 Confidence Interval：不要只报告点估计
-
-例如：
-
-```text
-success rate = 73.2%
-```
-
-更完整的是：
-
-```text
-73.2% ± uncertainty
-```
-
-可以使用：
-
-```text
-Binomial confidence interval
-Bootstrap confidence interval
-Paired bootstrap
-```
-
-具体方法取决于 metric 和实验结构。
-
-尤其当：
-
-```text
-N 很小
-```
-
-例如 AIME 只有几十题时，单题变化就会造成较大百分比波动。
-
-所以小样本 benchmark 更需要：
-
-```text
-raw count
-+
-percentage
-+
-uncertainty
-```
-
-一起报告。
-
----
-
-# 16.17 Statistical Significance ≠ Practical Significance
-
-即使：
-
-```text
-p < 0.05
-```
-
-也不意味着提升一定值得上线。
-
-还需要问：
-
-```text
-Effect Size 多大？
-额外成本多少？
-有没有严重 regression？
-提升是否集中在重要 task？
-```
-
-例如：
-
-```text
-+0.3% accuracy
-+300% compute
-```
-
-可能并不值得。
-
-所以最终应该看：
-
-```text
-Statistical Evidence
-+
-Effect Size
-+
-Cost
-+
-Risk
-+
-Business / Scientific Relevance
-```
-
----
-
-# 16.18 Pass@k：为什么和 Accuracy 不一样？
-
-如果对一个 task 采样 k 次，只要其中一次正确就算成功：
-
-```text
-Pass@k
-```
-
-它回答的是：
-
-> 给模型 k 次机会，它至少生成一个正确解的概率有多大？
-
-这和：
-
-```text
-单次 greedy accuracy
-```
-
-是完全不同的能力定义。
-
-因此报告时必须明确：
-
-```text
-Greedy
-Single-sample
-Best-of-N
-Pass@k
-Self-consistency
-```
-
-不能混在同一列里直接比较。
-
----
-
-# 16.19 Success@Budget：对 Agent / Test-time Compute 更合理的指标
-
-很多方法通过增加 compute 提升表现。
-
-那么更合理的问题是：
-
-> 在相同预算下，谁更好？
-
-可以定义：
-
-```text
-Success@TokenBudget
-Success@ToolBudget
-Success@LatencyBudget
-Success@DollarBudget
-```
-
-例如：
-
-```text
-Model A
-75% success
-2k tokens
-
-Model B
-78% success
-20k tokens
-```
-
-如果实际产品只能接受 4k tokens，B 的 78% 就不是可部署表现。
-
----
-
-# 16.20 Cost-aware Evaluation：质量与成本必须一起画
-
-常见成本维度：
-
-```text
-Input Tokens
-Output Tokens
-Reasoning Tokens
-Tool Calls
-Search Calls
-Wall-clock Latency
-GPU Time
-API Cost
-Human Review Cost
-```
-
-最终可以看：
-
-```text
-Quality vs Cost Curve
-```
-
-而不是一个孤立分数。
-
----
-
-## 16.20.1 Pareto Frontier
-
-如果：
-
-```text
-System A
-quality = 75
-cost = 10
-
-System B
-quality = 76
-cost = 100
-
-System C
-quality = 76
-cost = 20
-```
-
-B 被 C 支配。
-
-真正值得比较的是：
-
-> **Pareto frontier 上的系统。**
-
-这对 test-time compute、Agent planning depth、Best-of-N 特别重要。
-
----
-
-# 16.21 Average Cost 与 Conditional Cost 要区分
-
-一个按需触发的方法可能：
-
-```text
-大多数 case 不触发
-少数 case 很贵
-```
-
-只报告 triggered case cost 会夸大整体成本，
-
-只报告全体平均又可能掩盖局部高开销。
-
-所以最好同时报告：
-
-```text
-Overall Average Cost
-Triggered-case Cost
-Non-triggered Cost
-Trigger Rate
-P50 / P95 Cost
-```
-
----
-
-# 16.22 Coverage：不是所有方法都对所有 case 动手
-
-Routing / Abstention / Intervention 方法经常只覆盖部分样本。
-
-需要区分：
-
-```text
-Total Population
-Eligible Population
-Triggered Population
-Intervened Population
-Successfully Resolved Population
-```
-
-否则很容易出现分母混乱。
-
-例如：
-
-```text
-“方法在 80% case 上成功”
-```
-
-到底指：
-
-```text
-全部 case？
-triggered case？
-intervened case？
-有 candidate 的 case？
-```
-
-必须写清楚。
-
----
-
-# 16.23 Denominator Discipline：所有百分比都要问“分母是谁？”
-
-这是 benchmark 报告里极其重要的纪律。
-
-每个指标都最好能回答：
+每一个百分比最好都能回答：
 
 ```text
 Numerator
@@ -1078,511 +528,438 @@ Exclusion Rule
 例如：
 
 ```text
-Trigger Rate = triggered / all screened
+Replacement Precision
+= beneficial replacements / all replacements
 
-Rescue Rate = rescues / baseline failures eligible for intervention
-
-Replacement Precision = beneficial replacements / all replacements
+Rescue Opportunity Rate
+= baseline-failure cases with a rescuing candidate
+  / eligible baseline-failure cases
 ```
 
-如果分母不一致，不同表格里的百分比很容易产生错误解读。
+如果 denominator 口径不一致，不同表格里的“率”无法直接比较。
 
 ---
 
-# 16.24 Per-task / Per-domain Breakdown：平均分会掩盖异质性
+# 16.12 Paired Comparison：同一个 Case 上的变化最有信息量
 
-总体：
-
-```text
-+2.1%
-```
-
-可能来自：
+两个系统都跑同一批 Case，可构造：
 
 ```text
-Math +8%
-Code +4%
-Agent -3%
-Safety -5%
+A correct, B correct
+A correct, B wrong
+A wrong, B correct
+A wrong, B wrong
 ```
 
-所以必须做：
+真正有信息的是 discordant cells：
 
 ```text
-Task Family Breakdown
-Capability Breakdown
-Difficulty Breakdown
-Failure-type Breakdown
-Risk-level Breakdown
+Wrong → Right
+Right → Wrong
 ```
 
-平均表现只是第一层。
+相比只看：
+
+```text
+A = 72%
+B = 75%
+```
+
+paired transition 能告诉我们：
+
+```text
+谁被 repair 了？
+谁被 degrade 了？
+净变化来自哪里？
+```
 
 ---
 
-# 16.25 Micro Average、Macro Average 与 Weighted Average
+# 16.13 Matched Comparison：把非研究变量尽量控制住
 
-如果不同 dataset 大小差异很大：
-
-```text
-Dataset A: 1000 cases
-Dataset B: 30 cases
-```
-
-直接合并所有样本是：
+不仅 case 要相同，还可以进一步匹配：
 
 ```text
-Micro Average
+same Task
+same Initial State
+same Environment Snapshot
+same Reasoning Prefix / Agent State
+same Budget
+same Candidate Count
 ```
 
-两个 dataset 各自算分后平均是：
+只改变：
 
 ```text
-Macro Average
+Policy / Action / Intervention
 ```
 
-按真实业务流量权重则是：
+这让局部差异更容易解释。
 
-```text
-Weighted Average
-```
-
-三者回答的问题不同。
-
-必须明确采用哪一种。
+Reasoning same-prefix 与 Agent same-state counterfactual 都属于这一思想。
 
 ---
 
-# 16.26 Ablation：到底是哪一部分起作用？
+# 16.14 Rescue / Harmful / Neutral：本章只负责测量，不重新定义
 
-完整方法：
+第 4 / 13 章已定义：
 
 ```text
+Baseline Fail → Intervention Success = Rescue
+Baseline Success → Intervention Fail = Harmful
+Both Success = Neutral-positive
+Both Fail = Neutral-negative
+```
+
+本章重点是**如何报告**：
+
+```text
+Rescue Count / Rate
+Harmful Count / Rate
+Net Correct Change
+Coverage
+Intervention Rate
+Conditional Gain
+```
+
+若 Rescue / Harmful 以同一 full-population denominator 计 rate，则：
+
+```text
+Accuracy Delta
+=
+Rescue Rate - Harmful Rate
+```
+
+若分母不同，则不能机械相减。
+
+因此 `Net` 必须同时写清 numerator 与 denominator。
+
+---
+
+# 16.15 Trigger / Generator / Selector / E2E 必须拆开
+
+Candidate-based system：
+
+```text
+State
+↓
 Trigger
-+
-Candidate Generation
-+
-Selector
-+
-Verifier
-```
-
-如果比 baseline 高，仍然不知道：
-
-```text
-究竟是谁贡献了提升？
-```
-
-因此 ablation 可以移除：
-
-```text
-No Trigger
-No Selector
-Random Selector
-Greedy-only
-Different Candidate Count
-Different Score
-No Verification
-```
-
-核心是回答：
-
-> **必要组件是什么？贡献来自哪里？**
-
----
-
-# 16.27 Control Group：很多“看起来有效”的方法其实缺少正确对照
-
-例如方法用了：
-
-```text
-更多 token
-更多 candidate
-更多 tool calls
-```
-
-那么 baseline 也应该考虑：
-
-```text
-等 token budget
-等 candidate count
-等 tool-call budget
-```
-
-否则提升可能只是：
-
-> 用了更多计算。
-
-而不是方法本身更聪明。
-
----
-
-# 16.28 Strong Baseline：Baseline 太弱，结论也弱
-
-一个新方法如果只比较：
-
-```text
-弱 prompt
-随机策略
-```
-
-即使提升很大，也难说明真正价值。
-
-应该尽量包含：
-
-```text
-Greedy Baseline
-Reasonable Sampling Baseline
-Best-known Simple Heuristic
-Budget-matched Baseline
-Ablation Baseline
-```
-
-Baseline 的目的不是“让新方法赢”，而是判断：
-
-> 新方法有没有超出简单替代方案。
-
----
-
-# 16.29 Negative Result 也需要 Protocol
-
-如果某方法没有提升，不能马上说：
-
-```text
-“这个方向没用”
-```
-
-要检查：
-
-```text
-Candidate Oracle 是否足够高？
-样本量是否有 power？
-Metric 是否对应目标？
-Implementation 是否正确？
-Selector 是否真的看到所需信息？
-Protocol 是否过窄？
-```
-
-因此更严谨的结论通常是：
-
-> 在当前数据、当前表示、当前样本量和当前 protocol 下，没有观察到稳定收益。
-
-而不是：
-
-> 这种 signal 不存在。
-
----
-
-# 16.30 Corrected Labels：标签修正后怎么处理历史实验？
-
-如果历史 policy / selector 已经产生固定 decision：
-
-```text
-Decision_old
-```
-
-后来发现：
-
-```text
-Gold Labels_old
-```
-
-部分错误，得到：
-
-```text
-Gold Labels_corrected
-```
-
-正确做法是：
-
-```text
-冻结 Decision_old
 ↓
-用 corrected labels 重新计分
-```
-
-而不是：
-
-```text
-用新标签重训 / 重选
+Candidate Generator
 ↓
-再把结果当历史实验
-```
-
-所以要区分：
-
-```text
-Decision Freeze
-Evaluation Update
-Policy Re-execution
-```
-
-三件事。
-
----
-
-# 16.31 Evaluation Artifact Lineage：一个分数应该能追溯到什么？
-
-每个最终 metric 最好能追溯到：
-
-```text
-Dataset Version
-Case IDs
-Protocol Version
-Model Version
-Prompt Version
-Harness Version
-Environment Version
-Verifier / Judge Version
-Raw Outputs
-Per-case Labels
-Aggregation Script
-Metric Definition
-```
-
-这就是 evaluation lineage。
-
-如果只有：
-
-```text
-accuracy = 76.2%
-```
-
-没有对应 artifact，后续几乎无法审计。
-
----
-
-# 16.32 Leaderboard Overfitting：反复调 benchmark 也会过拟合
-
-即使模型没有直接训练测试集，团队也可能：
-
-```text
-反复看 leaderboard
+Candidate Evaluator / Selector
 ↓
-针对 benchmark 调 prompt / policy
+Commit
 ↓
-再看 leaderboard
-↓
-继续调
+Outcome
 ```
 
-久而久之：
+至少分别看：
 
 ```text
-benchmark
+Trigger Coverage / Precision-like Utility
+Candidate Oracle / Outcome Discordance
+Selector Accuracy / Regret / Abstention
+End-to-end Rescue / Harmful / Net
+Compute Cost
 ```
 
-已经变成隐式 dev set。
-
-这就是 leaderboard overfitting。
-
-缓解方法包括：
+如果 Oracle 很低：
 
 ```text
-private test
-rotating test
-hidden benchmark
-fresh task generation
-limited evaluation frequency
+generator / action space 是瓶颈
+```
+
+如果 Oracle 高但 actual selection 差：
+
+```text
+selectability / selector 是瓶颈
+```
+
+不能把所有失败压成：
+
+```text
+“method 不行”
 ```
 
 ---
 
-# 16.33 Benchmark Saturation：分数太高以后还测得到东西吗？
+# 16.16 Oracle Analysis：上限是什么？
+
+例如：
+
+```text
+Oracle@N
+= N 个候选中至少存在一个成功候选的 Case 比例
+```
+
+它回答：
+
+> **当前 Candidate Pool 给在线 Selector 留了多大可能空间？**
 
 如果：
 
 ```text
-所有强模型都 97–99%
+Oracle@8 = high
+Selected@8 = low
 ```
 
-benchmark 对新模型已经缺乏区分力。
+说明存在明显 Selection Gap。
 
-此时需要：
-
-```text
-harder cases
-new capability slices
-adversarial tasks
-longer horizon
-higher-risk constraints
-```
-
-但不能简单地“把题变怪”。
-
-新的 hard cases 仍然应该对应真实 capability gap。
+但 Oracle 是 offline upper bound，不是 online achievable result；不能把未来 outcome information 偷渡到真实 selector。
 
 ---
 
-# 16.34 Dynamic Benchmark：为什么 Agent 更需要动态测试？
+# 16.17 Budget Matching：提升是方法带来的，还是“多花钱”带来的？
 
-Agent 的外部世界变化很快：
-
-```text
-Websites change
-APIs change
-Tools change
-Policies change
-```
-
-因此静态 benchmark 很容易老化。
-
-动态 benchmark 可以：
+如果 Method 比 Baseline 多用：
 
 ```text
-refresh entities
-refresh environment state
-regenerate task instances
-rotate hidden tests
+10× tokens
+8 candidates
+更多 tool calls
+更长 latency
 ```
 
-但同时必须保持：
+那么只比较 final accuracy 不公平。
+
+需要根据研究问题设计：
 
 ```text
-difficulty comparability
-capability coverage
-verifier stability
+Token-matched Baseline
+Compute-matched Baseline
+Candidate-count-matched Baseline
+Tool-call-matched Baseline
+Latency-constrained Comparison
 ```
 
-否则“每次题都不一样”会让纵向比较失去意义。
+有时应该同时报告：
+
+```text
+Unmatched Practical Result
++
+Budget-matched Scientific Comparison
+```
+
+因为两者回答不同问题。
 
 ---
 
-# 16.35 Online Eval 与 Offline Eval
+# 16.18 Success@Budget 与 Pareto Frontier
 
-## Offline Eval
-
-优点：
+对 test-time compute / Agent 系统更合理的问题常是：
 
 ```text
-可重复
-便于回放
-风险低
+Success@TokenBudget
+Success@ToolBudget
+Success@LatencyBudget
+Success@DollarBudget
 ```
 
-## Online Eval
-
-可以看到：
+一个系统：
 
 ```text
-真实用户分布
-真实工具噪声
-真实长尾问题
+78% success @ 20k tokens
 ```
 
-但有：
+不一定比：
 
 ```text
-安全风险
-用户成本
-环境漂移
-难以复现
+76% success @ 3k tokens
 ```
 
-成熟系统通常是：
+更适合产品。
+
+因此需要看：
 
 ```text
-Offline Benchmark
-↓
-Canary / Shadow Eval
-↓
-Limited Online Rollout
-↓
-Production Monitoring
+Quality–Cost Curve
+Pareto Frontier
 ```
+
+如果一个系统在质量不高、成本又更大，则被另一个系统 dominated。
 
 ---
 
-# 16.36 Shadow Evaluation：上线前先“旁路观察”
+# 16.19 Average Cost 与 Conditional Cost
 
-一种实用做法是：
-
-```text
-真实请求
-↓
-Production Policy 真执行
-↓
-Candidate Policy 只做 shadow decision
-↓
-不产生真实 side effect
-```
-
-这样可以比较：
+按需触发方法经常：
 
 ```text
-decision difference
-predicted quality
-cost
-risk
+多数 Case 便宜
+少数 Triggered Case 很贵
 ```
 
-而不直接让新 policy 控制生产环境。
+因此同时报告：
+
+```text
+Overall Mean / Median Cost
+Triggered-case Cost
+Non-triggered Cost
+P90 / P95 Cost
+Trigger Rate
+```
+
+只报其中一层都可能误导。
 
 ---
 
-# 16.37 Safety-critical Benchmark：不能只看平均成功率
+# 16.20 Repeated Runs：随机系统不能只跑一次
 
-高风险任务需要单独指标：
-
-```text
-Unauthorized Action Rate
-Irreversible Harm Rate
-Privacy Violation Rate
-Policy Violation Rate
-Hallucinated Success Rate
-Safe Abort Rate
-Escalation Quality
-```
-
-因为：
+随机性可能来自：
 
 ```text
-99% overall success
+model sampling
+tool stochasticity
+environment randomness
+judge randomness
 ```
 
-如果剩余 1% 全是高严重度错误，仍然不可接受。
+重复运行用于估计 variance，不是为了挑最漂亮的一次。
+
+需要区分：
+
+```text
+Train Seed
+Inference Seed
+Environment Seed
+Judge Seed
+```
+
+如果研究成本很高，可以采用：
+
+```text
+cheap single-run exploration
+↓
+promising configurations
+↓
+multi-seed confirmatory run
+```
+
+完整数据实验阶段策略见第 21 章。
 
 ---
 
-# 16.38 Calibration：模型知道自己什么时候不会吗？
+# 16.21 Statistical Uncertainty：点估计不是完整结论
 
-对于可以 abstain / escalate 的系统，还要评：
+报告：
 
 ```text
-Confidence
-vs
-Actual Correctness
+Accuracy = 73.2%
 ```
 
-以及：
+至少还要考虑：
 
 ```text
-Selective Accuracy
-Coverage
-Risk-Coverage Curve
+N
+Raw Correct Count
+Confidence Interval / Bootstrap Interval
+Paired Structure
+Repeated-case Dependency
+```
+
+常见工具：
+
+```text
+Binomial CI
+Bootstrap
+Paired Bootstrap
+McNemar-style paired binary comparison
+Cluster / Hierarchical Bootstrap
+```
+
+方法取决于数据结构。
+
+如果一个 Case 产生多个 sibling trajectories，它们通常不是独立样本；把所有 row 当 IID 会低估 uncertainty。
+
+---
+
+# 16.22 Effect Size > 单独盯 p-value
+
+统计显著不等于实践值得。
+
+还要问：
+
+```text
+Effect Size
+Confidence Interval
+Cost
+High-severity Regression
+Target-slice Gain
+Operational Relevance
 ```
 
 例如：
 
 ```text
-只处理 70% case
-但 accuracy = 99%
++0.3pt
+但 compute +300%
 ```
 
-和：
+可能没有部署价值。
 
-```text
-处理 100%
-accuracy = 90%
-```
+所以：
 
-取决于产品目标，可能有不同价值。
+> **CI + Effect Size + Cost + Risk，比一个孤立 p-value 更接近真实决策。**
 
 ---
 
-# 16.39 Selective Prediction：Coverage 和 Risk 要一起看
+# 16.23 Multiple Comparison 与 Winner’s Curse
 
-如果系统可以：
+如果你尝试：
+
+```text
+30 个 threshold
+20 个 mixture
+10 个 prompt
+```
+
+然后只报告最高的一个，很容易选中偶然赢家。
+
+应考虑：
+
+```text
+predefined primary metric
+exploratory vs confirmatory split
+held-out confirmation
+multiple-comparison awareness
+```
+
+不要在同一个 dev set 上：
+
+```text
+选配置
++
+宣布最终结论
+```
+
+这会把 benchmark 变成 optimization target。
+
+---
+
+# 16.24 Pass@k 与 Single-run Accuracy
+
+```text
+Greedy Accuracy
+Single-sample Accuracy
+Pass@k
+Best-of-N
+Self-consistency
+```
+
+测的不是同一件事。
+
+Pass@k 回答：
+
+> 给 k 次生成机会，至少一次成功的概率有多大？
+
+它更接近“候选产生能力”，不能直接和 greedy 单次成功率放同一口径下解释为等价系统性能。
+
+---
+
+# 16.25 Selective Prediction：Coverage 与 Risk 要一起看
+
+系统如果可以：
 
 ```text
 Answer
@@ -1590,611 +967,746 @@ Abstain
 Escalate
 ```
 
-那么一个重要关系是：
+就不能只报被处理样本里的高 accuracy。
+
+至少看：
+
+```text
+Coverage
+Success@Coverage
+Risk@Coverage
+Abstention / Escalation Rate
+```
+
+常见关系：
 
 ```text
 Coverage ↑
-通常 Risk ↑
+Risk 通常也 ↑
 ```
 
-可以画：
-
-```text
-Risk-Coverage Curve
-```
-
-看在不同 coverage 下的错误率。
-
-这比一个固定 threshold 的单点更完整。
+因此 Risk–Coverage Curve 比单个 threshold 更完整。
 
 ---
 
-# 16.40 Benchmark Report 最少应该包含什么？
+# 16.26 Slice Analysis：总体平均会掩盖异质性
 
-一个比较严谨的报告至少包含：
+总体：
+
+```text
++2.1pt
+```
+
+可能来自：
+
+```text
+Math +8
+Code +4
+Agent -3
+Safety -5
+```
+
+因此至少按：
+
+```text
+Task Family
+Capability
+Difficulty
+Failure Type
+Risk / Severity
+Domain / Language
+```
+
+做 breakdown。
+
+对 high-risk slice，哪怕总体提升也不能自动抵消关键 regression。
+
+---
+
+# 16.27 Micro / Macro / Weighted Average
+
+如果不同 slice 大小差异很大：
+
+```text
+Micro
+→ 每个 Case 同权
+
+Macro
+→ 每个 Group / Dataset 同权
+
+Weighted
+→ 按目标 traffic / business weight
+```
+
+三者回答不同问题。
+
+必须说明 aggregation rule，不能只写“平均准确率”。
+
+---
+
+# 16.28 Ablation 与 Strong Baseline
+
+完整方法：
+
+```text
+Trigger
++
+Generator
++
+Selector
++
+Verifier
+```
+
+如果整体变好，仍然不知道贡献来源。
+
+可做：
+
+```text
+No Trigger
+Random Trigger
+No Selector
+Random Selector
+Different N
+Different Score
+No Verification
+Greedy-only
+Budget-matched Simple Baseline
+```
+
+Strong Baseline 的目标不是“让新方法难赢”，而是回答：
+
+> **复杂机制是否真的超出了一个简单、合理、同预算替代方案。**
+
+---
+
+# 16.29 Negative Result 的 Claim Scope
+
+没有提升时，先检查：
+
+```text
+Oracle / Candidate Space 是否有上限？
+样本量 / power 是否足够？
+Metric 是否测到目标？
+Implementation 是否正确？
+Online feature 是否包含所需信息？
+Protocol 是否过窄？
+```
+
+更严谨的结论：
+
+> **在当前样本、模型、表示、预算与 protocol 下，没有观察到稳定可兑现收益。**
+
+而不是直接：
+
+```text
+“这种 signal 不存在”
+```
+
+Negative Result 也必须有边界。
+
+---
+
+# 16.30 Corrected Labels：Re-score ≠ Re-run
+
+历史 Run 已经产生：
+
+```text
+Raw Outputs
+Policy Decisions
+```
+
+后来 Gold / Judge 被修正。
+
+正确历史重算：
+
+```text
+冻结历史 Outputs / Decisions
+↓
+使用 Corrected Labels
+↓
+Re-score / Re-aggregate
+```
+
+而：
+
+```text
+重新运行当前 Policy / Judge
+```
+
+是新的实验。
+
+因此区分：
+
+```text
+Re-score
+Re-run
+Replay
+```
+
+完整版本治理归第 19 章。
+
+---
+
+# 16.31 Evaluation Lineage：一个分数必须能追到 Case
+
+最终 Metric 应能追溯：
+
+```text
+Benchmark / Case Version
+Protocol Version
+Model / Prompt
+Runtime / Environment
+Raw Output / Trajectory
+Evidence
+Evaluator Version
+Per-case Labels
+Aggregation Script
+Metric Definition
+```
+
+原则：
+
+```text
+Raw Run Immutable
+Labels Versioned
+Metrics Recomputable
+```
+
+只有一个：
+
+```text
+accuracy = 76.2%
+```
+
+但没有 per-case artifacts，几乎不可审计。
+
+---
+
+# 16.32 Leaderboard Overfitting 与 Benchmark Saturation
+
+反复：
+
+```text
+看 test score
+→ 调 prompt / policy
+→ 再看 test
+```
+
+Test 实际已经变成 Dev。
+
+缓解：
+
+```text
+private test
+fresh holdout
+rotating cases
+limited reveal
+confirmatory set
+```
+
+另一方面，如果所有强模型都：
+
+```text
+97–99%
+```
+
+Benchmark 已经 saturation。
+
+应补：
+
+```text
+真实新 failure
+new capability slice
+longer horizon
+higher-risk constraints
+frontier cases
+```
+
+而不是为了“难”制造怪题。
+
+---
+
+# 16.33 Stable Ruler 与 Moving Frontier 的分工
+
+长期系统最好同时有：
+
+```text
+Frozen Core
+→ 稳定纵向比较 / regression / release gate
+
+Fresh Frontier
+→ 新 failure / 新 task / 新 tool / 新 policy
+```
+
+本章负责 Frozen Core 的**measurement protocol**。
+
+Frontier 如何持续刷新、如何识别 drift，归第 23 章。
+
+这两个集合不能互相替代。
+
+---
+
+# 16.34 Offline → Shadow → Canary → Online
+
+典型验证梯度：
+
+```text
+Offline Frozen Benchmark
+↓
+Shadow Evaluation
+↓
+Canary
+↓
+Limited Online
+↓
+Production Monitoring
+```
+
+Shadow 允许 Candidate Policy 处理真实 request，但不产生真实 side effect。
+
+Canary 则逐步扩大真实 exposure，并持续看：
+
+```text
+Primary Metric
+Guardrail
+High-severity Failure
+Cost
+Latency
+Runtime Health
+```
+
+线上部署方法的完整 drift / rollback 机制在第 23 章展开。
+
+---
+
+# 16.35 Safety-critical Evaluation：平均成功率不够
+
+高风险系统至少单独报告：
+
+```text
+Unauthorized Action Rate
+Irreversible Harm Rate
+Privacy Violation Rate
+Policy Violation Rate
+Hallucinated Success Rate
+Safe Abort / Escalation Quality
+```
+
+即使：
+
+```text
+Overall Success ↑
+```
+
+也不能自动抵消 critical guardrail regression。
+
+---
+
+# 16.36 Benchmark Report 最低信息集
 
 ```text
 1. Evaluation Question
-2. Benchmark Scope
-3. Dataset / Case Version
-4. Inclusion / Exclusion Rules
-5. Protocol
-6. Baselines
+2. Target Population / Capability
+3. Benchmark + Case Version
+4. Sampling / Inclusion / Exclusion
+5. Frozen Protocol
+6. Compared Systems / Baselines
 7. Primary Metric
-8. Secondary / Cost Metrics
-9. Per-case / Per-slice Results
-10. Paired Transition Analysis
-11. Statistical Uncertainty
-12. Failure Breakdown
-13. Ablation
-14. Cost Accounting
-15. Known Limitations
-16. Artifact Paths / Lineage
+8. Guardrail / Cost Metrics
+9. Population Accounting
+10. Per-case / Slice Results
+11. Paired Transition Analysis
+12. Statistical Uncertainty
+13. Ablations
+14. Failure Breakdown
+15. Cost / Budget Accounting
+16. Known Limitations / Claim Scope
+17. Artifact / Lineage References
 ```
+
+如果缺少这些信息，漂亮数字也很难复用。
 
 ---
 
-# 16.41 一个推荐的 Evaluation Protocol Template
+# 16.37 推荐的 Evaluation Protocol Template
 
-可以使用下面这套模板。
+```yaml
+question: "..."
+claim_scope: "..."
 
-```text
-Research Question
------------------
-我们想验证什么？
+population:
+  benchmark_version: "..."
+  case_manifest: "..."
+  sampling_policy: "..."
+  inclusion_rule: "..."
+  exclusion_rule: "..."
 
-Compared Systems
-----------------
-Baseline:
-Method:
+systems:
+  baseline: "..."
+  treatment: "..."
 
-Frozen Factors
---------------
-Model:
-Prompt:
-Tokenizer:
-Generation Config:
-Toolset:
-Harness:
-Environment:
-Verifier:
+frozen_runtime:
+  model: "..."
+  prompt: "..."
+  generation_config: "..."
+  toolset: "..."
+  harness: "..."
+  environment: "..."
+  budget: "..."
 
-Dataset
--------
-Version:
-N:
-Task Families:
-Inclusion Rule:
-Exclusion Rule:
+measurement:
+  evaluator_contract: "..."
+  primary_metric: "..."
+  guardrails: []
+  cost_metrics: []
 
-Primary Metric
---------------
+analysis:
+  paired: true
+  uncertainty: "paired bootstrap"
+  population_accounting: true
+  slices: []
 
-Secondary Metrics
------------------
-Cost:
-Latency:
-Safety:
-Coverage:
-
-Paired Analysis
----------------
-Wrong→Right:
-Right→Wrong:
-Net:
-
-Statistical Analysis
---------------------
-CI:
-Bootstrap / paired test:
-
-Ablations
----------
-
-Known Limitations
------------------
-
-Artifacts
----------
-Raw outputs:
-Labels:
-Summary:
-Protocol file:
+artifacts:
+  raw_outputs: "..."
+  per_case_labels: "..."
+  summary: "..."
 ```
+
+这不是固定格式，重点是把实验语义显式化。
 
 ---
 
-# 16.42 研究实例：More Thinking——平均准确率之外为什么要看状态转移？
+# 16.38 研究实例：固定深度 reasoning 为什么需要 Transition Analysis？
 
-一个简单报告可能只写：
+只看：
 
 ```text
-Depth 1: 69.04%
-Depth 2: 74.09%
-Depth 3: 70.97%
+Depth 1
+Depth 2
+Depth 3
 ```
 
-这已经能说明性能非单调。
+的平均 accuracy，可以发现总体非单调。
 
-但进一步看：
+但只有进一步看：
 
 ```text
 Wrong → Right
 Right → Wrong
 ```
 
-才能知道：
+才能知道额外计算同时产生：
 
 ```text
-额外 thinking
-既可能 repair
-也可能 degrade
+repair
++
+degradation
 ```
 
-于是评测问题从：
+于是问题会从：
 
 ```text
-“更多 thinking 是否平均提高准确率？”
+“多想一轮平均有没有用？”
 ```
 
 升级成：
 
 ```text
-“哪些当前 reasoning states 值得继续投入 compute？”
+“哪些 current states 值得继续投入 compute？”
 ```
 
-这就是 benchmark analysis 如何推动问题定义本身升级。
+这就是 Paired Transition Analysis 的价值。
 
 ---
 
-# 16.43 研究实例：RoTFuse / K17——为什么 Trigger、Candidate、Selector、E2E 必须拆开？
+# 16.39 研究实例：Trigger / Candidate / Selector 系统如何拆解
 
-K17 这类 intervention 方法可以分成：
+对于状态触发的 candidate intervention：
 
 ```text
-All Cases
+Full Population
 ↓
-Risk Screening
+Screening
 ↓
-Triggered Cases
+Triggered / Non-triggered
 ↓
 Candidate Generation
 ↓
-Candidate Selection
+Selection
 ↓
 Final Outcome
 ```
 
-因此至少要分别回答：
+必须分别回答：
 
 ```text
-1. Trigger 是否集中到了有价值的 state？
-2. Candidate pool 是否真的包含更优 continuation？
-3. Selector 能否识别更好的 candidate？
-4. End-to-end Rescue 是否超过 Harmful？
-5. 代价是多少？
+Trigger 把预算用到哪里？
+Candidate pool 是否含 better future？
+Selector 是否可在线识别？
+Rescue 是否大于 Harmful？
+Full-population net gain 是多少？
+Cost 增加在哪里？
 ```
 
-如果只报告最终 accuracy，一旦没有提升，就不知道问题在哪。
+Non-triggered Cases 仍属于 Full Population。
+
+所以 routing 方法的 E2E 结论绝不能只统计 intervention subset。
 
 ---
 
-## 16.43.1 Full-population Accounting
-
-Routing / Trigger 方法还必须特别注意：
-
-```text
-未触发 case
-```
-
-仍然属于完整 benchmark population。
-
-即使这些 case：
-
-```text
-不生成额外 candidate
-不产生 intervention
-```
-
-它们依然应该进入 end-to-end 总体结果。
-
-所以需要明确：
-
-```text
-All Screened
-Triggered
-Non-triggered
-Intervened
-```
-
-各自数量和分母。
-
----
-
-## 16.43.2 Candidate Pool 的 Oracle 与 Actual Selection
-
-如果：
-
-```text
-same-prefix candidate pool
-```
-
-存在正确 alternative，说明：
-
-```text
-recoverability exists
-```
-
-但如果 selector 选不到，则：
-
-```text
-selectability insufficient
-```
-
-所以：
-
-```text
-Risk
-Recoverability
-Selectability
-```
-
-必须作为不同 scientific objects。
-
----
-
-# 16.44 Benchmark Governance：Benchmark 也要版本管理
-
-Benchmark 会变化：
-
-```text
-修正标签
-补充 case
-删除泄漏 case
-更新 verifier
-调整 taxonomy
-```
-
-因此至少要保存：
-
-```text
-benchmark_version
-case_manifest
-label_version
-protocol_version
-verifier_version
-release_notes
-```
-
-如果 benchmark 更新后，历史分数不应无声覆盖。
-
-应该明确：
-
-```text
-Score on v1
-Score on v2
-```
-
----
-
-# 16.45 数据改了，历史结果怎么办？
-
-最好遵循：
-
-```text
-Raw Run Immutable
-↓
-Labels Versioned
-↓
-Metrics Recomputable
-```
-
-即：
-
-```text
-原始模型输出不改
-历史 policy decision 不改
-新标签单独保存
-重新 aggregation
-```
-
-这样任何历史结论都可以审计。
-
----
-
-# 16.46 Benchmark Reproducibility：别人能不能重建你的数字？
-
-最低要求通常包括：
-
-```text
-case manifest
-protocol config
-model identifier
-seed / generation config
-runtime versions
-raw predictions
-per-case labels
-metric script
-```
-
-如果环境任务，还需要：
-
-```text
-environment snapshot
-reset procedure
-tool version
-verifier version
-```
-
----
-
-# 16.47 Common Failure Modes
+# 16.40 常见 Failure Modes
 
 ### 失败 1：Dataset 名字当 Capability
 
-结果只能说“在这个 dataset 上高了”。
+只能说明“这个 dataset 上变化了”。
 
-### 失败 2：只报告 Overall Accuracy
+### 失败 2：Benchmark、Protocol、Run 混在一起
 
-看不到 repair / degradation / task heterogeneity。
+版本变化后无法解释历史数字。
 
-### 失败 3：Baseline 和 Method 预算不一致
+### 失败 3：只报告 Overall Accuracy
 
-把 compute advantage 当算法 advantage。
+看不到 repair / degradation / slice regression。
 
-### 失败 4：Protocol 同时改多个变量
+### 失败 4：Baseline 与 Method Budget 不一致
 
-无法归因。
+Compute advantage 被当 method advantage。
 
-### 失败 5：随机 train/test split 导致 workflow leakage
+### 失败 5：Protocol 同时改多个变量
 
-看似泛化，实际只是实体变化。
+归因失败。
 
-### 失败 6：Challenge Set 当真实总体分布
+### 失败 6：Random Row Split 导致 workflow / family leakage
 
-难例成绩不能直接解释成线上成功率。
+Surface novelty 不等于 generalization。
 
-### 失败 7：Triggered-case 指标冒充 Full-population 指标
+### 失败 7：Challenge Set 冒充 Population Performance
 
-分母错了。
+Sampling bias 被忽略。
 
-### 失败 8：只看平均 cost
+### 失败 8：Triggered-only Metric 冒充 E2E Metric
 
-掩盖 P95 或 triggered-case 高成本。
+分母错误。
 
-### 失败 9：只报点估计，不报不确定性
+### 失败 9：Percentage 不写 Numerator / Denominator
 
-尤其小样本时很危险。
+口径无法审计。
 
-### 失败 10：看到 p-value 就认为值得上线
+### 失败 10：Repeated sibling rows 当 IID
 
-忽略 effect size 和 cost。
+统计 uncertainty 被低估。
 
-### 失败 11：Judge 更新后重跑 policy，再冒充历史结果
+### 失败 11：只报 p-value
 
-破坏实验不可变性。
+不看 effect size / CI / cost / risk。
 
-### 失败 12：Negative Result 直接上升为“signal 不存在”
+### 失败 12：大量试配置后只报最高分
 
-超出当前 protocol 能支持的结论。
+Winner’s curse。
 
-### 失败 13：Leaderboard 反复调参
+### 失败 13：Corrected Label 后 Re-run 再冒充历史结果
 
-测试集已经变 dev set。
+破坏历史不可变性。
 
-### 失败 14：Benchmark 太饱和
+### 失败 14：Negative Result 直接上升成“signal 不存在”
 
-已经无法区分强系统。
+超出协议支持范围。
 
-### 失败 15：没有保存 per-case artifact
+### 失败 15：只有 Aggregate，没有 Per-case Artifact
 
-最终数字不可审计。
+结果不可审计。
 
 ---
 
-# 16.48 从数据 / Eval 岗视角，这一章实际会做什么？
-
-典型工作包括：
+# 16.41 从数据 / Eval 岗视角，这一章实际会做什么？
 
 ```text
-定义 capability taxonomy
-搭 benchmark task families
-做 representative / challenge / regression set
-设计 train/dev/test split
+定义 evaluation question
+设计 capability taxonomy
+构造 representative / challenge / regression / safety set
+设计 group split
 做 contamination audit
-冻结 evaluation protocol
-管理 benchmark / label version
-跑 baseline
-做 paired comparison
-统计 W→R / R→W
-计算 confidence interval
-做 cost accounting
+冻结 evaluation contract
+跑 strong / budget-matched baseline
+做 population accounting
+做 paired transition analysis
+统计 Rescue / Harmful
+计算 CI / bootstrap
 做 ablation
-分析 failure distribution
-维护 regression suite
-做 leaderboard / release report
-维护 raw artifact 与 per-case lineage
+做 cost accounting
+做 slice / failure breakdown
+维护 benchmark / protocol / label version
+保存 per-case artifact
+写 claim scope / limitation
 ```
 
-真正核心能力不是：
+核心能力不是：
 
-```text
-“会跑 benchmark”
-```
+> “会跑 Benchmark。”
 
 而是：
 
-> **知道一个数字在什么前提下可解释，以及它究竟支持多大的结论。**
+> **知道一个数字在什么条件下可解释、是否公平、是否稳定，以及它究竟支持多大的结论。**
 
 ---
 
-# 16.49 本章关键词
+# 16.42 本章关键词
 
-| 术语 | 一句话理解 |
+| 术语 | Canonical meaning |
 |---|---|
-| Benchmark | 定义清楚的能力测量集合 |
-| Evaluation Protocol | 规定如何运行、判分和聚合的实验协议 |
-| Capability Taxonomy | 将目标能力拆成可解释维度 |
-| Representative Set | 近似目标总体分布的样本集 |
-| Challenge Set | 专门覆盖能力边界和难例 |
-| Regression Set | 防止历史问题再次出现 |
-| Frozen Protocol | 比较过程中固定非研究变量 |
-| Paired Comparison | 在同一 case 上比较两个系统 |
-| Oracle@N | 候选池中至少存在一个成功候选的比例 |
-| Pass@k | k 次生成里至少一次成功的概率 |
-| Success@Budget | 给定成本预算下的成功率 |
-| Coverage | 系统实际处理 / 干预的样本比例 |
-| Rescue | baseline fail → intervention success |
-| Harmful | baseline success → intervention fail |
-| Net Gain | Rescue − Harmful |
-| Ablation | 移除组件以识别贡献来源 |
-| Contamination | benchmark 信息进入训练或策略迭代 |
-| Leaderboard Overfitting | 围绕测试榜单反复调参导致隐式过拟合 |
-| Evaluation Lineage | 从最终分数追溯到 protocol、raw output 与 labels |
+| Benchmark | 被定义好的 Case / Capability 测量对象 |
+| Evaluation Protocol | 如何运行、判分、聚合和比较的协议 |
+| Evaluation Run | 一个具体系统在某协议下的一次执行 |
+| Evaluation Report | 对一组 Run 的统计、分析与结论 |
+| Evaluation Contract | Benchmark + Runtime + Budget + Measurement + Reporting Semantics |
+| Representative Set | 用于估计目标总体表现的样本 |
+| Challenge Set | 聚焦能力边界 / 难例的样本 |
+| Regression Set | 防止历史 failure 复发的冻结资产 |
+| Population Accounting | 明确 full / eligible / triggered / intervened 等人数关系 |
+| Denominator Discipline | 所有 rate 明确 numerator / denominator / inclusion rule |
+| Paired Comparison | 在同一 Case 上比较系统 |
+| Matched Comparison | 控制 Case / State / Budget 等非研究变量 |
+| Oracle@N | Candidate pool 中至少存在一个成功 candidate 的比例 |
+| Success@Budget | 给定预算下的成功率 |
+| Coverage | 系统实际处理 / 干预的 population 比例 |
+| Rescue / Harmful | 相对 baseline 的 outcome transition |
+| Pareto Frontier | 质量–成本空间中不被其他系统同时支配的点 |
+| Claim Scope | 当前证据允许结论覆盖的范围 |
+| Evaluation Lineage | 从 Aggregate Metric 追溯到 Run / Case / Evidence / Label |
+
+更完整定义见 [`Canonical Glossary`](./00_Glossary_and_Notation.md)。
 
 ---
 
-# 16.50 面试 / 自检问题
+# 16.43 面试 / 自检问题
 
-1. Benchmark 和 Dataset 有什么区别？
-2. 为什么 Dataset 名字不能直接等价成 Capability？
-3. Representative Set、Challenge Set、Regression Set 有什么区别？
-4. Agent benchmark 为什么不适合简单随机 train/test split？
-5. 什么是 workflow leakage？
-6. Frozen Protocol 应该冻结哪些变量？
-7. 为什么 paired comparison 比只看两个 accuracy 更有信息量？
-8. Wrong→Right 与 Right→Wrong 分别表示什么？
-9. Rescue / Harmful / Net Gain 怎么定义？
-10. 为什么 Trigger、Generator、Selector 要单独评价？
-11. Oracle@N 有什么作用？
-12. Pass@k 和 single-run accuracy 有什么区别？
-13. 为什么 Agent / test-time compute 更适合 Success@Budget？
-14. 什么是 Pareto frontier？
-15. Overall Average Cost 和 Triggered-case Cost 为什么都要报？
-16. 什么叫 denominator discipline？
-17. Micro / Macro / Weighted Average 有什么区别？
-18. 什么是 ablation？为什么 random selector 可能是一个有价值的 baseline？
-19. Negative Result 应该怎样严谨表述？
-20. Corrected labels 出现后，历史 decision 应该怎么处理？
-21. Benchmark contamination 和 verifier leakage 有什么区别？
-22. 什么是 leaderboard overfitting？
-23. Benchmark saturation 后应该怎么办？
-24. Dynamic benchmark 的优势和风险是什么？
-25. 为什么 safety-critical benchmark 不能只看 average success？
-26. Selective prediction 为什么要看 risk-coverage curve？
-27. Evaluation artifact lineage 为什么重要？
-28. 怎样证明一个方法提升不是单纯因为用了更多 compute？
-29. 如何设计一个 budget-matched baseline？
-30. 如果整体 accuracy 不变，但 high-severity harmful rate 明显下降，你会如何解释？
-
----
-
-## 16.50.1 一个通用回答框架：如果让你设计一套 Agent Benchmark
-
-可以回答：
-
-```text
-1. 先定义 evaluation question 和 capability taxonomy
-   ↓
-2. 明确 benchmark scope 和 claim scope
-   ↓
-3. 设计 representative / challenge / regression slices
-   ↓
-4. 为每个 task 定义 Task Contract + Environment Snapshot + Verifier
-   ↓
-5. 做 leakage / contamination 检查
-   ↓
-6. 冻结 model / prompt / tool / harness / environment / judge protocol
-   ↓
-7. 运行强 baseline 和 budget-matched baseline
-   ↓
-8. 做 paired per-case analysis
-   ↓
-9. 报 primary quality + cost + safety + coverage
-   ↓
-10. 做 confidence interval / ablation / failure breakdown
-   ↓
-11. 保存 raw outputs、labels、protocol 和 metric lineage
-   ↓
-12. 最后只做与证据范围一致的结论
-```
-
-这里最关键的一句话是：
-
-> **Benchmark 不是为了制造一个漂亮分数，而是为了让一个比较结论可解释、可复现、可审计。**
+1. Benchmark、Protocol、Run、Report 有什么区别？
+2. 为什么 Dataset 名字不能直接当 Capability？
+3. Representative / Challenge / Regression / Safety Set 如何分工？
+4. Agent split 为什么不能只随机分 row？
+5. Evaluation Contract 至少冻结什么？
+6. 什么是 Population Accounting？
+7. 为什么 Triggered-only 结果不能冒充 Full-population 结果？
+8. Denominator Discipline 是什么？
+9. Paired 与 Matched Comparison 有什么区别？
+10. Rescue / Harmful 如何进入 E2E Accuracy Delta？
+11. Trigger / Generator / Selector 为什么要拆开评？
+12. Oracle@N 说明什么，不说明什么？
+13. 怎样设计 Budget-matched Baseline？
+14. Success@Budget 为什么比单纯 accuracy 更适合部分系统？
+15. Average Cost 与 Conditional Cost 为什么都要报？
+16. Multiple Seeds 的目的是什么？
+17. Sibling trajectories 为什么不能简单当 IID？
+18. 什么时候用 Paired Bootstrap / McNemar / Cluster Bootstrap？
+19. Effect Size 与 p-value 有什么不同？
+20. Winner’s Curse 怎么产生？
+21. Pass@k 和 Greedy Accuracy 为什么不能混用？
+22. Coverage 与 Risk 为什么必须一起看？
+23. Micro / Macro / Weighted Average 各回答什么问题？
+24. Negative Result 如何限定 Claim Scope？
+25. Re-score、Re-run、Replay 有什么区别？
+26. 什么是 Leaderboard Overfitting？
+27. Frozen Core 与 Fresh Frontier 如何分工？
+28. 为什么 high-risk regression 不能被 overall gain 抵消？
+29. 一个 Benchmark Report 至少应该包含什么？
+30. 如何证明“提升”不是更多 compute、不同 Judge 或不同 Runtime 造成的？
 
 ---
 
-# 16.51 与前后章节的关系
-
-到这一章，第四层已经形成：
+## 16.43.1 通用回答框架：设计一套 Agent Benchmark
 
 ```text
-Human / Gold
-↓
-Verifier / Grader / Judge
-↓
-Failure Taxonomy
-↓
-Benchmark Protocol
-↓
-Statistical + Cost-aware Evaluation
-```
-
-而下一阶段会进一步进入：
-
-> **数据和评测结果如何回流，形成真正的 Data Flywheel。**
-
-也就是从：
-
-```text
-“模型哪里差？”
-```
-
-继续走到：
-
-```text
-“下一轮该生产什么数据？”
-“哪些数据值得优先标？”
-“哪些失败应该进入 regression？”
-“模型更新后怎样重新采集新的 frontier cases？”
+1. 定义 Evaluation Question / Claim Scope
+   ↓
+2. 定义 Capability / Target Population
+   ↓
+3. 构造 Representative + Challenge + Regression + Safety Slices
+   ↓
+4. 冻结 Case Contract / Environment / Evaluator
+   ↓
+5. 做 Family / Workflow Split 与 Leakage Audit
+   ↓
+6. 建 Strong + Budget-matched Baseline
+   ↓
+7. 显式记录 Population Accounting
+   ↓
+8. 做 Paired Per-case Comparison
+   ↓
+9. 报 Primary + Guardrail + Cost + Coverage
+   ↓
+10. 用合适的 CI / Paired / Cluster-aware Statistics
+   ↓
+11. 做 Slice / Failure / Ablation Analysis
+   ↓
+12. 保存 Raw Run / Per-case Label / Aggregation Lineage
+   ↓
+13. 只做与 Evidence Scope 一致的结论
 ```
 
 ---
 
-# 16.52 本章总结
-
-这一章最重要的不是记住某个 metric，而是建立以下评测观：
+# 16.44 与后续章节的关系
 
 ```text
-Scientific / Product Question
-        ↓
-Capability Definition
-        ↓
-Benchmark Scope
-        ↓
-Frozen Protocol
-        ↓
-Matched Runs
-        ↓
-Evidence-based Grading
-        ↓
-Paired + Cost-aware Analysis
-        ↓
-Failure / Slice Analysis
-        ↓
-Auditable Conclusion
+第 21 章 Data Experiments
+→ 把 Frozen Evaluation 用于验证“这批数据是否真的带来因果增益”
+
+第 23 章 Monitoring
+→ 把 Frozen Core 与 Fresh Frontier 用于长期 drift / release 管理
+
+第 19 章 Governance
+→ Run / Label / Protocol 的 versioning 与 reproducibility
 ```
 
-最终真正值得信任的 benchmark 结论，应该同时回答：
+本章只负责：
+
+> **如何公平、稳定、可审计地比较系统并控制 Claim Scope。**
+
+---
+
+# 16.45 本章最终要形成的认识
 
 ```text
-提升了什么？
-在哪里提升？
-有没有退化？
-代价是多少？
-结论稳不稳定？
+Evaluation Question
+        ↓
+Target Population / Capability
+        ↓
+Benchmark Object
+        ↓
+Evaluation Contract
+        ↓
+Frozen / Matched Runs
+        ↓
+Evidence-based Labels
+        ↓
+Population Accounting
+        ↓
+Paired + Budget-aware + Uncertainty-aware Analysis
+        ↓
+Slice / Failure / Cost Analysis
+        ↓
+Claim with Explicit Scope
+```
+
+真正可信的结论必须回答：
+
+```text
+对谁提升？
+提升什么？
+相对什么 baseline？
+在什么预算下？
+哪些 case 被 repair？
+哪些 case 被 harm？
+统计不确定性多大？
+有没有关键 regression？
 这个结论能推广到哪里？
 ```
 
-这才是 Evaluation Protocol 的核心。
+最终原则：
+
+> **Benchmark 不是制造漂亮分数的工具，而是一套让比较结论可解释、可复现、可审计、可限定边界的 measurement system。**
+
+下一阶段将从 Measurement 进入 Data Lifecycle：
+
+> **如何让这些可信的 failure、label 与 benchmark evidence 回流，决定下一轮到底生产什么数据、投多少预算，并证明数据真的值得。**
