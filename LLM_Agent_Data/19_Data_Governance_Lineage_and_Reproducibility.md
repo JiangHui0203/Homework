@@ -1,602 +1,492 @@
-# 第 19 章 Data Governance、Lineage 与 Reproducibility：让数据系统可追溯、可复现、可审计
+# 第 19 章 Data Governance、Lineage 与 Reproducibility：让每个数据结论都能追溯到源头
 
 > 所属体系：[`LLM_Agent_Data_Knowledge_System.md`](../LLM_Agent_Data_Knowledge_System.md)
 >
 > 前置章节：[`第 18 章 Data Strategy 与 Data Valuation`](./18_Data_Strategy_and_Data_Valuation.md)
 >
-> 关联章节：[`第 6 章 Human Data`](./06_Human_Data_Annotation_and_Quality_Control.md)、[`第 12 章 Agent Trajectory Anatomy`](./12_Agent_Trajectory_Anatomy.md)、[`第 15 章 Grader、Verifier 与 LLM-as-a-Judge`](./15_Grader_Verifier_and_LLM_as_a_Judge.md)、[`第 16 章 Benchmark Design 与 Evaluation Protocol`](./16_Benchmark_Design_and_Evaluation_Protocol.md)、[`第 17 章 Data Flywheel`](./17_Data_Flywheel_and_Continuous_Improvement.md)
+> 关联章节：[`第 6 章 Human Data`](./06_Human_Data_Annotation_and_Quality_Control.md)、[`第 12 章 Agent Trajectory Anatomy`](./12_Agent_Trajectory_Anatomy.md)、[`第 15 章 Grader、Verifier 与 LLM-as-a-Judge`](./15_Grader_Verifier_and_LLM_as_a_Judge.md)、[`第 16 章 Benchmark Design 与 Evaluation Protocol`](./16_Benchmark_Design_and_Evaluation_Protocol.md)、[`第 17 章 Data Flywheel`](./17_Data_Flywheel_and_Continuous_Improvement.md)、[`第 22 章 Data Production System`](./22_Data_Production_System.md)
 >
-> 本章目标：建立一套完整的数据治理与可复现体系，理解 Immutable Raw Data、Derived View、Dataset / Schema / Label Versioning、Provenance、Lineage DAG、Reproducibility Manifest、PII / Privacy、Access Control、Retention / Deletion、Licensing / Consent 与 Audit Trail 的关系。
+> 编辑基础设施：[`Canonical Glossary`](./00_Glossary_and_Notation.md) · [`Canonical Casebook`](./00_Canonical_Casebook.md)
 >
-> 本章核心问题：**一条数据进入系统以后，我们能不能回答“它从哪里来、经历了什么、谁改过、为什么被选中、进入过哪些训练集、影响了哪些模型、后来标签是否修正，以及如果今天重跑，能不能得到同样的结果”。**
+> 本章定位：**Identity / Provenance / Lineage / Versioning / Reproducibility，以及 Historical Decision / Corrected Label / Re-score / Re-run / Replay 边界的 canonical chapter。**
+>
+> 本章核心问题：**一条数据、一条标签、一次评测、一个模型版本，能不能回答“它是谁、从哪来、经历了什么、谁判的、为什么被选中、后来哪里变了、影响过什么，以及今天能不能重新得到同一个可解释结论”。**
 
 ---
 
-# 19.0 为什么 Data Governance 不是“后台管理问题”？
+# 19.0 Governance 的本质：Controlled Change
 
-很多团队前期关注的是：
+数据系统一定会变化：
 
 ```text
-怎么收数据？
-怎么标数据？
-怎么合成数据？
-怎么训练？
+Data changes
+Labels change
+Rubrics change
+Judge changes
+Schema changes
+Benchmark changes
+Environment changes
 ```
 
-但随着系统运行几个月，很快会出现：
+治理的目标不是：
 
 ```text
-这条样本到底从哪来的？
-为什么它在训练集里？
-这个 label 是旧版还是修正版？
-这个 Judge 用的是哪一版 prompt？
-这批数据有没有混入测试集？
-某个用户要求删除数据后，训练派生数据怎么办？
-这个 benchmark 结果对应哪个 environment snapshot？
-某个模型提升，到底用了哪一批数据？
+No Change
 ```
 
-如果回答不了，系统会逐渐失去：
+而是：
+
+> **允许系统变化，但变化必须有身份、有原因、有版本、有 lineage，历史事实不能被静默改写。**
+
+可以压成：
 
 ```text
+Raw Facts
+→ preserve
+
+Derived Labels
+→ correctable + versioned
+
+Dataset Views
+→ rebuildable
+
+Historical Decisions
+→ frozen as history
+
+Current Policies
+→ rerunnable as new experiments
+```
+
+所以：
+
+> **Governance = Controlled Change。**
+
+---
+
+# 19.1 七个治理问题
+
+一个成熟数据系统至少回答：
+
+```text
+Identity
+→ 它是谁？
+
+Origin / Provenance
+→ 从哪来？
+
+Transformation
+→ 经历了什么？
+
+Decision
+→ 为什么被保留 / 删除 / 标成这样？
+
+Usage
+→ 被哪些 Dataset / Run / Model 用过？
+
+Change
+→ 后来哪里变了？
+
 Reproducibility
+→ 能否按相同定义重新得到可比结果？
+```
+
+再加两条边界：
+
+```text
+Rights / Privacy
+→ 能不能用？
+
 Auditability
-Debuggability
-Compliance
-Trust
-```
-
-所以 Data Governance 不是文档工作，而是：
-
-> **保证整个数据—训练—评测系统仍然可以被解释和追责的基础设施。**
-
-可以画成：
-
-```mermaid
-flowchart LR
-    A[Raw Source] --> B[Ingestion]
-    B --> C[Raw Immutable Layer]
-    C --> D[Normalization]
-    D --> E[Annotation / Judge / Verifier]
-    E --> F[Curated Dataset]
-    F --> G[Training View]
-    F --> H[Evaluation View]
-    G --> I[Model Version]
-    H --> J[Benchmark Result]
-
-    K[Governance / Lineage / Versioning] -.-> A
-    K -.-> C
-    K -.-> E
-    K -.-> F
-    K -.-> I
-    K -.-> J
+→ 出问题能不能追？
 ```
 
 ---
 
-# 19.1 一个成熟数据系统至少要回答六类问题
+# 19.2 Stable Identity：Identity 不等于当前内容
 
-## 19.1.1 Identity
+一个对象应该有稳定 ID，即使它的 label / metadata 后来改变。
 
-```text
-这条数据是谁？
-```
-
-需要稳定 ID：
+常见：
 
 ```text
-sample_id
-trajectory_id
-episode_id
 task_id
+case_id
+episode_id
+trajectory_id
+sample_id
 annotation_id
+evaluation_id
 dataset_id
-```
-
----
-
-## 19.1.2 Origin
-
-```text
-它从哪里来？
+run_id
+model_id
 ```
 
 例如：
 
 ```text
-Production Log
-Human Author
-Teacher Model
-Synthetic Generator
-Public Dataset
-Partner Data
-Benchmark
+sample_id = s_1847
 ```
+
+今天 label：
+
+```text
+failure_type = tool_selection
+```
+
+后来修正成：
+
+```text
+failure_type = observation_grounding
+```
+
+对象身份仍然是：
+
+```text
+s_1847
+```
+
+因此：
+
+> **Identity 是“这是谁”，Label 是“我们现在如何解释它”。**
+
+不要用可变内容 hash 直接代替全部业务 identity；hash 更适合完整性校验。
 
 ---
 
-## 19.1.3 Transformation
+# 19.3 Raw / Canonical / Derived / View / Run：五层数据模型
+
+推荐书级治理结构：
 
 ```text
-它经历了哪些处理？
+L0 Raw Evidence
+        ↓
+L1 Canonical Records
+        ↓
+L2 Labels / Scores / Metadata
+        ↓
+L3 Curated Assets / Dataset Views
+        ↓
+L4 Runs / Models / Reports
 ```
 
-例如：
+## Raw Evidence
+
+尽量保存原始事实：
 
 ```text
-raw
-→ normalized
-→ redacted
-→ deduplicated
-→ annotated
-→ verified
-→ filtered
-→ sampled
+raw prompt / request
+raw model output
+raw tool result
+raw environment state diff
+raw judge response
+source timestamp
 ```
+
+原则：
+
+> **尽量 append-only / immutable。**
 
 ---
 
-## 19.1.4 Decision
+## Canonical Record
+
+把 Raw 解析成稳定 schema：
 
 ```text
-为什么它被保留 / 删除 / 选进训练？
-```
-
-必须能追溯：
-
-```text
-selection_policy
-filter_reason
-quality_score
-failure_type
-sampling_bucket
-```
-
----
-
-## 19.1.5 Usage
-
-```text
-它后来被用到了哪里？
-```
-
-例如：
-
-```text
-SFT v4
-Preference v2
-RM training
-Benchmark regression set
-Judge calibration set
-```
-
----
-
-## 19.1.6 Outcome
-
-```text
-它最终带来了什么？
-```
-
-例如：
-
-```text
-trained model X
-benchmark delta
-fixed failure cluster
-regression coverage
-```
-
----
-
-# 19.2 Immutable Raw Data：原始事实层尽量不要被覆盖
-
-一个重要原则是：
-
-> **Raw evidence should be append-only / immutable whenever possible.**
-
-例如一条 Agent rollout 的原始记录：
-
-```text
-model output
-tool call
-tool result
-timestamp
-environment state diff
-```
-
-不应该因为后来：
-
-```text
-annotation changed
-parser improved
-failure taxonomy changed
-```
-
-就直接覆盖原始事实。
-
-更推荐：
-
-```text
-L0 Raw
-↓
-L1 Normalized
-↓
-L2 Annotated
-↓
-L3 Curated View
-```
-
-其中：
-
-```text
-L0 尽量不可变
-L1-L3 可以版本化重建
-```
-
-这和第 12 章 Trajectory Layering 的原则一致。
-
----
-
-# 19.3 Raw、Canonical、Derived：三个数据层要分开
-
-## Raw Layer
-
-尽可能保留原始输入：
-
-```text
-original text
-raw response
-raw tool return
-original timestamp
-source metadata
-```
-
-## Canonical Layer
-
-统一格式后的标准表示：
-
-```text
-parsed JSON
-normalized role
-canonical tool schema
-normalized units
+normalized messages
+parsed tool calls
 canonical timestamps
+normalized IDs
+canonical event schema
 ```
+
+Canonical 是标准表示，不是新真相。
+
+---
 
 ## Derived Layer
 
-所有由规则 / 模型 / 人推导出的信息：
+由 Rule / Model / Human 推导：
 
 ```text
-labels
-failure type
+label
 reward
+failure type
 quality score
 embedding
-cluster id
-judge result
+cluster
+judge score
 selection score
 ```
 
-最重要的治理原则：
+关键纪律：
 
-> **Derived information should not masquerade as raw truth.**
+> **Derived information must not masquerade as raw truth。**
 
-例如：
+`judge_score=0.91` 只是某个 evaluator 在某个版本下的输出。
+
+---
+
+## Dataset View
+
+从 Canonical + Derived 数据按 Build Recipe 派生：
 
 ```text
-judge_score = 0.91
+SFT View
+Preference View
+Regression View
+Benchmark View
+Recovery View
 ```
 
-不是世界事实。
-
-它只是：
+因此：
 
 ```text
-某个 judge
-在某个 rubric
-某个 prompt
-某个 evidence package
-下的输出
+Dataset View
+=
+Source Assets + Build Recipe + Version
 ```
 
 ---
 
-# 19.4 Provenance：一条数据的“出生证明”
+## Run / Model / Report
 
-每条数据至少应该知道：
+这些是使用数据资产产生的下游节点：
+
+```text
+Training Run
+Evaluation Run
+Model Checkpoint
+Benchmark Report
+```
+
+它们也必须进入 lineage graph。
+
+---
+
+# 19.4 Provenance：一条数据的出生证明
+
+Provenance 回答：
+
+> **这个对象最初从哪里来？**
+
+可能包括：
 
 ```text
 source_type
-source_uri / source_system
-source_model
-source_model_version
+source_system / URI
 source_time
-generator_prompt_version
-generation_config
-human_author / vendor / annotator pool
+human author / annotator pool
+teacher model / checkpoint
+generator prompt
+sampling config
+seed object
 license / consent status
 ```
 
-例如 synthetic task：
+Synthetic 样本尤其需要：
 
-```json
-{
-  "sample_id": "syn_0001847",
-  "source_type": "synthetic",
-  "generator_model": "teacher_x",
-  "generator_version": "2026-10-01",
-  "prompt_version": "taskgen_v7",
-  "seed_sample_id": "prod_fail_381",
-  "generated_at": "2026-10-17"
-}
+```text
+seed_id
+family_id
+generator_model
+generator_prompt_version
+generation_config
 ```
 
-如果连 seed 都保存，就能继续形成：
+这样才能追：
 
 ```text
 Production Failure
 ↓
-Abstract Capability
+Seed
 ↓
 Synthetic Family
 ↓
-Derived Training Sample
+Training View
 ```
-
-完整 lineage。
 
 ---
 
-# 19.5 Data Lineage：不要只存“来自哪个文件”
+# 19.5 Lineage：不是文件路径，而是关系图
 
-真正 lineage 不是：
-
-```text
-train_v3.jsonl
-来自
-raw_v2.jsonl
-```
-
-而应该描述：
-
-```text
-Sample A
-↓ normalize
-Sample A'
-↓ annotator 32 label
-Annotation A1
-↓ adjudication
-Annotation A2
-↓ verifier v4
-Verified A
-↓ sampling policy v7
-Training View A
-↓ SFT run 20261017
-Model M17
-```
-
-这天然是一个 DAG，而不是单链。
+真实 lineage 通常是 DAG：
 
 ```mermaid
 flowchart TD
-    A[Raw Sample] --> B[Normalized Sample]
+    A[Raw Trajectory] --> B[Canonical Trajectory]
     B --> C1[Human Label v1]
-    B --> C2[Judge Label]
+    B --> C2[Judge Output]
     C1 --> D[Adjudicated Label v2]
     C2 --> D
-    D --> E[Curated Sample]
-    E --> F1[SFT Dataset]
-    E --> F2[Regression Set]
-    F1 --> G[Model M]
+    D --> E[Curated Asset]
+    E --> F1[Preference View]
+    E --> F2[Regression View]
+    F1 --> G[Training Run]
+    G --> H[Model]
+    F2 --> I[Evaluation Run]
 ```
 
----
-
-# 19.6 为什么 Lineage DAG 对 Debugging 很重要？
-
-假设新模型出现异常：
+Lineage 节点和边应回答：
 
 ```text
-对某类退款任务开始过度拒绝
-```
-
-如果有 lineage，可以追：
-
-```text
-Model
-↓
-Training Run
-↓
-Data Mixture
-↓
-Refund Preference Dataset
-↓
-某批 synthetic hard negatives
-↓
-Judge v3
-↓
-Rubric 中对 unauthorized risk 权重过高
-```
-
-于是问题就从：
-
-```text
-“模型怎么突然坏了？”
-```
-
-变成：
-
-```text
-“哪一条数据链路把什么偏好放大了？”
-```
-
-这就是 lineage 的真正价值。
-
----
-
-# 19.7 Dataset Versioning：数据集不是一个永远不变的名字
-
-避免：
-
-```text
-agent_train.jsonl
-```
-
-一直被覆盖。
-
-更推荐：
-
-```text
-agent_train_v1
-agent_train_v2
-agent_train_v3
-```
-
-但仅版本号仍然不够。
-
-至少保存：
-
-```text
-dataset_id
+parent
+child
+transform
 version
-created_at
-parent_version
-source snapshot
-transform config
-schema version
-label version
-filter version
-sampling policy
-row count
-hash / manifest
+actor / code
+reason
+when
+```
+
+这使系统能做反向追踪：
+
+```text
+Model issue
+→ Training Run
+→ Mixture
+→ Dataset
+→ Batch
+→ Label / Judge
+→ Raw Source
+```
+
+也能正向追踪：
+
+```text
+Bad Label
+→ affected Dataset Views
+→ affected Training Runs
+→ affected Models / Reports
 ```
 
 ---
 
-# 19.8 Dataset Version 的变化类型最好显式记录
+# 19.6 Versioning 不是一个 `v2` 就结束了
+
+至少分开：
+
+```text
+Dataset Version
+Schema Version
+Label Version
+Taxonomy Version
+Evaluator Version
+Build Recipe Version
+Protocol Version
+Environment / Tool Version
+```
+
+这些变化语义不同。
 
 例如：
 
 ```text
-ADD
-新增样本
-
-REMOVE
-删除无效 / 合规问题样本
-
-RELABEL
-标签修正
-
-REWEIGHT
-采样权重变化
-
-REFILTER
-过滤规则变化
-
-RESCHEMA
-schema 变化
+Dataset v3
 ```
 
-这样团队看到：
+可能是新增样本；
+
+```text
+Label v3
+```
+
+可能是同样样本被重新判定；
+
+```text
+Schema v3
+```
+
+可能是 success 被拆成 goal_success + policy_compliance。
+
+不能全部用一个版本号掩盖。
+
+---
+
+# 19.7 Dataset Change Type
+
+建议记录：
+
+```text
+ADD
+REMOVE
+RELABEL
+REWEIGHT
+REFILTER
+RESCHEMA
+RESPLIT
+REBUILD
+```
+
+于是：
 
 ```text
 v7 → v8
 ```
 
-就知道到底发生了什么，而不是只看到“新版本”。
+不只是“新版本”，而能知道：
+
+```text
+为什么变
+什么变
+受影响对象是谁
+```
 
 ---
 
-# 19.9 Schema Versioning：字段定义变化本身也会改变数据含义
+# 19.8 Schema Change：字段语义改变是 Breaking Change
 
-例如早期：
+早期：
 
 ```json
 {"success": true}
 ```
 
-后来改成：
+后来：
 
 ```json
 {
   "goal_success": true,
-  "policy_compliance": false,
-  "side_effect": "unauthorized_write"
+  "policy_compliance": false
 }
 ```
 
-这不只是多了字段。
+这不是“多了两个字段”，而是 success semantics 被重构。
 
-它实际上改变了：
-
-```text
-“success” 的语义
-```
-
-所以要显式维护：
+所以要记录：
 
 ```text
 schema_version
-migration_script
+migration
 backfill_status
-compatibility rule
+compatibility
+```
+
+区分：
+
+```text
+Backward-compatible
+vs
+Breaking
 ```
 
 ---
 
-# 19.10 Backward-compatible vs Breaking Schema Change
+# 19.9 Label Version：标签可以修，但历史不能被抹掉
 
-可以区分：
-
-## Backward-compatible
+标签会因：
 
 ```text
-新增 optional 字段
-```
-
-例如：
-
-```text
-judge_confidence
-```
-
-## Breaking
-
-```text
-字段改名
-字段语义变化
-枚举重定义
-一个 label 拆成多个 label
-```
-
-例如：
-
-```text
-success
-→ goal_success + policy_compliance
-```
-
-这种情况不能只静默改 parser。
-
----
-
-# 19.11 Label Versioning：标签不是永远正确的
-
-标签可能因为：
-
-```text
-annotation guideline 更新
-judge 修复
-reference answer 修正
-新的 evidence 出现
+new evidence
+guideline change
+judge fix
+reference correction
 adjudication
 ```
 
 发生变化。
 
-因此要保存：
+应保留：
 
 ```text
 label_v1
@@ -604,348 +494,661 @@ label_v2
 change_reason
 changed_by
 changed_at
-evidence
+evidence_refs
 ```
 
-而不是直接覆盖：
-
-```text
-old_label
-```
+而不是静默覆盖旧 label。
 
 ---
 
-# 19.12 Decision Freeze 与 Label Correction 必须分开
+# 19.10 Historical Decision ≠ Evaluation Label ≠ Re-execution Result
 
-这是实验治理里最重要的原则之一。
+这是全书非常重要的治理纪律。
 
-假设历史 selector 当时选择：
-
-```text
-Candidate A
-```
-
-后来发现旧标签错了：
+历史 Selector 当时：
 
 ```text
-A 实际失败
-B 实际成功
+chose A
 ```
 
-正确做法是：
+后来 Corrected Label 表明：
 
 ```text
-Frozen Decision = A
-↓
-Corrected Label
-↓
-Recompute Historical Metric
+A wrong
+B correct
 ```
 
-而不是：
+应该保留：
 
 ```text
-Correct Label
-↓
-Re-run Selector
-↓
-让它改选 B
-↓
-覆盖原实验
+Historical Decision = A
 ```
 
-必须区分：
+并：
+
+```text
+Re-score frozen output with corrected label
+```
+
+而不是用新 label 重新让历史 policy 改选 B，然后覆盖原实验。
+
+因此：
 
 ```text
 Historical Decision
-Evaluation Label
-Re-execution Result
+≠ Evaluation Label
+≠ Fresh Re-execution Result
 ```
-
-这三者是不同 artifact。
 
 ---
 
-# 19.13 Derived View：不要为每种用途复制一份“新真相”
+# 19.11 Re-score、Re-run、Replay：三个词必须分开
 
-同一份 canonical data 可以派生：
+## Re-score
 
 ```text
-SFT View
-Preference View
-RL View
-Judge Calibration View
-Benchmark View
-Regression View
+Frozen Historical Output
++
+New / Corrected Label or Evaluator Mapping
+↓
+New Metric
 ```
 
-例如：
+回答：
+
+> 历史行为按当前正确评价应得多少分？
+
+---
+
+## Re-run
 
 ```text
-Canonical Trajectory
+Current Model / Policy / Runtime
 ↓
-SFT formatter
-↓
-messages format
+Fresh Execution
 ```
 
-和：
+回答：
+
+> 今天重新执行会发生什么？
+
+---
+
+## Replay
+
+> 尽量在冻结 / 重建的历史输入与环境条件上重新执行，用于复现或调试。
+
+Replay 是否能得到 bit-exact output，取决于系统 deterministic 程度。
+
+三者回答的问题不同，不能混称“重新跑一下”。
+
+---
+
+# 19.12 Derived View：不要复制出多份失联“真相”
+
+同一 Canonical Trajectory 可以生成：
 
 ```text
-Canonical Trajectory
-↓
-Preference extractor
-↓
-chosen / rejected
+SFT messages
+Preference pair
+Failure record
+Regression case
+Recovery example
 ```
 
-推荐保留：
+每个 View 应保存：
 
 ```text
-source_sample_id
+source_ids
 view_type
 view_version
 transform_config
+build_code_version
 ```
 
-而不是复制后彻底断开来源。
+这样 Label 修正后可以 rebuild。
+
+不要把五份 JSONL 复制出去后失去 parent relation。
 
 ---
 
-# 19.14 Reproducibility：什么叫“能复现”？
+# 19.13 Reproducibility：不是只有一个模型 checkpoint
 
-很多团队所谓复现只保存：
-
-```text
-model checkpoint
-```
-
-但真正至少需要：
+一次重要 Run 至少依赖：
 
 ```text
-Data
 Code
-Config
-Environment
+Data
 Model
-Toolset
+Prompt
+Runtime
+Tools
+Environment
 Randomness
 Evaluator
+Budget / Stop Rules
 ```
 
-也就是：
+可以概念化：
 
 ```text
 Run = f(
-  code_version,
-  dataset_version,
-  model_version,
-  prompt_version,
-  toolset_version,
-  env_snapshot,
-  seed,
-  config,
-  verifier_version
+  code_commit,
+  dataset_manifest,
+  model,
+  prompt,
+  runtime,
+  environment,
+  seed_policy,
+  evaluator,
+  budget
 )
 ```
 
-其中任一项变化，都可能改变结果。
+不是要求所有系统 bit-exact，而是要求实验定义和关键 inputs 可追溯。
 
 ---
 
-# 19.15 Reproducibility Manifest
+# 19.14 Reproducibility 的三个层次
 
-每个重要训练 / benchmark run 推荐保存一个 manifest：
+## Exact Reproducibility
+
+相同输入得到完全一致结果。
+
+适合 deterministic verifier / data build。
+
+## Statistical Reproducibility
+
+随机系统重复运行得到稳定分布 / 结论。
+
+## Protocol Reproducibility
+
+别人能重建同一 Evaluation / Training Contract，得到可比结论。
+
+对复杂 Agent 系统，后两者经常比 token-level exact match 更现实。
+
+---
+
+# 19.15 Run Manifest：实验身份证
+
+重要 Training / Eval Run 至少保存：
 
 ```yaml
-run_id: eval_20261017_001
+run_id: eval_001
 code_commit: abc123
-dataset_version: benchmark_v5
-schema_version: task_schema_v3
+case_manifest: benchmark_v5_manifest.json
+schema_version: task_v3
 model_version: model_m17
-prompt_version: agent_prompt_v9
+prompt_version: prompt_v9
 toolset_version: tools_v4
 harness_version: harness_v7
-environment_snapshot: env_20261017
+environment_snapshot: env_s17
 verifier_version: verifier_v5
-judge_prompt_version: judge_v8
-seed_policy: fixed_seed_set_v2
-max_steps: 40
-timeout_sec: 120
+judge_version: judge_v8
+seed_policy: seeds_v2
+budget:
+  max_steps: 40
+  max_tokens: 16000
 ```
 
-这其实是“实验身份证”。
-
----
-
-# 19.16 Hash 与 Manifest：证明“你跑的就是这批数据”
-
-对于 frozen evaluation，最好保存：
+对于正式 frozen asset，再保存：
 
 ```text
-file hash
 row count
-sample ID manifest
-artifact hash
+IDs manifest
+file / artifact hash
 ```
 
-例如：
+防止：
 
 ```text
-benchmark_v5
-rows = 8,412
-sample_ids.sha256 = ...
-```
-
-这样可以防止：
-
-```text
-文件名没变
-但内容已经被悄悄替换
+名字一样
+内容悄悄变了
 ```
 
 ---
 
-# 19.17 Determinism：复现不等于每个 token 都必须完全一样
+# 19.16 Environment / Tool / Clock 也是实验版本
 
-某些系统具有天然 stochasticity：
+Agent Case 不只是 Prompt。
 
-```text
-sampling
-network timing
-parallel tool calls
-external API
-browser content
-```
-
-因此要区分：
+需要追踪：
 
 ```text
-Exact Reproducibility
-Statistical Reproducibility
-Protocol Reproducibility
-```
-
-## Exact
-
-同样输入得到完全一致结果。
-
-## Statistical
-
-重复运行得到稳定分布。
-
-## Protocol
-
-别人可以在同一实验定义下重新执行并得到可比结论。
-
-对于 Agent 系统，第三种往往比“字节级一致”更现实。
-
----
-
-# 19.18 Environment Snapshot 也是数据版本的一部分
-
-Agent benchmark 不能只版本化 prompt。
-
-还要保存：
-
-```text
-DB snapshot
-filesystem snapshot
-calendar snapshot
-web fixture
+DB / filesystem / calendar snapshot
 permission map
 clock
+timezone
 locale
+tool schema
+tool backend version
+error semantics
 ```
 
 因为：
 
 ```text
-Task 不变
-Environment State 变了
+Task text same
+Environment changes
 ```
 
-实际就是另一个 task instance。
+可能已经是不同 Case / difficulty。
 
-所以可以把 benchmark case 定义成：
+第 11 章定义 Environment；本章负责治理版本与 lineage。
+
+---
+
+# 19.17 Annotation Provenance
+
+Human Label 可以保存：
 
 ```text
-Task Definition
-+
-Environment Snapshot
-+
-Verifier
-+
-Protocol
+annotator_id / pseudonymous id
+role / expertise tier
+guideline_version
+UI version
+candidate order
+time spent
+confidence
+adjudication status
+```
+
+UI version 重要，因为：
+
+```text
+reference 是否可见
+证据是否折叠
+A/B 顺序
+```
+
+都会影响 label。
+
+完整 Human QC 归第 6 章。
+
+---
+
+# 19.18 Evaluator Provenance
+
+Judge / Grader 输出至少绑定：
+
+```text
+evaluator_type
+model / version
+prompt version
+rubric version
+evidence schema
+parser / mapping version
+decoding config
+run_id
+raw artifact
+```
+
+所以：
+
+```text
+score = 0.87
+```
+
+本身没有脱离 provenance 的独立语义。
+
+第 15 章定义 evaluator semantics；本章定义如何长期追踪。
+
+---
+
+# 19.19 Sampling / Selection Provenance
+
+为什么一条数据进入训练集，也要可追：
+
+```text
+selection_policy
+sampling_probability
+sampling_bucket
+priority_score
+hardness / risk score
+failure cluster
+business priority
+filter reason
+```
+
+因为 Selection Policy 自己会改变训练分布。
+
+后续若模型对某类行为过拟合，可以追溯是否源于 acquisition / weighting policy。
+
+---
+
+# 19.20 Split Governance 与 Family Lineage
+
+Train / Eval Leakage 不止 exact duplicate。
+
+还包括：
+
+```text
+Near Duplicate
+Same Seed Family
+Same Workflow
+Same Environment Fixture
+Same User Session
+Benchmark-derived Synthetic Data
+Teacher Solution Leakage
+```
+
+因此 Split Policy 也要版本化：
+
+```text
+split_policy_version
+```
+
+并优先按：
+
+```text
+family_id
+workflow_id
+seed_id
+case_family
+```
+
+做 group split。
+
+---
+
+# 19.21 Contamination Registry
+
+可以长期记录：
+
+```text
+benchmark / asset
+known training overlap
+public exposure
+near-duplicate risk
+synthetic derivative status
+first seen date
+risk assessment
+mitigation
+```
+
+不要把：
+
+```text
+“我们没有主动训练测试集”
+```
+
+当作 contamination 已被证明不存在。
+
+---
+
+# 19.22 Training Lineage：模型也必须是 Lineage Graph 的节点
+
+一个 Model / Checkpoint 应追溯：
+
+```text
+base model
+training code commit
+config
+optimizer / schedule
+mixture version
+dataset versions
+sample / token weights
+seed
+checkpoint parent
+```
+
+这样可以双向查询：
+
+```text
+Model → trained on what?
+Dataset → used by which models?
+```
+
+如果某 Dataset 后来发现严重问题，就能定位受影响模型。
+
+---
+
+# 19.23 Data Card ↔ Model Card
+
+Data Card 至少说明：
+
+```text
+Purpose
+Source
+Schema
+Collection / Generation
+Labeling / Evaluator
+Population / Sampling
+Known Bias
+Known Limitations
+Privacy / Rights
+Version
+Intended / Prohibited Use
+```
+
+Model Card 则应能链接：
+
+```text
+training dataset / mixture IDs
+major eval protocol IDs
+known data limitations
+```
+
+两者通过 lineage 形成闭环。
+
+---
+
+# 19.24 Privacy：治理不是只有“版本号”
+
+线上数据可能含：
+
+```text
+姓名
+邮箱
+账号
+地址
+订单
+文件
+企业内部信息
+敏感业务状态
+```
+
+治理原则：
+
+```text
+Data Minimization
+Purpose Limitation
+PII Detection
+Redaction / Pseudonymization
+Least Privilege
+Retention
+Deletion
+Audit
+```
+
+最强隐私策略往往是：
+
+> **不需要的字段就不要进入数据闭环。**
+
+---
+
+# 19.25 Redaction ≠ Pseudonymization
+
+```text
+Redaction:
+Alice → [NAME]
+
+Pseudonymization:
+Alice → user_8f12
+```
+
+前者去除具体值；后者保留跨事件关联能力。
+
+Pseudonymization 仍可能有 re-identification risk，不能等同于匿名化。
+
+---
+
+# 19.26 Access Control
+
+不同层的数据可设置不同访问范围：
+
+```text
+Raw Production Evidence
+→ most restricted
+
+Redacted Canonical Data
+→ wider internal use
+
+Aggregated Metrics
+→ broadest
+```
+
+采用：
+
+```text
+least privilege
+role-based access
+purpose-based access
+```
+
+而不是“做 AI 的人默认都能看全部 raw logs”。
+
+---
+
+# 19.27 Consent / License / Intended Use
+
+```text
+Publicly accessible
+```
+
+不自动等于：
+
+```text
+可以训练
+可以商业使用
+可以重新分发
+```
+
+同样，用户为完成一次 Task 提供的数据，也不自动等于可作为：
+
+```text
+training data
+public benchmark
+synthetic seed
+```
+
+因此 provenance 还应记录：
+
+```text
+license
+consent
+collection purpose
+allowed downstream use
 ```
 
 ---
 
-# 19.19 Time Dependency：时间本身需要冻结或显式记录
+# 19.28 Retention 与 Deletion 是 Lineage 问题
 
-例如：
-
-```text
-“取消明天的会议”
-```
-
-如果当前日期不同，task 语义就不同。
-
-因此应记录：
+删除一个 Raw Row 可能还留下：
 
 ```text
-frozen_clock
-timezone
-locale
-holiday_calendar
-business_hours_version
+Canonical Record
+Annotation
+Embedding
+Synthetic Derivative
+Dataset View
+Cache
+Backup
+Evaluation Artifact
 ```
 
-否则同一个 case 下个月重跑可能已经不是同一个问题。
+所以删除流程必须借助 lineage 查 downstream derivatives。
+
+同时区分：
+
+```text
+删除存储中的数据
+≠
+逆转它已经对训练模型参数造成的影响
+```
+
+后者可能涉及 retraining / unlearning 等额外机制。
+
+不要用：
+
+```text
+file deleted
+```
+
+宣称：
+
+```text
+model never learned it
+```
 
 ---
 
-# 19.20 Tool / API Versioning：工具升级也会改变 benchmark
+# 19.29 Gold / Anchor / Regression Asset 要更严格治理
 
-假设：
-
-```text
-search_order v1
-```
-
-只返回：
+这些数据会承担：
 
 ```text
-status
+Judge Calibration
+Benchmark Truth
+Release Gate
+Regression
 ```
 
-后来：
+所以至少要求：
 
 ```text
-search_order v2
+strong provenance
+expert / adjudication status
+change history
+evidence
+known ambiguity
+version
+access boundary
 ```
 
-增加：
-
-```text
-refund_eligibility
-```
-
-这会显著降低任务难度。
-
-所以工具版本也应该进入：
-
-```text
-experiment manifest
-```
-
-而不是被当作基础设施细节忽略。
+Gold 漂移会让整个 evaluation system 跟着漂。
 
 ---
 
-# 19.21 Audit Trail：谁在什么时候改了什么？
+# 19.30 One Sample, Multiple Trust / Use Levels
 
-对于重要数据资产，最好保留：
+同一条数据可能：
+
+```text
+适合 analysis
+但不适合 SFT
+```
+
+或者：
+
+```text
+适合 hard-case seed
+但不够资格做 benchmark gold
+```
+
+因此可以保存：
+
+```text
+allowed_uses
+prohibited_uses
+trust_level
+verification_status
+```
+
+不要用一个全局：
+
+```text
+usable = true
+```
+
+覆盖所有用途。
+
+---
+
+# 19.31 Audit Trail：谁在什么时候改了什么？
+
+重要 mutation 最好记录：
 
 ```text
 actor
@@ -961,814 +1164,153 @@ reviewer
 例如：
 
 ```text
-2026-10-17
-annotator_42
-changed label
-wrong_tool → correct_tool
-reason: schema interpretation fixed
-reviewed_by: adjudicator_7
+label v1 → v2
+reason: rubric boundary corrected
+reviewer: adjudicator_7
 ```
 
-这比只有最终状态可靠很多。
+Audit Trail 不是替代 Versioning，而是说明版本变化是谁、为什么做的。
 
 ---
 
-# 19.22 Annotation Provenance
+# 19.32 Governance Failure 也需要 Taxonomy
 
-Human Label 至少可以保存：
-
-```text
-annotator_id / anonymized_id
-annotator_role
-expertise_tier
-guideline_version
-UI version
-time_spent
-confidence
-adjudication status
-```
-
-为什么 UI version 也重要？
-
-因为：
+常见：
 
 ```text
-证据有没有折叠
-A/B 谁放左边
-有没有显示 reference
+Unknown Source
+Broken Lineage
+Silent Relabel
+Schema Drift
+Untracked Judge Change
+Untracked Environment Change
+Train/Eval Leakage
+Missing License
+PII Exposure
+Irreproducible Run
+Orphaned Derived View
+Deletion Incomplete
 ```
 
-都会影响 label。
+这些不是 Model Failure，却会破坏所有后续科学结论。
 
 ---
 
-# 19.23 Judge Provenance
+# 19.33 Governance Metrics
 
-LLM Judge 输出必须绑定：
-
-```text
-judge_model
-judge_model_version
-judge_prompt_version
-rubric_version
-evidence_schema_version
-reference_version
-decoding_config
-run_id
-```
-
-否则：
+治理也应该可观测：
 
 ```text
-score = 0.87
+% assets with complete provenance
+% labels with version history
+% runs with reproducibility manifest
+% datasets with immutable manifest / hash
+% benchmark cases with contamination status
+% derived views rebuildable
+% lineage edges resolved
+% privacy / license checks complete
+% deletion requests fully propagated
 ```
 
-没有独立意义。
+否则 Governance 容易沦为只写制度、无法验证执行情况。
 
 ---
 
-# 19.24 Sampling Provenance：样本为什么会进入训练集？
+# 19.34 Research Prototype：最低可信实现不需要庞大平台
 
-推荐保存：
+小团队可以先有：
 
 ```text
-selection_policy
-sampling_probability
-sampling_bucket
-priority_score
-hardness_score
-uncertainty_score
-failure_cluster
-business_priority
+Stable IDs
+Immutable Raw Files
+JSON / YAML Manifests
+Git Commit
+Hashes
+Versioned Labels
+Build Scripts
+Artifact Paths
 ```
 
-因为这会影响：
+已经能解决大部分科研可追溯问题。
+
+生产规模再升级：
 
 ```text
-训练数据分布
-```
-
-也影响后续：
-
-```text
-bias analysis
-reweighting
-```
-
----
-
-# 19.25 Data Leakage 与 Split Governance
-
-训练 / 验证 / 测试 split 不能只做一次 random split。
-
-尤其 LLM / Agent 场景需要防：
-
-```text
-exact duplicate leakage
-near-duplicate leakage
-same workflow leakage
-same environment leakage
-same user session leakage
-synthetic sibling leakage
-benchmark-derived training leakage
-```
-
-所以 split 本身也要有：
-
-```text
-split_policy_version
-```
-
----
-
-# 19.26 Group Split：避免同一族样本跨 Train/Test
-
-例如 synthetic family：
-
-```text
-Seed Failure F
-├── Task A
-├── Task B
-├── Task C
-└── Task D
-```
-
-如果：
-
-```text
-A/B/C train
-D test
-```
-
-可能高估泛化。
-
-更合理的是：
-
-```text
-family_id
-workflow_id
-seed_id
-```
-
-作为 group split 单位。
-
----
-
-# 19.27 Benchmark Contamination Registry
-
-可以维护：
-
-```text
-benchmark_name
-benchmark_version
-known_training_overlap
-known_public_exposure
-synthetic_derivative_status
-first_seen_date
-contamination_risk
-```
-
-而不是简单说：
-
-```text
-“我们没主动训练这个 benchmark”
-```
-
-因为它可能通过：
-
-```text
-web data
-teacher generation
-synthetic paraphrase
-public solution
-```
-
-间接进入训练。
-
----
-
-# 19.28 PII 与 Privacy：Data Governance 的另一条主线
-
-线上数据可能包含：
-
-```text
-姓名
-电话
-邮箱
-地址
-账号
-订单
-位置
-内部文档
-企业机密
-```
-
-所以数据 ingestion 不能只有：
-
-```text
-collect everything
-```
-
-而要有：
-
-```text
-Data Minimization
-PII Detection
-Redaction / Tokenization
-Purpose Limitation
-Access Control
-Retention Policy
+Catalog
+RBAC
+Central Lineage
 Deletion Workflow
+Policy Engine
+Automated Audit
 ```
+
+原则是：
+
+> **治理强度随规模 / 风险增加，但 scientific identity / version / lineage 从第一天就值得保留。**
 
 ---
 
-# 19.29 Data Minimization：能不收就不收
+# 19.35 Reproducibility Debt
 
-最强隐私策略不是：
-
-```text
-先全收，再想怎么保护
-```
-
-而是：
-
-> **如果某字段对目标没有必要，就不要进入数据闭环。**
-
-例如 failure analysis 可能只需要：
-
-```text
-error type
-state abstraction
-tool sequence
-```
-
-而不需要用户真实姓名。
-
----
-
-# 19.30 Redaction 与 Pseudonymization 要区分
-
-## Redaction
-
-```text
-Alice Chen
-→ [NAME]
-```
-
-目标是去掉具体值。
-
-## Pseudonymization
-
-```text
-Alice Chen
-→ user_8f12
-```
-
-仍然可以跨事件连接同一个实体。
-
-两者用途不同。
-
-Pseudonymization 仍然可能有 re-identification risk，不能等同于完全匿名。
-
----
-
-# 19.31 Access Control：不是所有人都应该看到 Raw Data
-
-可以按层级控制：
-
-```text
-Raw Production Data
-→ restricted
-
-Redacted Canonical Data
-→ wider internal access
-
-Aggregated Metrics
-→ broad access
-```
-
-同时采用：
-
-```text
-least privilege
-role-based access
-purpose-based access
-```
-
-而不是所有数据工程 / 研究人员默认都能看完整用户日志。
-
----
-
-# 19.32 Retention Policy：数据不应该无限保存
-
-不同数据可以有不同生命周期：
-
-```text
-raw logs: 30 / 90 days
-redacted data: longer
-benchmark assets: long-term
-regression cases: long-term
-sensitive raw attachments: shortest necessary
-```
-
-具体时间取决于产品、法律和业务要求，但治理思想是：
-
-> **Retention should be intentional, not accidental.**
-
----
-
-# 19.33 Deletion：删除一条数据比看起来难
-
-如果用户要求删除原始数据，需要考虑：
-
-```text
-Raw Log
-Canonical Record
-Annotation
-Embedding
-Cached Feature
-Synthetic Derivative
-Training Dataset
-Model Checkpoint
-Evaluation Artifact
-Backup
-```
-
-所以只有：
-
-```text
-delete raw row
-```
-
-未必完成真正的数据删除流程。
-
-这也是为什么 lineage 很重要：
-
-> 你必须先知道它衍生去了哪里，才谈得上完整处理。
-
----
-
-# 19.34 Derived Data 的删除与“不可逆训练影响”
-
-这里要区分：
-
-```text
-删除存储中的样本
-```
-
-和：
-
-```text
-逆转该样本对已训练模型参数的影响
-```
-
-是不同问题。
-
-后者可能需要：
-
-```text
-retraining
-unlearning
-policy-specific remediation
-```
-
-不能简单把：
-
-```text
-file deleted
-```
-
-表述成：
-
-```text
-model never learned it
-```
-
----
-
-# 19.35 Licensing：数据“能拿到”不等于“能训练”
-
-外部数据需要记录：
-
-```text
-license
-terms
-usage scope
-commercial restrictions
-redistribution restrictions
-attribution requirements
-```
-
-尤其：
-
-```text
-公开可访问
-```
-
-不自动等于：
-
-```text
-可无限训练 / 商业使用 / 重新分发
-```
-
-因此 license metadata 应跟数据一起走。
-
----
-
-# 19.36 Consent 与 Purpose Limitation
-
-用户为了：
-
-```text
-完成某次任务
-```
-
-提供的数据，不一定天然适合被重用为：
-
-```text
-训练数据
-公开 benchmark
-synthetic seed
-```
-
-所以治理系统应区分：
-
-```text
-collection purpose
-allowed downstream use
-consent status
-```
-
----
-
-# 19.37 Data Quality Record：质量信息本身也要版本化
-
-推荐保存：
-
-```text
-quality_checks
-schema_valid
-verifier_pass
-human_reviewed
-dedup_status
-contamination_status
-risk_flags
-```
-
-而不是只有：
-
-```text
-approved = true
-```
-
-因为不同用途对质量门槛可能不同。
-
----
-
-# 19.38 One Sample, Multiple Trust Levels
-
-同一条数据可能：
-
-```text
-适合 failure analysis
-```
-
-但不适合：
-
-```text
-SFT
-```
-
-例如：
-
-```text
-label 不够确定
-但 failure pattern 很有研究价值
-```
-
-所以可以给：
-
-```text
-use_allowed_for:
-- analysis
-- mining
-
-not_allowed_for:
-- training
-- benchmark_gold
-```
-
-而不是一个全局 `usable=true`。
-
----
-
-# 19.39 Gold Set 必须治理得比普通训练数据更严格
-
-Gold Set 应至少保存：
+短期不记录：
 
 ```text
 source
-expert review
-adjudication
 version
-change history
-evidence
-known ambiguity
+config
+lineage
 ```
 
-因为它承担：
+看似省事。
+
+长期会变成：
 
 ```text
-Judge calibration
-Benchmark truth
-Human calibration
-Regression
+结果无法复算
+Bug 无法定位
+模型受影响范围未知
+数据版本差异无法解释
+历史结论不可审计
 ```
 
-如果 Gold 本身漂了，整个系统都会跟着漂。
+这就是 Reproducibility Debt。
+
+它与 technical debt 一样会累积利息。
 
 ---
 
-# 19.40 Train Data 与 Eval Data 的治理边界
+# 19.36 Canonical Case：C1 Failure → Training → Regression Lineage
 
-建议物理或逻辑隔离：
-
-```text
-Training Assets
-Evaluation Assets
-```
-
-并限制：
+假设生产出现：
 
 ```text
-谁能看 hidden eval
-谁能生成 benchmark-derived training data
-谁能修改 evaluator
+C1 Order / Refund Failure
 ```
 
-否则 leaderboard tuning 很容易变成隐性训练。
-
----
-
-# 19.41 Evaluation Artifact 也应该 Immutable
-
-一次正式 benchmark run 应该保存：
-
-```text
-raw output
-raw tool trace
-raw environment state
-judge raw output
-verifier result
-metric computation
-final report
-```
-
-不要只留下：
-
-```text
-accuracy = 78.4%
-```
-
-因为后面标签修正时，需要：
-
-```text
-recompute metrics
-```
-
-而不是重新生成模型行为。
-
----
-
-# 19.42 Re-score 与 Re-run 要分开
-
-## Re-score
-
-```text
-Frozen Output
-+
-New / Corrected Labels
-↓
-New Metrics
-```
-
-## Re-run
-
-```text
-Current Code / Model / Environment
-↓
-New Output
-```
-
-两者回答的问题不同。
-
-所以实验报告应清楚写：
-
-```text
-historical replay
-rescoring
-fresh rerun
-```
-
-不要混在一起。
-
----
-
-# 19.43 Training Run Lineage
-
-每个训练模型至少应该追溯：
-
-```text
-base_model
-training_code_commit
-training_config
-data_mixture
-sample weights
-dataset versions
-optimizer config
-seed
-checkpoint lineage
-```
-
-于是：
-
-```text
-Model M18
-```
-
-不是一个孤立 artifact，而是一个可追溯节点。
-
----
-
-# 19.44 Model Card 与 Data Card 可以互相链接
-
-例如：
-
-```text
-Model Card
-→ trained_on_dataset_ids
-
-Dataset Card
-→ used_by_model_ids
-```
-
-这样可以形成双向 lineage。
-
-如果某个 dataset 后来发现严重 label bug，就能查询：
-
-```text
-哪些 model 受影响？
-```
-
----
-
-# 19.45 Data Card：一个数据资产至少应该说明什么？
-
-建议包括：
-
-```text
-Purpose
-Source
-Collection Method
-Schema
-Labeling Method
-Verifier / Judge
-Population
-Sampling
-Known Bias
-Known Limitations
-Privacy
-License
-Version
-Intended Use
-Prohibited Use
-```
-
-Data Card 不是写给形式合规看的，而是让后来的人知道：
-
-> **这批数据究竟能支持什么结论，不能支持什么结论。**
-
----
-
-# 19.46 Dataset Manifest 示例
-
-```yaml
-dataset_id: agent_recovery_v3
-version: 3.0.1
-parent: agent_recovery_v3.0.0
-schema_version: trajectory_v6
-label_version: failure_taxonomy_v4
-source_model_versions:
-  - agent_m15
-  - agent_m16
-selection_policy: recovery_mining_v5
-verifier_version: env_verifier_v7
-judge_version: judge_rubric_v8
-rows: 42871
-created_at: 2026-10-17
-split_policy: workflow_group_split_v2
-license_status: internal-approved
-privacy_status: redacted
-```
-
----
-
-# 19.47 Lineage 的最小可行实现，不一定需要复杂平台
-
-研究团队早期完全可以从：
-
-```text
-stable IDs
-JSON manifests
-Git commit
-immutable raw files
-versioned labels
-hashes
-```
-
-开始。
-
-关键不是先建一个巨大 Data Platform。
-
-关键是：
-
-> **任何重要结果都能从 artifact 追到 source，从 source 追到 transform，从 transform 追到 decision。**
-
----
-
-# 19.48 Research Prototype 与 Production Governance 的差别
-
-研究原型可以：
-
-```text
-少量脚本
-manifest
-manual review
-Git versioning
-```
-
-生产系统才需要更强：
-
-```text
-catalog
-RBAC
-policy engine
-automated deletion
-central lineage
-compliance workflow
-```
-
-但两者共同的科学原则不变：
-
-```text
-Version
-Provenance
-Lineage
-Immutability
-Reproducibility
-```
-
----
-
-# 19.49 一个完整 Agent Data Governance 示例
-
-假设出现线上失败：
-
-```text
-用户：退款 500 美元订单
-Agent 未检查权限直接退款
-```
-
-完整链路可以是：
+可以形成：
 
 ```text
 Production Event
-id = prod_9138
+prod_9138
 ↓
 Raw Trajectory
 traj_9138_raw
 ↓
-PII Redaction
-traj_9138_redacted_v1
+Redacted Canonical Trajectory
+traj_9138_v1
 ↓
-Failure Annotation
-permission_failure_v1
+Failure Annotation v1
 ↓
-Adjudication
-permission_failure_v2
+Adjudicated Label v2
 ↓
-Synthetic Expansion
-family_perm_refund_07
-↓
-Verifier Check
-verified_batch_20261017
+Synthetic Family
+family_order_constraint_07
 ↓
 Preference View
-pref_perm_v3
+pref_order_v3
 ↓
-Training Dataset
-agent_pref_mix_v12
+Training Mixture
+agent_mix_v12
 ↓
 Training Run
 run_m19_041
@@ -1776,424 +1318,237 @@ run_m19_041
 Model
 agent_m19
 ↓
-Regression
-regression_perm_refund_v2
+Regression Case
+reg_order_1847_v2
 ```
 
-如果三个月后发现：
+如果三个月后发现旧 failure label 错了：
 
 ```text
-failure label 定义有误
-```
-
-就可以：
-
-```text
-修正 annotation
+Raw Trajectory 不改
 ↓
-重新构建 derived view
+新增 Corrected Label
 ↓
-重评 benchmark
+Rebuild Derived Views
+↓
+Re-score Frozen Evaluation
+↓
+检查哪些 Training Runs / Models 受影响
 ```
 
-而不需要改写 raw trajectory。
+这就是 Governance 真正发挥作用的地方。
 
 ---
 
-# 19.50 Governance Failure 本身也应该有 Taxonomy
+# 19.37 常见失败模式
 
-常见治理失败：
+### 失败 1：文件名被当作版本系统
 
-```text
-Unknown Source
-Broken Lineage
-Silent Relabel
-Schema Drift
-Train/Eval Leakage
-Missing License
-PII Exposure
-Untracked Judge Change
-Untracked Environment Change
-Irreproducible Run
-Orphaned Derived Data
-Deletion Incompleteness
-```
+`train_final_final2.jsonl` 不等于治理。
 
-这些不是模型 failure，但会严重破坏数据系统可信度。
+### 失败 2：Raw 与 Derived 混在一起
 
----
+Judge score 被误当世界事实。
 
-# 19.51 Governance Metrics
+### 失败 3：Label 修正直接覆盖旧值
 
-可以监控：
+历史实验无法审计。
 
-```text
-% samples with complete provenance
-% samples with valid lineage
-% datasets with manifest
-% labels with version history
-% runs reproducible from manifest
-% PII scan coverage
-% deletion requests fully propagated
-% evaluation artifacts immutable
-% benchmark cases with contamination status
-```
+### 失败 4：Historical Decision 被 Corrected Label 反向改写
 
-也就是：
+历史行为被篡改。
 
-> **Governance 也应该可量化，而不是只写制度。**
+### 失败 5：Re-score / Re-run / Replay 混用
 
----
+科学问题变了却不自知。
 
-# 19.52 Reproducibility Debt
+### 失败 6：Dataset Version、Schema Version、Label Version 全用一个 `v3`
 
-如果早期一直不记录：
+无法知道什么发生了变化。
 
-```text
-version
-source
-config
-lineage
-```
+### 失败 7：Derived View 复制后与 Source 断链
 
-短期看似省时间。
+修正无法传播。
 
-但后面会产生：
+### 失败 8：只版本化 Model，不版本化 Tool / Environment / Judge
 
-```text
-不知道结果怎么来的
-无法复算
-无法定位 bug
-不能确认哪些模型受影响
-不能解释数据差异
-```
+Agent Run 无法复现。
 
-这就是 Reproducibility Debt。
+### 失败 9：Random Split 没有 Family / Workflow Lineage
 
-它和 technical debt 一样，会越积越贵。
+Train/Eval leakage 被隐藏。
+
+### 失败 10：Publicly Accessible 被当成无限使用许可
+
+Rights governance 失效。
+
+### 失败 11：删除 Raw Row 就宣称完成所有删除
+
+Derivative 仍然存在。
+
+### 失败 12：研究原型因为怕“工程过重”连 Stable ID / Manifest 都不保存
+
+会快速产生 reproducibility debt。
 
 ---
 
-# 19.53 Governance 不等于“什么都不能改”
-
-治理目标不是冻结一切。
-
-而是允许：
+# 19.38 从数据岗位视角，这一章实际会做什么？
 
 ```text
-数据改
-标签改
-规则改
-Judge 改
-Schema 改
+设计 stable IDs / schema
+维护 raw / canonical / derived layers
+建立 dataset manifests
+做 label / schema / dataset versioning
+记录 generator / annotator / judge provenance
+维护 family / workflow lineage
+构建 train/eval split governance
+做 contamination registry
+维护 training / evaluation manifests
+支持 corrected-label rescoring
+做 model ↔ dataset impact tracing
+管理 PII / access / retention / deletion
+写 Data Card
+支持 audit / regression / rollback
 ```
 
-但要求：
+这类工作可能出现在：
 
 ```text
-知道改了什么
-知道为什么改
-保留旧版本
-能重建新版本
-不篡改历史事实
-```
-
-所以：
-
-> **Governance = Controlled Change，不是 No Change。**
-
----
-
-# 19.54 一个推荐的数据层级
-
-```text
-L0 Raw Evidence
-        ↓
-L1 Canonical Records
-        ↓
-L2 Labels / Scores / Metadata
-        ↓
-L3 Curated Assets
-        ↓
-L4 Training / Evaluation Views
-        ↓
-L5 Runs / Models / Reports
-```
-
-每一层都保留：
-
-```text
-ID
-Version
-Parent
-Transform
-Timestamp
-Owner
-```
-
-于是整个数据系统自然形成 lineage graph。
-
----
-
-# 19.55 对 Agent / LLM 数据岗的实际能力映射
-
-这一章对应的岗位能力包括：
-
-```text
-设计 dataset schema
-维护 sample IDs
-建立 data manifests
-做 label versioning
-追踪 judge / verifier versions
-维护 train/eval split
-排查 contamination
-构建 provenance
-做 data cards
-管理 PII / redaction
-支持 reproducible experiments
-追踪 training-data lineage
-支持 regression / rollback / audit
-```
-
-这类工作经常不会直接写成：
-
-```text
-“Data Governance”
-```
-
-而会出现在：
-
-```text
-数据平台
-模型评测
-训练数据管线
-数据质量
+Data Platform
+Model Evaluation
+Training Data Pipeline
 AI Infra
 Agent Data
+Governance / Compliance
 ```
 
-岗位中。
+而不一定直接叫“Data Governance”。
 
 ---
 
-# 19.56 面试题：一条标签被发现错了，你怎么办？
+# 19.39 本章关键词
 
-一个成熟回答不应该只是：
+| 术语 | Canonical meaning |
+|---|---|
+| Identity | 一个数据 / run / model 对象稳定的身份 |
+| Provenance | 对象最初从哪里来、由谁 / 什么生成 |
+| Lineage | 对象经过 transformation 与 usage 形成的关系图 |
+| Raw Evidence | 原始、尽量 immutable 的事实证据 |
+| Canonical Record | 对 Raw 的稳定结构化表示 |
+| Derived Data | Rule / Model / Human 推导出的 label / score / metadata |
+| Dataset View | 从 canonical assets 按 build recipe 派生的用途视图 |
+| Dataset Version | 数据资产内容 / 构成版本 |
+| Schema Version | 字段结构与语义版本 |
+| Label Version | 标签解释版本 |
+| Historical Decision | 历史 policy 当时真实做出的决定 |
+| Corrected Label | 后续根据更好 evidence 修正后的评价 |
+| Re-score | 不改变历史 output，只更新评价 |
+| Re-run | 当前系统重新执行产生新 output |
+| Replay | 尽量重建历史输入 / runtime 重新执行 |
+| Reproducibility Manifest | 描述一个 Run 完整依赖的身份证 |
+| Audit Trail | 谁在何时因为什么改变了什么 |
 
-```text
-把 label 改掉
-```
-
-而应该是：
-
-```text
-1. 保留 raw sample
-2. 新建 corrected label version
-3. 记录 change reason / reviewer / evidence
-4. 查 lineage，定位受影响 derived datasets
-5. 对历史 frozen outputs 先 re-score
-6. 区分是否需要 fresh re-run
-7. 查哪些 training runs / models 使用过旧 label
-8. 评估是否需要 retrain / regression
-9. 更新 gold / guideline / judge calibration
-```
-
----
-
-# 19.57 面试题：如何保证一个 benchmark 结果半年后还能复现？
-
-至少要保存：
-
-```text
-Benchmark version
-Sample manifest
-Code commit
-Model version
-Prompt version
-Tool version
-Harness version
-Environment snapshot
-Verifier / Judge version
-Generation config
-Seed policy
-Metric code
-Raw outputs
-```
-
-如果只有：
-
-```text
-final score
-```
-
-就谈不上真正复现。
+更完整定义见 [`Canonical Glossary`](./00_Glossary_and_Notation.md)。
 
 ---
 
-# 19.58 面试题：训练数据太大，不能逐条追踪怎么办？
+# 19.40 面试 / 自检问题
 
-可以分层：
+1. Identity、Provenance、Lineage 有什么区别？
+2. Raw / Canonical / Derived 为什么必须分层？
+3. Derived Label 为什么不能覆盖 Raw Truth？
+4. 为什么 Lineage 更像 DAG 而不是文件链？
+5. Dataset / Schema / Label Version 有什么不同？
+6. Label Correction 为什么不能覆盖 Historical Decision？
+7. Re-score、Re-run、Replay 分别回答什么问题？
+8. Dataset View 为什么应该可重建？
+9. 一个 Reproducibility Manifest 至少包含什么？
+10. Exact / Statistical / Protocol Reproducibility 有什么区别？
+11. 为什么 Tool / Environment / Clock 也要版本化？
+12. Human Annotation Provenance 为什么包括 UI Version？
+13. Judge Score 为什么离开 Evaluator Provenance 没有独立意义？
+14. Sampling Policy 为什么需要 provenance？
+15. 为什么 Family / Workflow Lineage 对 Split 很重要？
+16. Contamination Registry 解决什么问题？
+17. 怎样从 Dataset 反查受影响 Model？
+18. Data Card 与 Model Card 如何连接？
+19. Redaction 与 Pseudonymization 有什么区别？
+20. Data Minimization 为什么优先于“全收再脱敏”？
+21. 删除一条 Raw Data 为什么是 lineage 问题？
+22. 为什么删除文件不等于消除模型参数影响？
+23. Gold / Anchor Asset 为什么需要更严格治理？
+24. Governance Metrics 可以有哪些？
+25. 小研究团队最小需要哪些治理能力？
+
+---
+
+## 19.40.1 通用回答框架：发现一批 Label 错了怎么办？
 
 ```text
-Dataset-level lineage
-Batch-level lineage
-Sample-level lineage
-```
-
-并不是所有场景都要求每一个 token 都有完整来源链。
-
-可以按照：
-
-```text
-risk
-value
-compliance requirement
-```
-
-决定粒度。
-
-例如：
-
-```text
-高风险专家数据
-→ sample-level
-
-大规模公共预训练 corpus
-→ source / shard-level
+1. Preserve Raw Evidence
+   ↓
+2. 新增 Corrected Label Version
+   ↓
+3. 记录 Reason / Evidence / Reviewer
+   ↓
+4. 查 Lineage：受影响 Derived Views
+   ↓
+5. 对 Frozen Historical Outputs 先 Re-score
+   ↓
+6. 区分是否需要 Fresh Re-run
+   ↓
+7. 查受影响 Training Runs / Models
+   ↓
+8. 决定 Rebuild / Retrain / Regression
+   ↓
+9. 更新 Gold / Guideline / Judge Calibration
 ```
 
 ---
 
-# 19.59 本章最终心智模型
+# 19.41 本章最终要形成的认识
 
-可以把 Data Governance 理解成五个词：
+把全章压成：
 
 ```text
 Identity
-谁？
-
+↓
 Provenance
-从哪来？
-
-Lineage
-经历了什么？
-
-Versioning
-什么时候变了？
-
-Reproducibility
-能不能重新得到？
+↓
+Immutable Raw Evidence
+↓
+Canonical Representation
+↓
+Versioned Labels / Metadata
+↓
+Rebuildable Dataset Views
+↓
+Training / Evaluation Runs
+↓
+Models / Reports
+↓
+Bidirectional Lineage
 ```
 
-再加两个边界条件：
+并始终保持：
 
 ```text
-Privacy / Rights
-能不能用？
-
-Auditability
-出了问题能不能追？
+Raw Facts are preserved
+Derived interpretations are versioned
+Historical decisions are frozen
+Views are rebuildable
+Runs are reproducible enough to audit
+Rights and privacy travel with the data
 ```
 
-最终形成：
+最终原则：
 
-```text
-Raw Evidence
-↓
-Controlled Transformation
-↓
-Versioned Labels
-↓
-Curated Assets
-↓
-Training / Evaluation Views
-↓
-Models / Results
-↓
-Full Lineage Back to Source
-```
+> **一个成熟的数据系统，不只是知道“有什么数据”，而是知道每个关键 artifact 是谁、从哪来、为什么变、影响了什么，以及怎样在不篡改历史的前提下持续纠错。**
 
-一个成熟的数据系统，不只是：
+下一章进入：
 
-> **“有很多数据。”**
+> [`第 20 章 Data Quality、Filtering、Deduplication 与 Mixture`](./20_Data_Quality_Filtering_Deduplication_and_Mixture.md)
 
-而是：
+在治理身份和 lineage 已经稳定以后，才继续问：
 
-> **“知道每一类关键数据是什么、来自哪里、经历了什么、能用于什么、不能用于什么，以及它如何影响模型与结论。”**
-
----
-
-# 19.60 本章检查清单
-
-完成一个重要数据项目后，至少可以问：
-
-1. Raw data 是否保留且尽量不可变？
-2. Canonical 与 Derived 是否分层？
-3. 每条关键数据是否有稳定 ID？
-4. Source / generator / annotator 是否可追溯？
-5. Dataset、Schema、Label 是否分别版本化？
-6. Label correction 是否保留历史版本？
-7. Historical decisions 是否和 corrected labels 分离？
-8. Derived views 是否可从 canonical data 重建？
-9. 训练 / 评测 run 是否有完整 manifest？
-10. Environment / Tool / Judge 是否进入版本管理？
-11. Train / Eval split 是否有防 leakage 策略？
-12. Synthetic siblings 是否按 group 管理？
-13. Benchmark contamination 是否有记录？
-14. PII 是否最小化、脱敏并受访问控制？
-15. Retention / deletion 是否覆盖 derived artifacts？
-16. License / consent / intended use 是否有记录？
-17. Gold Set 是否有更严格的变更治理？
-18. Evaluation raw artifacts 是否保留？
-19. Re-score 和 Re-run 是否明确区分？
-20. 能否从 Model 反查到它使用过的 Dataset？
-21. 能否从 Dataset 反查哪些 Model 使用过它？
-22. 关键治理指标是否可观测？
-
-如果这些问题大多可以回答，数据体系才真正从：
-
-```text
-“文件集合”
-```
-
-升级成：
-
-```text
-“可追溯的数据系统”
-```
-
----
-
-# 下一章
-
-下一章建议进入：
-
-# 第 20 章 Data Quality、Filtering、Deduplication 与 Mixture
-
-重点回答：
-
-> **即使来源合法、lineage 完整，一批数据在真正进入训练之前，还要怎么判断“该不该留、留多少、和谁混在一起”？**
-
-将系统讨论：
-
-```text
-Data Cleaning
-Quality Filtering
-Semantic Deduplication
-Near-duplicate Detection
-Contamination Filtering
-Difficulty Filtering
-Toxic / Unsafe Filtering
-Model-based Filtering
-Human Audit
-Data Mixture
-Sampling Weights
-Temperature Sampling
-Domain Balancing
-Capability Balancing
-Curriculum vs Mixture
-Mixture Ablation
-Data Quality vs Quantity
-```
-
-这会把前面多次出现但尚未独立成章的 **Filtering / Dedup / Mixture** 正式收拢起来。
+> **哪些数据应该留下、哪些应该删 / 降权、哪些彼此重复，以及最终模型应该以多大训练曝光看到它们。**
