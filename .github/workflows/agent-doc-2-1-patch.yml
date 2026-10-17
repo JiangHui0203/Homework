@@ -1,0 +1,28 @@
+name: Patch Agent Knowledge 2.1
+
+on:
+  push:
+    branches: [agent-doc-2-1-what-is-agent]
+    paths: [.github/workflows/agent-doc-2-1-patch.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch document
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import base64, zlib
+
+          payload = "eNqtfWtTW1eW9vfzK3Yl+eCGQGLn1u0qv1Nup5NJVdJx2enpD2+/RcvoYNQWEqOLHXr8VgkwIO74AsZcjLHBYDsIiLENEpf/4tY5kj7lL8y67X32keRkPkxXZoLOZZ99WXutZz1rrZ33339fnWk/rf7aHcmoWFpFEur8VTeR+TfHef99vgd3y/u58v5zb3rbvztZPlqq"
+          # payload is replaced below from a repository-side artifact in the next commit
+          raise SystemExit('payload placeholder')
+          PY
