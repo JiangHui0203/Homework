@@ -1,1229 +1,893 @@
-# 第 18 章 Data Strategy 与 Data Valuation：如何决定哪类数据最值得做
+# 第 18 章 Data Strategy 与 Data Valuation：把有限预算投到最值得学的地方
 
 > 所属体系：[`LLM_Agent_Data_Knowledge_System.md`](../LLM_Agent_Data_Knowledge_System.md)
 >
 > 前置章节：[`第 17 章 Data Flywheel`](./17_Data_Flywheel_and_Continuous_Improvement.md)
 >
-> 关联章节：[`第 7 章 Synthetic Data`](./07_Synthetic_Data_Generation_and_Synthesis.md)、[`第 9 章 Hard Case Mining 与 Curriculum`](./09_Hard_Case_Mining_and_Curriculum.md)、[`第 14 章 Agent Failure Taxonomy`](./14_Agent_Failure_Taxonomy.md)、[`第 16 章 Benchmark Design 与 Evaluation Protocol`](./16_Benchmark_Design_and_Evaluation_Protocol.md)
+> 关联章节：[`第 9 章 Hard Case Mining`](./09_Hard_Case_Mining_and_Curriculum.md)、[`第 16 章 Benchmark Design`](./16_Benchmark_Design_and_Evaluation_Protocol.md)、[`第 20 章 Data Quality / Mixture`](./20_Data_Quality_Filtering_Deduplication_and_Mixture.md)、[`第 21 章 Data Experiments`](./21_Data_Experiments_and_Causal_Validation.md)、[`第 23 章 Monitoring 与 Drift`](./23_Data_Monitoring_Online_Feedback_and_Drift_Detection.md)
 >
-> 本章目标：从“如何生产数据”进一步升级到“如何配置有限数据预算”；建立 Data Portfolio、Marginal Utility、Data ROI、Capability-gap Prioritization、Risk-weighted Investment、Data Mixture、Ablation-based Valuation、Build vs Buy vs Generate 与 Portfolio Rebalancing 的基本框架。
+> 编辑基础设施：[`Canonical Glossary`](./00_Glossary_and_Notation.md) · [`Canonical Casebook`](./00_Canonical_Casebook.md)
 >
-> 本章核心问题：**数据战略的本质不是把数据做得更多，而是在有限的采集、标注、验证、训练与评测预算下，持续把资源投入到边际能力收益最高、业务价值最高、风险最值得控制的数据上。**
+> 本章定位：**Data Strategy / Data Valuation / Portfolio / ROI / Marginal Utility / Stop Rule 的 canonical chapter。它负责回答“为什么做这批数据、做多少、与其他方向相比是否更值、什么时候停”；Mixture 的技术实现归第 20 章，因果验证归第 21 章。**
+>
+> 本章核心问题：**当采集、标注、验证、训练、评测和工程预算都有限时，团队怎样把资源投入到边际能力收益最高、业务价值最高、风险最值得控制的数据上？**
 
 ---
 
-# 18.0 为什么 Data Strategy 是独立于 Data Production 的问题？
+# 18.0 Data Strategy = Resource Allocation under Uncertainty
 
-假设团队已经具备：
+当团队已经会：
 
 ```text
 Human Annotation
 Synthetic Generation
-Agent Rollout
+Rollout Mining
 Verifier / Judge
-Hard-case Mining
+Hard Case Mining
 Data Flywheel
 ```
 
-技术上已经“什么数据都能做一些”。
-
-真正困难的问题反而变成：
+真正稀缺的东西就不再只是“数据生产能力”，而是：
 
 ```text
-下一季度应该重点做哪类数据？
-10 万条 SFT 和 2 万条高质量 preference，哪个更值？
-是补 planning，还是补 recovery？
-是继续造 synthetic，还是买专家标注？
-某类 benchmark 提升 2 分，值不值得继续投入？
-某个高风险 failure 很少见，但是否应该重点投？
+预算
+时间
+专家
+训练算力
+验证能力
+工程注意力
 ```
 
-这些已经不是单纯的数据生产问题，而是：
-
-> **Resource Allocation under Uncertainty。**
-
-可以画成：
-
-```mermaid
-flowchart LR
-    A[Capability Map] --> B[Gap / Risk / Opportunity]
-    B --> C[Candidate Data Investments]
-    C --> D[Cost Estimate]
-    C --> E[Expected Learning Value]
-    D --> F[Portfolio Decision]
-    E --> F
-    F --> G[Data Production]
-    G --> H[Train / Eval]
-    H --> I[Measured Marginal Gain]
-    I --> A
-```
-
-所以：
+因此 Data Strategy 回答的是：
 
 ```text
-Data Production
-回答“怎么做”
-
-Data Strategy
-回答“为什么做这个、做多少、什么时候停”
+为什么做这个？
+做多少？
+现在做还是以后做？
+和另一个方向相比哪个更值？
+什么证据会让我们停止？
 ```
+
+而不是“怎么生成”。
 
 ---
 
-# 18.1 Data Asset、Data Batch 与 Data Investment
+# 18.1 Data Asset、Data Batch、Data Investment
 
-先区分三个层级。
+## Data Asset
 
-## 18.1.1 Data Asset
-
-一个可长期复用的数据资产，例如：
+可长期复用的数据资产：
 
 ```text
-Agent Regression Set
 Human Gold Set
-Math Verifiable Corpus
-Tool-use Preference Pool
-Failure Taxonomy Dataset
+Agent Regression Set
+Recovery Preference Pool
+Verifiable Code Corpus
 ```
 
-它可能被反复用于：
+## Data Batch
 
-```text
-Training
-Evaluation
-Calibration
-Regression
-Analysis
-```
-
----
-
-## 18.1.2 Data Batch
-
-某次具体生产得到的一批数据：
+某次具体生产：
 
 ```text
 2026Q4_recovery_failures_v2
 ```
 
-它有明确：
+它有明确来源、版本、成本和用途。
 
-```text
-source
-model version
-selection policy
-annotation protocol
-cost
-size
-quality
-```
+## Data Investment
 
----
+从战略视角看：
 
-## 18.1.3 Data Investment
+> **为了某个 Capability，我们投入了多少资源去生产、验证和训练某类数据，它最终带来了多少可测收益。**
 
-真正战略层关心的是：
-
-> **为了某个目标，我们投入了多少资源去得到某类数据，以及它最终带来了多少增益。**
-
-所以 Data Investment 至少包含：
+所以一个 Data Investment 至少包括：
 
 ```text
 Target Capability
-Data Source
-Production Method
-Quantity
+Why Now
+Source
+Supervision Type
+Quantity / Tokens
 Quality Level
-Cost
-Training Usage
-Evaluation Delta
-Business / Risk Impact
+Total Cost
+Training Exposure
+Measured Delta
+Risk / Business Impact
+Decision
 ```
 
 ---
 
-# 18.2 Data Portfolio：不要把所有预算押在一种数据上
+# 18.2 先从 Capability Portfolio 看预算，而不是从 Dataset 名字看预算
 
-真实模型需要多个能力同时成立。
-
-例如一个 Agent 可能需要：
+一个 Agent 可能包含：
 
 ```text
 Task Understanding
 Tool Selection
 Argument Construction
 Observation Grounding
-State Tracking
 Recovery
 Verification
 Termination
 ```
 
-数据预算也不应该只有：
+因此不应该只说：
 
 ```text
-“今年做 100 万条 Agent 数据”
+“今年做 100 万条 Agent Data”
 ```
 
-更合理的是建立 Data Portfolio：
+而应维护类似：
 
-| Capability | Current Level | Business Importance | Risk | Data Gap | Current Spend |
+| Capability | Current Level | Importance | Risk | Data Gap | Marginal Spend |
 |---|---:|---:|---:|---:|---:|
-| Tool Selection | high | high | medium | low | medium |
-| Recovery | low | high | high | high | low |
-| Verification | medium | high | high | high | low |
-| Tone | high | medium | low | low | high |
+| Tool Selection | High | High | Medium | Low | Medium |
+| Recovery | Low | High | High | High | Low |
+| Verification | Medium | High | High | High | Low |
+| Tone | High | Medium | Low | Low | High |
 
-一眼就能看到：
+它会直接暴露：
 
 ```text
-Tone 数据可能已经过度投入
-Recovery / Verification 反而欠投
+Recovery / Verification 欠投
+Tone 可能过度投入
 ```
 
-所以 Data Strategy 的第一步通常是：
-
-> **把数据预算映射到 capability，而不是只映射到 dataset name。**
+这就是 Data Portfolio。
 
 ---
 
-# 18.3 Capability Gap 不是单纯的 Benchmark Gap
+# 18.3 Capability Gap ≠ Benchmark Gap
 
-假设：
+一个 benchmark 分数低，不自动意味着值得投数据。
 
-```text
-Benchmark A = 68%
-Benchmark B = 82%
-```
-
-不能直接说：
+还要问：
 
 ```text
-A 更值得做数据
-```
-
-因为还需要看：
-
-```text
-这个 capability 对真实产品重要吗？
+是否代表真实目标分布？
+业务重要吗？
 失败严重吗？
-能通过数据修复吗？
-有没有更便宜的工程修复？
-benchmark 是否代表目标分布？
+能被训练改善吗？
+有没有更便宜的 Tool / Product / Harness 修复？
 ```
 
-因此可以把 Capability Gap 看成：
+所以 Capability Opportunity 可以概念上写成：
 
-$$
-GapValue(c)=
-f(
+\[
+Opportunity(c)=f(
 PerformanceGap,
 Importance,
 Risk,
 Frequency,
 Learnability,
-Fixability
+AlternativeFixCost
 )
-$$
+\]
 
-这里不是固定公式，而是战略框架。
-
----
-
-# 18.4 Data Value 的一个实用分解
-
-可以把一批数据的潜在价值粗略写成：
-
-$$
-V(D)
-\approx
-Q(D)
-\times
-R(D)
-\times
-N(D)
-\times
-L(D)
-\times
-A(D)
-$$
-
-其中：
-
-```text
-Q = Quality
-R = Relevance
-N = Novelty / Diversity
-L = Learnability
-A = Applicability / Business Importance
-```
-
-如果其中某项接近 0，整体价值也可能很低。
-
-例如：
-
-```text
-数据完全正确
-但模型已经 99.9% 会了
-```
-
-则：
-
-```text
-Novelty / Marginal Learnability ≈ 0
-```
-
-继续生产价值有限。
+这里不是固定公式，而是强迫团队把“为什么值得做”讲清楚。
 
 ---
 
-# 18.5 Data ROI：不要只汇报“做了多少条”
+# 18.4 Is This a Data Problem?
 
-传统数据团队常见 KPI：
+Data Strategy 的第一道 Gate 应该是：
 
 ```text
-标注了 50 万条
-生成了 300 万条
+Requirement unclear?
+Tool broken?
+Harness missing observation?
+Environment infeasible?
+Evaluator wrong?
 ```
 
-这只能描述 throughput。
+如果答案是这些，就不应该优先做训练数据。
 
-更有意义的是：
-
-$$
-DataROI(D)
-=
-\frac{\Delta Utility(D)}{TotalCost(D)}
-$$
-
-其中 Utility 可以是：
+真正适合 Data Intervention 的通常是：
 
 ```text
-Benchmark Gain
-Production Success Gain
-Risk Reduction
-Cost Reduction
-Latency Reduction
-Human Escalation Reduction
-```
-
-Total Cost 则不只是标注费。
-
----
-
-# 18.6 Total Data Cost：数据成本远比 annotation price 大
-
-完整成本至少包括：
-
-```text
-Acquisition Cost
-Generation Cost
-Human Annotation Cost
-Expert Review Cost
-Verification Cost
-Judge Cost
-Tool / Environment Execution Cost
-Dedup / Cleaning Cost
-Storage Cost
-Training Cost
-Evaluation Cost
-Iteration Cost
-Engineering Cost
-```
-
-可以写成：
-
-$$
-C_{total}
-=
-C_{acq}
-+C_{gen}
-+C_{ann}
-+C_{verify}
-+C_{train}
-+C_{eval}
-+C_{eng}
-$$
-
-例如 synthetic data：
-
-```text
-生成很便宜
-```
-
-但如果：
-
-```text
-verification 很贵
-acceptance rate 很低
-需要大量人工复核
-```
-
-最终未必便宜。
-
----
-
-# 18.7 Acceptance Rate：生成 100 万条不等于得到 100 万条数据
-
-假设：
-
-```text
-Generate 1,000,000
-↓
-Schema pass 800,000
-↓
-Verifier pass 300,000
-↓
-Dedup 220,000
-↓
-Human audit acceptable 180,000
-```
-
-最终 usable yield：
-
-$$
-Yield = 18\%
-$$
-
-因此 synthetic pipeline 应关注：
-
-```text
-Raw Generation Cost
-Acceptance Rate
-Verified Yield
-Unique Yield
-High-value Yield
-```
-
-而不是 raw count。
-
----
-
-# 18.8 Marginal Utility：第 100 万条和第 1 万条价值通常不同
-
-假设同一 task family：
-
-```text
-0 → 10k
-提升很明显
-
-10k → 50k
-仍有提升
-
-50k → 200k
-提升变小
-
-200k → 1M
-几乎不动
-```
-
-这就是 diminishing returns。
-
-可以定义近似边际收益：
-
-$$
-MU_k
-=
-\frac{Perf(D_{1:k+\Delta})-Perf(D_{1:k})}{\Delta}
-$$
-
-当：
-
-```text
-Marginal Utility
-<
-Alternative Investment Opportunity
-```
-
-就应该考虑停止继续扩这类数据。
-
----
-
-# 18.9 Stop Rule：什么时候应该停止做某类数据？
-
-常见停止条件可以包括：
-
-```text
-Capability Saturation
-Marginal Gain ≈ 0
-High Duplicate Rate
-Acceptance Rate Collapse
-Frontier Shift
-Better Alternative Investment
-Evaluation Ceiling
-Business Priority Change
-```
-
-一个成熟数据项目应该在开始前就思考：
-
-> **什么证据出现时，我们会停止继续扩数据？**
-
-否则非常容易：
-
-```text
-已经投入很多
-↓
-因为 sunk cost
-↓
-继续投入
-```
-
----
-
-# 18.10 Risk-weighted Data Investment
-
-数据价值不能只看平均 benchmark gain。
-
-例如：
-
-```text
-Failure A
-多说一句废话
-发生率 10%
-
-Failure B
-未经确认删除文件
-发生率 0.2%
-```
-
-后者虽然少见，但风险可能远高。
-
-因此可以考虑：
-
-$$
-RiskPriority
-\approx
-Frequency
-\times
-Severity
-\times
-Exposure
-\times
-Irreversibility
-$$
-
-对于：
-
-```text
-privacy
-money movement
-irreversible write
-external communication
-permission escalation
-```
-
-应该采用风险加权，而不是平均频次驱动。
-
----
-
-# 18.11 Learnability：不是所有高价值失败都适合靠训练解决
-
-考虑三个问题：
-
-### Case A
-
-```text
-模型不会识别 negative constraint
-```
-
-可能适合数据训练。
-
-### Case B
-
-```text
-Tool schema 写错了
-```
-
-应该修工具。
-
-### Case C
-
-```text
-Agent 根本没有权限访问所需信息
-```
-
-应该修产品 / 权限设计。
-
-所以战略决策前要先判断：
-
-```text
-Is this a data problem?
-```
-
-而不是：
-
-```text
-所有 failure → 再训练
-```
-
----
-
-# 18.12 Build vs Buy vs Generate vs Mine
-
-获得数据通常有四类路径。
-
-## Build
-
-```text
-内部人工设计 / 标注
-```
-
-优点：
-
-```text
-可控
-贴近业务
-可定制 rubric
-```
-
-缺点：
-
-```text
-贵
-慢
-专家瓶颈
-```
-
----
-
-## Buy
-
-```text
-采购外部数据 / 标注服务
-```
-
-优点：
-
-```text
-快速扩规模
-```
-
-缺点：
-
-```text
-质量不可完全控
-分布可能不贴业务
-IP / privacy / provenance 复杂
-```
-
----
-
-## Generate
-
-```text
-Teacher / LLM / Simulator Synthetic
-```
-
-优点：
-
-```text
-便宜
-快
-可定向
-```
-
-缺点：
-
-```text
-teacher bias
-mode collapse
-verification burden
-```
-
----
-
-## Mine
-
-```text
-Production / Rollout / Failure Logs
-```
-
-优点：
-
-```text
-真实
-高相关
-能反映当前模型边界
-```
-
-缺点：
-
-```text
-稀疏
-隐私
-selection bias
-label 不完整
-```
-
-因此真正的战略问题往往不是：
-
-```text
-“synthetic 好还是 human 好？”
-```
-
-而是：
-
-> **哪种 capability gap 用哪种 acquisition channel 的单位成本收益最好？**
-
----
-
-# 18.13 Data Source Portfolio
-
-一个成熟组合可能是：
-
-```text
-Production Failures
-→ 保证真实性
-
-Human Gold
-→ 保证标准可靠
-
-Synthetic Expansion
-→ 扩规模
-
-Adversarial Cases
-→ 压 capability frontier
-
-Regression Cases
-→ 防止遗忘
-```
-
-它们的功能不同，不能互相完全替代。
-
----
-
-# 18.14 Data Mixture：训练配比本身就是一种策略
-
-假设有：
-
-```text
-General SFT
-Tool-use
-Recovery
-Safety
-Reasoning
-Preference
-```
-
-最终不是简单 concatenate。
-
-要决定：
-
-```text
-sample ratio
-sampling temperature
-loss weighting
-curriculum order
-oversampling
-undersampling
-```
-
-所以：
-
-> **Mixture Design 是 Data Strategy 的一部分，不只是训练脚本参数。**
-
----
-
-# 18.15 Sample Count ≠ Effective Weight
-
-例如：
-
-```text
-Dataset A
-100k samples
-平均 100 tokens
-
-Dataset B
-20k samples
-平均 2000 tokens
-```
-
-按 sample count：
-
-```text
-A : B = 5 : 1
-```
-
-但按 token：
-
-```text
-A = 10M tokens
-B = 40M tokens
-```
-
-实际训练暴露可能完全相反。
-
-所以 mixture 至少要区分：
-
-```text
-Sample Weight
-Token Weight
-Loss Weight
-Exposure Frequency
-```
-
----
-
-# 18.16 Oversampling Hard Cases 的风险
-
-Hard case 很有价值，但如果过度 oversample：
-
-```text
-模型会认为所有任务都很难
-过度思考
-过度调用工具
-过度澄清
-过度验证
-```
-
-例如生产分布中：
-
-```text
-90% 简单任务
-10% hard tasks
-```
-
-训练却：
-
-```text
-50% hard tasks
-```
-
-模型可能学到错误 prior。
-
-所以要区分：
-
-```text
-Learning Distribution
-vs
-Deployment Distribution
-```
-
-必要时通过 weighting / calibration 恢复部署 prior。
-
----
-
-# 18.17 High-quality Small Data vs Large Noisy Data
-
-不能机械认为：
-
-```text
-更多一定更好
-```
-
-也不能机械认为：
-
-```text
-高质量小数据一定更好
-```
-
-真正应该比较：
-
-```text
-Quality × Scale × Coverage × Cost
-```
-
-例如：
-
-```text
-5k expert data
-vs
-200k synthetic verified data
-```
-
-最终要通过 downstream experiment 判断。
-
----
-
-# 18.18 Data Valuation 的最低可信方法：Controlled Ablation
-
-最简单可靠的方法之一：
-
-```text
-Baseline Training Mix
-vs
-Baseline + Dataset D
-```
-
-其他尽量冻结。
-
-然后测：
-
-```text
-Target Capability
-General Capability
-Safety
-Cost
-Regression
-```
-
-于是得到：
-
-$$
-\Delta(D)=Perf(M_{+D})-Perf(M_{base})
-$$
-
-这虽然成本高，但至少能直接回答：
-
-> **这批数据加入训练以后，到底有没有贡献。**
-
----
-
-# 18.19 Leave-one-source-out Ablation
-
-如果训练集由：
-
-```text
-A + B + C + D
-```
-
-可以分别做：
-
-```text
-All
-All - A
-All - B
-All - C
-All - D
-```
-
-观察每个 source 的贡献。
-
-但要注意：
-
-> 数据源之间存在 interaction。
-
-例如：
-
-```text
-A 单独没用
-B 单独没用
-A + B 很有用
-```
-
-因此简单 leave-one-out 不能完全得到真实因果价值。
-
----
-
-# 18.20 Data Interaction：数据价值不是可加的
-
-假设：
-
-```text
-SFT teaches behavior format
-Preference teaches ranking
-Recovery data teaches repair
-```
-
-可能出现：
-
-```text
-Recovery data
-只有在基础 Tool-use SFT 已经足够时才有用
-```
-
-所以：
-
-$$
-V(A+B)
-\neq
-V(A)+V(B)
-$$
-
-Data Strategy 本质上是组合优化，而不是单个 dataset 排名。
-
----
-
-# 18.21 Shapley-style 思想：谁贡献了多少？
-
-理论上可以把不同数据源看成 coalition：
-
-```text
-A
-B
-C
-```
-
-通过不同组合训练，估计每个源的边际贡献。
-
-这和 Shapley value 思想类似。
-
-但真实大模型训练成本太高，往往无法穷举。
-
-因此实践里常用：
-
-```text
-Small-scale Proxy
-Subsample Experiment
-Checkpoint Continuation
-Targeted Fine-tune
-Ablation Matrix
-```
-
-近似判断。
-
----
-
-# 18.22 Proxy Experiment：先用便宜实验筛方向
-
-如果完整训练一次成本很高，可以先：
-
-```text
-smaller model
-smaller data
-shorter training
-single capability benchmark
-```
-
-验证方向。
-
-但必须记住：
-
-```text
-Proxy Winner
-≠
-Full-scale Winner Guaranteed
-```
-
-因为 scaling 后 interaction 可能变化。
-
-所以 proxy 用来：
-
-```text
-筛掉明显差方案
-```
-
-而不是自动替代最终验证。
-
----
-
-# 18.23 Marginal Data Value 与 Model Version 强相关
-
-同一批数据：
-
-```text
-对弱模型非常有用
-```
-
-对强模型可能：
-
-```text
-完全饱和
+Coverage Gap
+Supervision Gap
+Distribution Gap
+Decision-boundary Gap
+Recovery / Process Gap
 ```
 
 因此：
 
-$$
-V(D \mid M_1)
-\neq
-V(D \mid M_2)
-$$
-
-所以 data valuation 必须记录：
-
-```text
-source_model
-training_model
-model_version
-current capability level
-```
-
-不能把“历史上有用”理解成“永远有用”。
+> **Data Strategy 不是“怎样多做数据”，而是“什么时候数据才是正确 intervention”。**
 
 ---
 
-# 18.24 Data Value 也与目标 Metric 强相关
+# 18.5 Data Value 是条件化的，不存在脱离目标的“高价值数据”
 
-同一批数据可能：
+一批数据可能：
 
 ```text
 提升 Accuracy
-但增加 Tool Cost
+但增加 Latency
 ```
 
-或者：
+也可能：
 
 ```text
-几乎不提升平均 Success
-但大幅降低 High-risk Failure
+总体 Success 几乎不变
+但 High-severity Failure 大幅下降
 ```
 
-所以 Data Value 必须相对目标定义：
+所以 Data Value 必须相对于：
 
 ```text
-Quality
-Safety
-Efficiency
-Latency
-Coverage
-Reliability
+Target Model
+Target Capability
+Target Metric
+Target Distribution
+Target Risk Profile
+Training Recipe
 ```
 
-不存在脱离目标的统一“最值钱数据”。
+来定义。
+
+即：
+
+\[
+V(D \mid M,T,E)
+\]
+
+而不是说：
+
+```text
+“这批数据天然价值高。”
+```
 
 ---
 
-# 18.25 Multi-objective Data Strategy
+# 18.6 一个实用的潜在价值分解
 
-实际优化经常是多目标：
+可以用下面的心智模型：
 
-$$
-U
-=
-\alpha Q
-+\beta S
--\gamma C
--\delta L
-$$
+\[
+PotentialValue(D)
+\approx
+Quality
+\times Relevance
+\times Novelty
+\times Learnability
+\times Applicability
+\]
 
-其中例如：
+如果其中某项接近 0：
 
 ```text
-Q = Quality
-S = Safety / Reliability
-C = Cost
-L = Latency
+错误
+完全重复
+和目标无关
+模型几乎学不会
+已高度饱和
 ```
 
-不同产品阶段权重不同。
+边际价值都会很低。
+
+这是筛方向的 heuristic，不替代第 21 章的下游训练验证。
+
+---
+
+# 18.7 Data ROI：分子和分母都要完整
+
+\[
+DataROI(D)=\frac{\Delta Utility(D)}{TotalCost(D)}
+\]
+
+Utility 可以是：
+
+```text
+Target Capability Gain
+Production Success Gain
+Risk Reduction
+Escalation Reduction
+Latency Reduction
+Cost Reduction
+```
+
+Total Cost 则至少包含：
+
+```text
+Acquisition
+Generation
+Human Annotation
+Expert Review
+Verification
+Judge
+Tool / Environment Execution
+Cleaning / Dedup
+Training
+Evaluation
+Engineering
+```
 
 所以：
 
-```text
-研究 demo
-```
-
-和：
-
-```text
-真实支付 Agent
-```
-
-不应该使用同一套 data priority。
+> **Synthetic raw generation 很便宜，不代表 verified synthetic 很便宜。**
 
 ---
 
-# 18.26 Risk-adjusted ROI
-
-对于高风险能力，可以定义：
-
-$$
-ROI_{risk}
-=
-\frac{ExpectedRiskReduction}{DataCost}
-$$
+# 18.8 Raw Count、Usable Yield、High-value Yield 必须分开
 
 例如：
 
 ```text
-一批 permission / irreversible-action 数据
+Generate        1,000,000
+Schema Valid      800,000
+Verifier Pass     300,000
+Unique            220,000
+Accepted          180,000
+High-value         80,000
 ```
 
-可能对总体 success 只提升：
+真正战略上关心的不是：
 
 ```text
-+0.3%
+1M generated
 ```
 
-但让：
+而是：
 
 ```text
-unauthorized write
+Cost / Verified Sample
+Cost / Unique Sample
+Cost / High-value Sample
 ```
 
-下降 70%。
-
-这种数据仍然可能非常值得投入。
+否则 throughput 会被错当成价值。
 
 ---
 
-# 18.27 Coverage：不要让 Data ROI 把长尾能力全部饿死
+# 18.9 Marginal Utility：同一种数据不能无限扩
 
-如果只追求短期 ROI，最容易发生：
-
-```text
-高频简单任务得到大量预算
-低频长尾能力长期没有数据
-```
-
-于是系统在平均指标上很好，但在重要长尾上非常脆弱。
-
-因此 portfolio 通常需要：
+常见曲线：
 
 ```text
-Core Allocation
-Frontier Allocation
-Safety Allocation
-Exploration Allocation
+0 → 10k
+提升明显
+
+10k → 50k
+仍有收益
+
+50k → 200k
+收益下降
+
+200k → 1M
+接近饱和
 ```
 
-例如概念上：
+于是需要关心：
 
-```text
-60% core business
-20% frontier improvement
-15% safety / high-risk
-5% exploration
-```
+\[
+MU_k = \frac{\Delta Utility}{\Delta Cost}
+\]
 
-具体比例必须按业务决定，不能照抄。
+而不是平均历史收益。
+
+同一类数据的第 100 万条和第 1 万条通常不是同一个投资决策。
 
 ---
 
-# 18.28 Exploration Budget：必须允许“暂时不知道有没有用”的数据
+# 18.10 Stop Rule 必须在扩规模前就定义
+
+常见 Stop 条件：
+
+```text
+Capability Saturation
+Marginal Gain too low
+Duplicate Rate too high
+Verified Yield collapse
+Frontier moved
+Alternative investment has higher ROI
+Business priority changed
+Regression cost too high
+```
+
+成熟项目应该在开始前写明：
+
+> **什么证据出现时，我们会停止继续生产这一类数据。**
+
+否则很容易被 sunk cost 推着继续扩。
+
+---
+
+# 18.11 Risk-adjusted Investment
+
+低频并不等于低优先级。
+
+可以用：
+
+\[
+RiskPriority
+\approx
+Frequency \times Severity \times Exposure \times Irreversibility
+\]
+
+作为讨论框架。
+
+比如：
+
+```text
+未经授权删除文件
+错误转账
+隐私泄漏
+错误外发邮件
+```
+
+即使出现频率低，也可能值得专门数据预算。
+
+所以除了普通 ROI，还可以看：
+
+\[
+ROI_{risk}=\frac{ExpectedRiskReduction}{TotalCost}
+\]
+
+---
+
+# 18.12 Build / Buy / Generate / Mine
+
+四条 acquisition channel：
+
+## Build
+
+内部 Human / Expert 设计。
+
+适合：
+
+```text
+高风险
+复杂 rubric
+专业 domain
+```
+
+## Buy
+
+外部数据 / 标注服务。
+
+适合快速扩规模，但要处理：
+
+```text
+quality
+rights
+provenance
+distribution fit
+```
+
+## Generate
+
+Teacher / LLM / Simulator。
+
+适合：
+
+```text
+定向扩展
+结构化 variation
+稀有 edge case
+```
+
+但有 teacher bias 和 verification burden。
+
+## Mine
+
+Production / Rollout / Failure Logs。
+
+最贴当前模型真实边界，但常伴随：
+
+```text
+privacy
+selection bias
+weak labels
+```
+
+因此战略问题不是：
+
+> “Human 还是 Synthetic？”
+
+而是：
+
+> **哪个 capability gap 用哪个 acquisition channel 的单位成本回报更高？**
+
+---
+
+# 18.13 Source Portfolio：不同数据源承担不同职能
+
+一个健康组合可能是：
+
+```text
+Production Failures
+→ 现实性
+
+Human Gold
+→ 标准锚点
+
+Synthetic Expansion
+→ 规模
+
+Adversarial / Frontier Cases
+→ 推边界
+
+Regression Cases
+→ 防遗忘
+```
+
+所以 Data Portfolio 不是只在“能力维度”分，也要在“来源职能”上保持结构。
+
+---
+
+# 18.14 Core / Repair / Frontier / Safety / Exploration 五类预算
+
+可以把投资分成：
+
+```text
+Core
+维持主分布能力
+
+Repair
+修当前已知 failure
+
+Frontier
+扩下一层能力边界
+
+Safety / High-risk
+保护低频高后果场景
+
+Exploration
+试尚未证明的新 acquisition / supervision 方法
+```
+
+这比把所有项目都塞进一个“训练数据”预算池更可控。
+
+---
+
+# 18.15 Targeted Data 与 Broad Data 要同时存在
+
+Targeted Data：
+
+```text
+修特定 capability gap
+```
+
+Broad Data：
+
+```text
+维持整体覆盖与正常 prior
+```
+
+只做 Targeted：
+
+```text
+容易过拟合当前 failure distribution
+```
+
+只做 Broad：
+
+```text
+修关键弱点效率低
+```
+
+所以战略目标不是最大化 hard-case ratio，而是：
+
+> **Fix the frontier without forgetting the center。**
+
+---
+
+# 18.16 Mixture 是 Strategy 的执行接口，但技术 owner 在 Ch20
+
+战略层只回答：
+
+```text
+哪些能力应该得到更多训练曝光？
+哪些 source 应该被上调 / 下调？
+Hard-case 是否过采样？
+Safety bucket 是否需要最低保障？
+```
+
+真正的：
+
+```text
+sample ratio
+token exposure
+temperature sampling
+effective sample size
+mixture interaction
+```
+
+统一见第 20 章。
+
+这样避免 Strategy 章重新变成 Training Mixture 教程。
+
+---
+
+# 18.17 Sample Count 不是训练曝光
+
+即使在战略层，也必须记住：
+
+```text
+100k short samples
+```
+
+与：
+
+```text
+20k long trajectories
+```
+
+可能产生完全不同的 token exposure。
+
+所以任何投资 memo 至少要同时写：
+
+```text
+Samples
+Tokens
+Unique Families / Clusters
+Expected Training Exposure
+```
+
+而不能只报 sample 数。
+
+---
+
+# 18.18 数据价值不是可加的：Interaction 很重要
+
+\[
+V(A+B) \neq V(A)+V(B)
+\]
+
+例如：
+
+```text
+Recovery Data
+```
+
+可能只有在：
+
+```text
+基础 Tool-use SFT 足够
+```
+
+以后才有价值。
+
+又比如：
+
+```text
+大量 Hard Negative
+```
+
+在某个比例前有益，继续增加可能导致过度拒绝。
+
+因此 Data Strategy 是 portfolio optimization，而不是 dataset 排行榜。
+
+---
+
+# 18.19 Data Value 随 Model Version 变化
+
+\[
+V(D\mid M_1) \neq V(D\mid M_2)
+\]
+
+对弱模型有用的数据，强模型可能已经饱和。
+
+所以任何 valuation 都应该绑定：
+
+```text
+base model
+model version
+current capability level
+training recipe
+```
+
+“历史上有效”不是继续无限生产的理由。
+
+---
+
+# 18.20 Freshness 也是价值维度
+
+Agent / Product 环境会变：
+
+```text
+Tool API
+UI
+Business Rules
+User Behavior
+Permissions
+```
+
+因此数据应有：
+
+```text
+collection_time
+environment_version
+tool_version
+policy_version
+```
+
+过时数据可以进入：
+
+```text
+Deprecated
+Archived
+Regression-only
+```
+
+而不应该永久保持 Active Training 状态。
+
+---
+
+# 18.21 Retirement：Data Asset 也应该退出生产组合
+
+应该考虑 retire：
+
+```text
+过时产品流程
+旧 API
+重复 case
+失效 rubric
+错误历史标签
+高度饱和 task family
+```
+
+Retire 不等于删除历史。
+
+更好的状态机：
+
+```text
+Exploratory
+→ Active
+→ Maintenance
+→ Deprecated
+→ Archived / Regression-only
+```
+
+这样既保留 lineage，又避免旧数据长期占训练预算。
+
+---
+
+# 18.22 Exploration Budget 是必要的
 
 如果所有项目都要求：
 
 ```text
-上线前证明 ROI
+事先证明 ROI
 ```
 
-团队就不会探索新能力。
+团队不会发现新的高价值 supervision interface。
 
-所以应该保留：
-
-```text
-Exploration Budget
-```
-
-用于：
+因此可以保留小比例 Exploration Budget，用于：
 
 ```text
 new task family
-new annotation schema
 new verifier
+new annotation schema
 new synthetic method
 new trajectory supervision
 ```
 
-但 exploration 也要有：
+但探索必须带：
 
 ```text
-small pilot
-clear hypothesis
-stop condition
+Hypothesis
+Pilot Budget
+Success Criterion
+Stop Rule
 ```
 
-而不是无限试验。
+而不是无边界试验。
 
 ---
 
-# 18.29 Data Portfolio Rebalancing
+# 18.23 Valuation 的证据层级
 
-Portfolio 不是一次制定以后不变。
+可以把证据从弱到强排成：
 
-每个版本都应该重新评估：
+```text
+Data-level Proxy
+↓
+Intrinsic Quality
+↓
+Small Pilot
+↓
+Matched-budget Training Experiment
+↓
+Held-out Capability Gain
+↓
+Production / Risk Utility
+```
+
+例如：
+
+```text
+Judge Score 高
+```
+
+只能说明 proxy 好看。
+
+真正的 Data Value 需要第 21 章的 downstream intervention experiment。
+
+---
+
+# 18.24 Controlled Ablation 是最低可信的 Data Valuation 手段之一
+
+战略层关心的基本问题是：
+
+```text
+Baseline
+vs
+Baseline + D
+```
+
+或更严格：
+
+```text
+Matched-budget Baseline
+vs
+Matched-budget Replacement with D
+```
+
+然后看：
+
+```text
+Target Gain
+General Regression
+Safety
+Cost
+```
+
+实验具体怎么设计，统一见第 21 章。
+
+本章只负责把实验结果转成投资决策。
+
+---
+
+# 18.25 数据实验结果最终要转成 Decision
+
+实验结束后不是只写：
+
+```text
++1.2 pt
+```
+
+而要变成：
+
+```text
+SCALE
+信号稳定、ROI 高、尚未饱和
+
+MAINTAIN
+有价值但接近饱和
+
+REVISE
+有 signal，但 acquisition / supervision 方案需改
+
+STOP
+无稳定收益或机会成本太高
+
+RETIRE
+能力已饱和或环境已变化
+```
+
+这是 Ch21 与 Ch18 的接口。
+
+---
+
+# 18.26 Portfolio Rebalancing
+
+每个模型版本 / 业务周期都重新看：
 
 ```text
 Capability Level
 Failure Distribution
-Production Mix
 Risk Profile
 Data Saturation
-Marginal Utility
+Freshness
+Measured Marginal Utility
 ```
 
-然后：
+然后决定：
 
 ```text
 Increase
@@ -1233,268 +897,13 @@ Retire
 Explore
 ```
 
-某类数据。
-
-例如：
-
-```text
-Tool Selection 已稳定 98%
-```
-
-可以减少新增预算。
-
-而：
-
-```text
-Recovery Failure 增长
-```
-
-则需要加大投入。
+这使 Data Strategy 成为动态资产配置，而不是年度一次性规划。
 
 ---
 
-# 18.30 Retirement：数据也应该有退出机制
+# 18.27 Canonical Case C1：订单 Agent 的数据预算
 
-数据资产不能只增不减。
-
-应该考虑 retire：
-
-```text
-过时 API
-旧产品流程
-已修复 bug
-重复 case
-低质量历史标注
-旧 rubric
-旧环境状态
-```
-
-但不要物理删除所有历史数据。
-
-更合理的是：
-
-```text
-Active
-Deprecated
-Archived
-Regression-only
-```
-
-保持 lineage。
-
----
-
-# 18.31 Freshness：数据价值会随时间衰减
-
-尤其 Agent / 产品环境：
-
-```text
-API 变化
-UI 变化
-Tool schema 变化
-用户行为变化
-业务规则变化
-```
-
-所以数据应带：
-
-```text
-collection_time
-validity_window
-environment_version
-tool_version
-policy_version
-```
-
-可以定义：
-
-```text
-Freshness Risk
-```
-
-避免模型反复学习已经不存在的旧流程。
-
----
-
-# 18.32 Data Provenance 是 Valuation 的前提
-
-如果不知道数据从哪里来，就很难知道它为什么有效。
-
-至少保存：
-
-```text
-source
-seed
-parent_sample
-source_model
-source_task_family
-generator_version
-judge_version
-human_label_version
-selection_policy
-training_run_ids
-```
-
-只有这样，才能做：
-
-```text
-source-level ablation
-quality audit
-contamination tracing
-ROI accounting
-```
-
----
-
-# 18.33 Contamination 会让 Data ROI 看起来虚高
-
-如果训练数据泄漏了 benchmark：
-
-```text
-Evaluation Gain ↑
-```
-
-但这不是真实能力增益。
-
-因此 valuation 时必须同时检查：
-
-```text
-Exact Leakage
-Near-duplicate Leakage
-Template Leakage
-Workflow Leakage
-Teacher Leakage
-```
-
-否则“最有价值的数据源”可能只是最会污染测试集的数据源。
-
----
-
-# 18.34 Targeted Data vs Broad Data
-
-Targeted Data：
-
-```text
-专门修某个 capability gap
-```
-
-Broad Data：
-
-```text
-维持整体能力覆盖
-```
-
-只做 targeted：
-
-```text
-容易过拟合当前 failure distribution
-```
-
-只做 broad：
-
-```text
-对关键弱点修复效率低
-```
-
-成熟 portfolio 通常两者并存。
-
----
-
-# 18.35 Repair Data、Regression Data、Frontier Data 要分开管理
-
-### Repair Data
-
-```text
-针对当前已知 failure
-```
-
-### Regression Data
-
-```text
-确保修复后不复发
-```
-
-### Frontier Data
-
-```text
-主动探索下一层能力边界
-```
-
-三者目标不同。
-
-如果都塞进一个大池子，就很难回答：
-
-```text
-这批数据到底是为了修 bug
-还是为了扩能力
-还是为了防回归？
-```
-
----
-
-# 18.36 数据项目应该有 Data Card / Investment Memo
-
-对于重要数据项目，可以在启动前写：
-
-```text
-Target Capability
-Current Failure Evidence
-Expected Benefit
-Data Source
-Proposed Size
-Quality Standard
-Verification Plan
-Estimated Cost
-Training Plan
-Evaluation Plan
-Stop Rule
-Risks
-```
-
-生产完成后再补：
-
-```text
-Actual Yield
-Actual Cost
-Quality Audit
-Training Delta
-Eval Delta
-Regression
-Decision: Scale / Maintain / Stop
-```
-
-这样 Data 项目就从“做数据”变成可审计投资。
-
----
-
-# 18.37 一个简单的 Data Investment Scorecard
-
-可以维护：
-
-| Candidate Investment | Importance | Gap | Learnability | Risk Reduction | Cost | Expected ROI |
-|---|---:|---:|---:|---:|---:|---:|
-| Recovery Data | 5 | 5 | 4 | 5 | 3 | High |
-| More Tool-selection Data | 4 | 1 | 2 | 2 | 2 | Low |
-| Verification Data | 5 | 4 | 4 | 5 | 3 | High |
-| Style Data | 2 | 1 | 3 | 1 | 2 | Low |
-
-这里的分数不是科学真值，而是强迫团队显式讨论：
-
-```text
-为什么这个项目值得做？
-```
-
----
-
-# 18.38 一个完整例子：订单 Agent 的数据预算怎么分？
-
-当前线上统计：
-
-```text
-Overall Success = 88%
-```
-
-Failure Breakdown：
+线上 failure：
 
 ```text
 Tool Selection          1%
@@ -1505,261 +914,119 @@ Verification Failure    2%
 Infrastructure          1%
 ```
 
-第一反应可能是：
+不能直接：
 
 ```text
 Negative Constraint 最大
-→ 全部预算投这里
+→ 全投这里
 ```
 
-但进一步分析：
+继续看：
 
 ```text
 Negative Constraint
-frequency high
-severity medium
-learnability high
+频率高 / 严重度中 / 可学性高
 
 Verification Failure
-frequency lower
-severity high
-irreversible harm exposure high
-learnability high
+频率较低 / 严重度高 / 不可逆风险高 / 可学性高
 
-Infrastructure
-frequency 1%
-but not a model-data problem
+Infrastructure Failure
+不是 Data Problem
 ```
 
-于是更合理的预算可能是：
+于是更成熟的投资组合可能是：
 
 ```text
 Negative Constraint
-→ targeted synthetic + human audit
+→ targeted synthetic + human boundary audit
 
 Verification
-→ high-risk task family + recovery / verify-or-stop preference
+→ high-risk family + preference / recovery data
 
 Infrastructure
 → engineering fix
 ```
 
-而不是所有 failure 都生产训练数据。
+并且为 Tool Selection 维持 regression，而不是继续大规模新增数据。
 
 ---
 
-# 18.39 Data Strategy 与 Hard-case Mining 的区别
+# 18.28 Data Investment Memo
 
-Hard-case Mining 回答：
-
-> 哪些 case 值得拿出来？
-
-Data Strategy 回答：
-
-> 拿出来以后，哪些值得投入资源做成数据？做多少？和其他方向相比是否更值？
-
-所以：
+重要项目建议在启动前写：
 
 ```text
-Hard-case Mining
-是 candidate discovery
-
-Data Strategy
-是 portfolio allocation
+Target Capability
+Current Evidence
+Why Data
+Why Now
+Candidate Acquisition Channel
+Proposed Quantity / Tokens
+Quality Standard
+Verification Plan
+Estimated Total Cost
+Training Exposure
+Evaluation Plan
+Risk / Regression Concern
+Scale Rule
+Stop Rule
 ```
 
----
-
-# 18.40 Data Strategy 与 Data Flywheel 的关系
-
-Data Flywheel 负责：
+完成后补：
 
 ```text
-持续产生新的信号
+Actual Yield
+Actual Cost
+Downstream Delta
+Regression
+ROI
+Decision
 ```
 
-Data Strategy 负责：
+这样 Data Project 就从“做一批数据”升级成可审计投资。
+
+---
+
+# 18.29 Data Strategy Dashboard
+
+建议至少分四组。
+
+### Capability
 
 ```text
-决定哪些信号应该得到预算
-```
-
-可以写成：
-
-```text
-Flywheel
-产生 Opportunities
-        ↓
-Strategy
-做 Resource Allocation
-        ↓
-Production
-生成 Data Assets
-        ↓
-Training / Eval
-产生 Measured Return
-        ↓
-Strategy Update
-```
-
-所以一个没有 Data Strategy 的 Flywheel 很容易：
-
-```text
-哪里数据多就做哪里
-哪里容易自动化就做哪里
-哪里指标好看就做哪里
-```
-
-最终偏离真正的产品 / 科学目标。
-
----
-
-# 18.41 Data Strategy 与 Benchmark 的关系
-
-Benchmark 不只是最后验收工具。
-
-它还是：
-
-```text
-Data Investment Measurement System
-```
-
-没有稳定 benchmark，就无法回答：
-
-```text
-这批数据到底有没有价值？
-```
-
-所以前面第 16 章的：
-
-```text
-Frozen Core Benchmark
-+
-Fresh Frontier Benchmark
-```
-
-在这里对应：
-
-```text
-Stable ROI Measurement
-+
-New Opportunity Discovery
-```
-
----
-
-# 18.42 Data Valuation 最容易犯的错误
-
-## 错误 1：用数据量代表价值
-
-```text
-100 万条 > 10 万条
-```
-
-不成立。
-
----
-
-## 错误 2：用训练 loss 下降代表数据价值
-
-模型更容易拟合，不等于 downstream 更好。
-
----
-
-## 错误 3：只看总体 benchmark
-
-可能某批数据只修了一个关键高风险 slice。
-
----
-
-## 错误 4：只看 target benchmark，不看 regression
-
-可能：
-
-```text
-Recovery ↑
-General Helpfulness ↓
-```
-
----
-
-## 错误 5：忽略训练成本
-
-两批数据质量相同，但一批 token 数巨大，训练成本完全不同。
-
----
-
-## 错误 6：忽略 verifier / human cost
-
-synthetic 便宜不代表 verified synthetic 便宜。
-
----
-
-## 错误 7：历史上有用，就无限扩
-
-忽略 marginal utility 和 saturation。
-
----
-
-## 错误 8：只做高频 failure
-
-忽略 high-severity long tail。
-
----
-
-## 错误 9：所有 failure 都转成训练数据
-
-忽略 tool / harness / product fix。
-
----
-
-## 错误 10：只做当前模型的 failure
-
-容易失去 general coverage 与 future frontier。
-
----
-
-# 18.43 Data Strategy Dashboard 应该看什么？
-
-至少可以有四组指标。
-
-## Capability
-
-```text
-Capability Score
+Score
 Failure Rate
-Frontier Score
-Regression Rate
+Frontier Status
+Regression
 ```
 
-## Data
+### Data
 
 ```text
 Samples
 Tokens
-Unique Coverage
-Acceptance Rate
-Duplicate Rate
+Unique Families
+Verified Yield
 Freshness
 ```
 
-## Cost
+### Cost
 
 ```text
-Generation Cost
-Human Cost
-Verification Cost
-Training Cost
-Evaluation Cost
+Generation
+Human
+Verification
+Training
+Evaluation
+Engineering
 ```
 
-## Return
+### Return
 
 ```text
 Target Gain
-Generalization Gain
+Generalization
 Risk Reduction
-Cost Reduction
 Marginal Gain
 ROI
 ```
@@ -1770,184 +1037,127 @@ ROI
 本周产出 50 万条
 ```
 
-那仍然只是 throughput dashboard。
+那仍然只是生产 dashboard，不是 strategy dashboard。
 
 ---
 
-# 18.44 数据团队真正应该形成的能力
+# 18.30 常见失败模式
 
-成熟的大模型数据工作不只是：
-
-```text
-会标注
-会合成
-会清洗
-```
-
-而是能完成：
-
-```text
-发现 Capability Gap
-↓
-判断是不是 Data Problem
-↓
-选择最合适 Data Source
-↓
-估计 Cost / Risk / Expected Return
-↓
-小规模 Pilot
-↓
-训练验证 Marginal Gain
-↓
-Scale / Stop
-↓
-更新 Portfolio
-```
-
-也就是：
-
-> **从 Data Production 走向 Data Investment。**
+1. **用数据量代表价值。** 100 万条不自动优于 10 万条。
+2. **Benchmark Gap = 投资优先级。** 忽略业务与风险。
+3. **所有 failure 都做数据。** 没先经过 Data Problem Gate。
+4. **忽略 Total Cost。** 只看 annotation / generation price。
+5. **忽略 Marginal Utility。** 历史上有用就无限扩。
+6. **只看平均指标。** 低频高风险能力长期欠投。
+7. **只做 hard case。** 中心分布 prior 被破坏。
+8. **只追短期 ROI。** Exploration 和长尾能力饿死。
+9. **把 Mixture 技术细节和 Strategy 混在一起。** 决策边界不清。
+10. **Proxy 好看就宣布数据有价值。** 没做 downstream validation。
+11. **不做 Retirement。** 旧数据永远挤占预算。
+12. **忽略 Model Version。** 把过去的价值外推到现在。
 
 ---
 
-# 18.45 面试 / 工作表达：如何说明自己“懂数据策略”？
+# 18.31 从数据岗位视角，本章实际在做什么？
 
-不要只说：
-
-```text
-“我做了 20 万条数据。”
-```
-
-更专业的表达是：
+成熟 Data Strategy 工作包括：
 
 ```text
-先通过 error slicing 发现 recovery failure 是当前主要可修复瓶颈；
-用小规模 matched hard-case cohort 验证该 slice 的 intervention potential；
-比较 human-written、teacher-generated 和 rollout-mined 三种 acquisition channel 的 verified yield 与成本；
-最终选择高验证率的 synthetic + human audit 方案，并通过 frozen benchmark 测量加入该数据后的 target gain、regression 与 cost，决定是否扩规模。
+构建 Capability Portfolio
+做 Data Problem Gate
+估计 acquisition channel 成本
+比较 Human / Synthetic / Mine / Programmatic
+定义 High-risk / Frontier / Core allocation
+做 small pilot
+读取 Ch21 experiment result
+计算 marginal return
+做 Scale / Maintain / Stop decision
+定期 rebalance portfolio
+管理 Data Asset lifecycle
 ```
 
-这体现的是：
+真正专业的表达不是：
 
-```text
-Problem Framing
-Data Acquisition
-Experiment Design
-Cost Awareness
-Causal Validation
-Resource Allocation
-```
+> “我做了 20 万条数据。”
+
+而是：
+
+> **“我们为什么选这类数据、为什么是这个规模、和其他方向相比为什么更值、实验结果是否支持继续投入。”**
 
 ---
 
-# 18.46 自检问题
+# 18.32 面试 / 自检问题
 
-如果真正理解本章，应该能回答：
-
-1. 为什么 Data Quantity 不能直接代表 Data Value？
-2. 什么是 Data Portfolio？
-3. 为什么 Capability Gap 不等于 Benchmark Gap？
-4. Data ROI 的分母应该包含哪些成本？
-5. 为什么 Synthetic Data 的 raw generation cost 可能很低，但 total cost 很高？
-6. 什么是 Marginal Utility？
-7. 什么时候应该停止继续扩某类数据？
-8. 为什么低频高风险 failure 仍可能值得高投入？
-9. 怎么判断一个 failure 是 data problem 还是 engineering problem？
-10. Build / Buy / Generate / Mine 分别适合什么场景？
-11. 为什么 Data Mixture 也是数据策略？
-12. 为什么 sample count 和 effective training weight 不一样？
-13. Hard-case oversampling 有什么副作用？
-14. 怎样最低成本地估计一批数据是否有价值？
-15. Leave-one-source-out ablation 有什么局限？
-16. 为什么数据价值不是可加的？
-17. 为什么同一批数据对不同模型版本价值不同？
-18. Risk-adjusted ROI 与普通 ROI 有什么区别？
-19. 为什么 portfolio 必须保留 exploration budget？
-20. 什么情况下应该 retire 数据？
-21. 为什么 freshness 和 provenance 会影响 data valuation？
-22. Hard-case Mining 与 Data Strategy 的边界是什么？
-23. Data Flywheel 与 Data Strategy 分别负责什么？
-24. 为什么 Stable Benchmark 是 Data ROI 测量系统的一部分？
-25. 怎样把一个数据项目写成 Investment Memo？
+1. Data Production 和 Data Strategy 的区别是什么？
+2. 什么是 Data Asset / Batch / Investment？
+3. 为什么预算应该映射到 Capability，而不只是 Dataset？
+4. Capability Gap 为什么不等于 Benchmark Gap？
+5. 怎么判断 failure 是否真的是 Data Problem？
+6. Data Value 为什么必须条件化于 Model / Metric / Distribution？
+7. Data ROI 的分母应该包含哪些成本？
+8. Raw Count、Verified Yield、High-value Yield 有什么区别？
+9. 什么是 Marginal Utility？
+10. Stop Rule 应该什么时候定义？
+11. 低频高风险 failure 为什么仍可能值得高投入？
+12. Build / Buy / Generate / Mine 分别适合什么？
+13. 为什么 Portfolio 需要 Core / Repair / Frontier / Safety / Exploration？
+14. Targeted Data 和 Broad Data 为什么要共存？
+15. Sample Count 为什么不等于 training exposure？
+16. 为什么 Data Value 不是可加的？
+17. 同一批数据为什么对不同模型版本价值不同？
+18. 什么叫 Data Retirement？
+19. 为什么 Exploration Budget 也必须有 Stop Rule？
+20. 怎样把 Data Experiment 的结果转成投资决策？
+21. 一个 Data Investment Memo 应该写什么？
+22. Strategy Dashboard 为什么不能只有数据产量？
 
 ---
 
-# 18.47 本章总结
-
-这一章最重要的不是某个公式，而是完成一个思维转变：
+# 18.33 本章最终心智模型
 
 ```text
-“能不能做更多数据？”
-        ↓
-“哪类数据最值得继续投入？”
-```
-
-最终可以把现代 Data Strategy 概括成：
-
-```text
-Capability Gap
-+
-Business / Risk Importance
-+
-Learnability
-+
-Data Acquisition Options
-+
-Total Cost
-+
+Capability Map
+↓
+Gap / Risk / Opportunity
+↓
+Is This a Data Problem?
+↓
+Candidate Data Investments
+↓
+Expected Value + Total Cost
+↓
+Portfolio Decision
+↓
+Pilot / Data Experiment
+↓
 Measured Marginal Utility
-+
-Portfolio Balance
+↓
+Scale / Maintain / Revise / Stop / Retire
+↓
+Portfolio Rebalance
 ```
 
-真正成熟的团队应该能够回答：
+这就是 Data Strategy。
 
-> **为什么这 1 万条数据，比另外 10 万条更值得做？**
-
-以及：
-
-> **什么证据会让我们继续投入，什么证据会让我们停止？**
-
-这就是 Data Valuation 的核心。
-
----
-
-# 18.48 下一章：Data Governance、Lineage 与 Reproducibility
-
-当数据开始跨：
+其中：
 
 ```text
-来源
-模型版本
-Judge 版本
-人工标签
-Synthetic Generator
-Training Run
-Benchmark
+Ch9
+发现候选 case / frontier
+
+Ch17
+把它们送进闭环
+
+Ch20
+执行 filtering / dedup / mixture
+
+Ch21
+证明数据真的产生因果收益
+
+Ch23
+观察环境和能力何时变化
 ```
 
-不断流转以后，新的问题会出现：
+本章负责的是最上层的一件事：
 
-> **我们还知不知道一条数据到底从哪里来、谁改过、在哪个模型上用过、对应哪个标签版本，以及最终影响了什么实验？**
-
-因此下一章进入：
-
-```text
-Data Governance
-Data Lineage
-Dataset Versioning
-Schema Versioning
-Label Versioning
-Immutable Raw Data
-Derived Views
-Provenance
-Reproducibility
-PII / Privacy
-Access Control
-Audit Trail
-Retention
-Deletion
-Licensing / Consent
-```
-
-也就是把前面所有“好数据方法”，进一步变成一套真正可长期维护、可审计、可复现的数据资产体系。
+> **决定有限的数据预算下一步应该压在哪里。**
