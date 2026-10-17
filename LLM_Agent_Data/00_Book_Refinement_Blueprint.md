@@ -1,10 +1,10 @@
 # LLM / Agent Data Knowledge System：全书精修施工图
 
-> 状态：**Active Refinement / Execution Blueprint**
+> 状态：**Active Refinement / Structural Editing Complete**
 >
 > 适用范围：`LLM_Agent_Data_Knowledge_System.md` + `LLM_Agent_Data/00_...` 至 `25_...`
 >
-> 原则：**先定结构，再改正文；先定概念归属，再做去重；先稳定 canonical chapter，再处理 dependent chapter；最后统一案例、图示、索引与事实引用。**
+> 原则：**先定结构，再改正文；先定概念归属，再做去重；先稳定 canonical chapter，再处理 dependent chapter；最后统一基础术语、案例、图示、索引与事实引用。**
 >
 > 本文件不是正文。它负责记录全书精修的目标、职责边界、施工顺序和当前进度。
 
@@ -35,24 +35,37 @@ Canonical Concept Ownership
 ✓ 完成
 
 Canonical Chapter Stabilization
-✓ Ch4 / 10 / 11 / 13 / 14 / 15 / 16 / 19
+✓ Ch4 / 10 / 11 / 12 / 13 / 14 / 15 / 16 / 19
 
-TRIM + LINK Round 1
+TRIM + LINK — Data Acquisition
 ✓ Ch5 / 6 / 7 / 8 / 9
 
+TRIM + LINK — Data Lifecycle
+✓ Ch17 / 18 / 20 / 21
+
+TRIM + LINK — Data Operations
+✓ Ch22 / 23 / 24
+
+Synthesis Refactor
+✓ Ch25
+
 Next
-→ Ch12 / 17 / 18 / 20 / 21 / 22 / 23 / 24 / 25
-→ 再回头统一 Ch1–3
-→ Cross-reference audit
-→ Case integration
-→ Master figures
-→ Indexes
-→ Fact / citation verification
+→ Ch1–3 基础术语 / 职责一致性 pass
+→ 全书 Cross-reference / broken-link audit
+→ Canonical Case C1–C5 全面接入
+→ Master Figures
+→ Concept / Role / Problem / Interview / Checklist Indexes
+→ Fact / paper / number / formula verification
+→ Final continuous read-through
 ```
 
-当前全书已经从“内容扩展阶段”进入：
+当前已经完成：
 
-> **Concept Ownership + Compression + Navigation 阶段。**
+> **Information Architecture + Canonical Ownership + Cross-chapter Responsibility Refactor。**
+
+接下来不再做大规模章节职责重写，而进入：
+
+> **Consistency + Retrieval + Visual + Verification 阶段。**
 
 ---
 
@@ -162,23 +175,21 @@ How do we solve a real problem end-to-end?
 | Symptom / Mechanism / Root Cause / Failure Owner | 14 | 全书唯一完整 failure taxonomy |
 | Evidence / Verifier / Grader / Judge | 15 | Benchmark protocol 交 Ch16 |
 | Benchmark / Protocol / Run / Population / Statistics / Claim | 16 | Data causal experiment 交 Ch21 |
-| Data Flywheel | 17 | Monitoring 交 Ch23 |
+| Data Flywheel Orchestration | 17 | acquisition / valuation / drift 链到各 owner |
 | Data Value / ROI / Portfolio / Stop Rule | 18 | Ch9 只做 acquisition candidate |
-| Identity / Provenance / Lineage / Version / Re-score / Re-run | 19 | Ch6/12/16 只保留局部需求 |
-| Quality / Filtering / Dedup / Mixture | 20 | Ch2/7 只做预告 |
+| Identity / Provenance / Lineage / Version / Re-score / Re-run | 19 | Ch6/12/16/22 只保留局部需求 |
+| Quality / Filtering / Dedup / Mixture | 20 | Ch2/7 只作预告 |
 | Data Intervention / Causal Validation | 21 | General eval statistics 交 Ch16 |
-| Production System | 22 | Organization routing 交 Ch24 |
-| Monitoring / Drift | 23 | Ch17 只说明 flywheel sensing |
-| Operating Model | 24 | 负责团队 / 组织系统 |
-| Integrated Problem Solving | 25 | 不再引入新概念 |
+| Experience Manufacturing Infrastructure | 22 | Organization routing 交 Ch24 |
+| Monitoring / Online Feedback / Drift | 23 | Ch17 只说明 sensing interface |
+| Organization Operating Model | 24 | Owner / Gate / Handoff / Decision Right |
+| Practitioner Operating System | 25 | 只调用前 24 章，不引入新 canonical concept |
 
 ---
 
-# 4. 已稳定的 Canonical Chapters
+# 4. 已完成的“承重墙”
 
-## Ch4 — Reasoning Data
-
-已固定：
+## Ch4 — Reasoning State Semantics
 
 ```text
 Correctness
@@ -188,162 +199,109 @@ Repairability
 Selectability
 ```
 
-并固定：
+关键纪律：
 
 ```text
 Low confidence ≠ Wrong ≠ Worth repairing
 Future outcome = offline supervision, not online feature
 ```
 
-状态：`DONE — canonical definition stable`
+状态：`DONE`
 
----
-
-## Ch10 — Agent Task Design
-
-已固定：
+## Ch10 — Task Contract
 
 ```text
 Prompt → Task → Case → Episode → Trajectory → Benchmark Case
 ```
 
-以及 Task Contract：
-
-```text
-Goal
-Initial State
-Hidden State
-Tools
-Permissions
-Constraints
-Success Predicate
-Forbidden Side Effects
-Termination
-Verifier Contract
-```
-
 状态：`DONE`
 
----
-
-## Ch11 — Environment Design
-
-已固定：
+## Ch11 — Environment / Tool / Harness
 
 ```text
 Tool = Action Interface
 Harness = Runtime Orchestration
 Environment = World + Transition
-Observation = Agent-visible feedback
-```
-
-以及：
-
-```text
-World State ≠ Observation ≠ Agent-visible State
+Observation = Feedback
 ```
 
 状态：`DONE`
 
----
+## Ch12 — Trajectory Representation
+
+```text
+Typed Event Log
++
+State Lineage
++
+Execution Evidence
+```
+
+并固定：
+
+```text
+World / Environment / Agent-visible / Working / Memory
+Context ≠ State
+Decision Intent ≠ Executed Action
+Agent-visible Trace ≠ Researcher-visible Trace
+```
+
+状态：`DONE`
 
 ## Ch13 — Credit Assignment
 
-已固定因果链：
-
 ```text
-Outcome Verification
-→ Failure Attribution
+Outcome
 → First Error
-→ First Harmful Action
+→ First Harmful
 → Recoverability / Repairability
-→ Last Recoverable State / Point of No Return
+→ Last Recoverable / Point of No Return
 → Counterfactual Credit
-→ Learning Signal
 ```
 
 状态：`DONE`
 
----
-
-## Ch14 — Failure Taxonomy
-
-已固定：
+## Ch14 — Failure Diagnosis
 
 ```text
-Outcome
-→ Symptom
-→ Localization
+Symptom
 → Mechanism
 → Root Cause
 → Failure Owner
 → Severity / Detectability
-→ Repairability
 → Intervention Routing
-```
-
-关键边界：
-
-```text
-Failure Layer ≠ Failure Owner
 ```
 
 状态：`DONE`
 
----
-
-## Ch15 — Grader / Verifier / Judge
-
-已固定 measurement chain：
+## Ch15 — Measurement Instrument
 
 ```text
 Evidence
 → Evaluator
 → Raw Judgment
-→ Parsed Judgment
 → Derived Label
 → Final Decision
 ```
 
-并正式允许：
-
-```text
-UNRESOLVED / ABSTAIN
-```
-
 状态：`DONE`
 
----
-
-## Ch16 — Benchmark / Evaluation Protocol
-
-已固定：
+## Ch16 — Evaluation Protocol
 
 ```text
 Benchmark Object
 Protocol
 Run
 Report
-```
-
-以及：
-
-```text
-Population Accounting
-Denominator Discipline
-Paired / Matched Comparison
-Budget Matching
-Cluster-aware Uncertainty
+Population
+Budget
+Statistics
 Claim Scope
 ```
 
 状态：`DONE`
 
----
-
-## Ch19 — Governance / Lineage
-
-已固定：
+## Ch19 — Governance
 
 ```text
 Identity
@@ -353,164 +311,94 @@ Versioning
 Reproducibility
 ```
 
-以及：
+状态：`DONE`
+
+---
+
+# 5. 已完成的 Dependent Chapter 收口
+
+## Ch5–9 — Acquisition Layer
 
 ```text
-Historical Decision ≠ Corrected Label ≠ Fresh Re-execution
-Re-score ≠ Re-run ≠ Replay
+Ch5 = Agent Experience Object
+Ch6 = Human Standard / Annotation
+Ch7 = Experience Synthesis
+Ch8 = Candidate Pool / Selection
+Ch9 = Acquisition / Frontier
 ```
+
+状态：`DONE`
+
+## Ch17–21 — Data Lifecycle
+
+```text
+Ch17 = Flywheel Orchestration
+Ch18 = Resource Allocation / Valuation
+Ch19 = Governance
+Ch20 = Curation / Mixture
+Ch21 = Causal Data Experiment
+```
+
+状态：`DONE`
+
+## Ch22–24 — Operations
+
+```text
+Ch22 = Stable Production
+Ch23 = Sensing / Drift
+Ch24 = Team Operating Model
+```
+
+状态：`DONE`
+
+## Ch25 — Synthesis
+
+```text
+Capability Map
+Problem Routing
+Data Intervention Tree
+30-minute Diagnosis
+Canonical Case
+Project Checklist
+```
+
+不再重新定义前 24 章。
 
 状态：`DONE`
 
 ---
 
-# 5. TRIM + LINK Round 1 — 已完成
+# 6. 下一阶段：Consistency Pass
 
-## Ch5 — Tool-use / Agent Trajectory
-
-现在只负责：
+剩余第一优先级不是继续改后半本，而是回到基础章节：
 
 ```text
-Function Calling ⊂ Tool Use ⊂ Agent Trajectory
-七类 Tool-use Decision
-Action ↔ Observation
-Agent Experience Object
-One Episode → Multiple Derived Views
+Ch1
+Dataset / Sample / Task / Case / Episode / Trajectory
+
+Ch2
+Pretraining / SFT / Post-training / Data Purpose
+
+Ch3
+Preference / Reward / Feedback
 ```
 
-Credit / Failure / Benchmark / Governance 已改成 LINK。
+目标：
 
-状态：`DONE`
+```text
+与 Glossary 完全对齐
+与 Ch10 / 13 / 15 边界完全对齐
+修复旧交叉引用
+不提前深讲 Ch15 / 20
+```
+
+完成后，1–25 的术语骨架才真正闭合。
 
 ---
 
-## Ch6 — Human Data
+# 7. Canonical Case Integration
 
-现在只负责：
-
-```text
-Staffing
-Guideline
-Boundary Case
-Abstention
-Gold
-IAA
-Calibration
-Adjudication
-Expertise Routing
-Human + AI
-```
-
-Label Versioning / Corrected Label / Historical Decision 已归 Ch19。
-
-状态：`DONE`
-
----
-
-## Ch7 — Synthetic Data
-
-现在只负责：
-
-```text
-Task / Response / Reasoning / Trajectory / Environment / User Synthesis
-Teacher
-Task Evolution
-Hard Negative
-Executed Synthetic Trajectory
-Failure-driven Synthesis
-```
-
-Dedup / Contamination / Lineage / Mixture 已归 Ch19 / Ch20。
-
-状态：`DONE`
-
----
-
-## Ch8 — Rollout / Candidate Selection
-
-现在只负责：
-
-```text
-Candidate Pool
-Generation
-Oracle
-Selector
-Rejection / Routing
-Abstention
-Dynamic N
-Same-state Candidate
-```
-
-Rescue / Harmful 定义引用 Ch4 / Ch13；统计 protocol 引用 Ch16。
-
-状态：`DONE`
-
----
-
-## Ch9 — Hard Case Mining / Curriculum
-
-现在只负责：
-
-```text
-Model-hard / State-hard
-Capability Frontier
-Uncertainty
-Disagreement
-Near-miss
-Adversarial Mining
-Active Learning
-Curriculum
-Trigger Bias
-```
-
-正式 Data Value / ROI / Portfolio / Stop Rule 已归 Ch18。
-
-状态：`DONE`
-
----
-
-# 6. 下一轮施工对象
-
-推荐顺序：
-
-```text
-1. Ch12 Trajectory Anatomy
-   → 将 system-wide lineage 收回 Ch19
-   → 与 Ch11 state terminology 对齐
-
-2. Ch17 Data Flywheel
-   → active learning 链 Ch9
-   → valuation 链 Ch18
-   → monitoring 链 Ch23
-
-3. Ch18 Data Strategy
-   → 正式拥有 ROI / Portfolio / Stop Rule
-   → mixture 技术细节链 Ch20
-
-4. Ch20 Quality / Filtering / Dedup / Mixture
-   → 正式拥有 curation layer
-
-5. Ch21 Data Experiments
-   → 只负责 Data Intervention 的因果验证
-   → general benchmark statistics 链 Ch16
-
-6. Ch22–24
-   → 去掉 governance / evaluation / flywheel 的重复定义
-   → 只保留 Production / Monitoring / Organization 独有部分
-
-7. Ch25
-   → 全面改成调用式 synthesis
-   → 不重新定义前 24 章
-
-8. Ch1–3
-   → 最后一轮基础术语统一
-```
-
----
-
-# 7. Canonical Case 体系
-
-正式维护 5 个贯穿案例：
+正式维护：
 
 ```text
 C1 Order / Refund Agent
@@ -520,9 +408,18 @@ C4 Reasoning Continue / Repair
 C5 Code / Execution Agent
 ```
 
+下一阶段不再大量创造新故事，而是：
+
+```text
+给已有案例统一 ID
+统一 variant 命名
+跨章复用同一 case
+补 Case Index
+```
+
 原则：
 
-> 同一个 case 在不同章节承担不同分析角色，而不是每章重新发明故事。
+> **同一个 Case 在不同章节承担不同分析角色。**
 
 ---
 
@@ -547,71 +444,112 @@ F13 Monitoring / Drift Diagnostic Tree
 F14 Operating Model + Capability Map
 ```
 
-图的原则：
+原则：
 
-> **压缩关系，不做装饰。**
+> **图压缩关系，不承担装饰作用。**
 
 ---
 
-# 9. Cross-reference Style
+# 9. Navigation / Retrieval Assets
 
-统一使用：
-
-```text
-> 关于 X 的 canonical definition 见第 N 章。本节只讨论 X 在当前问题中的应用。
-```
-
-或：
+后续新增的不是正文，而是索引：
 
 ```text
-这里沿用第 4 章的定义：Risk ≠ Correctness ≠ Recoverability。
+Concept Index
+Role Index
+Problem Index
+Interview Index
+Checklist Index
+Case Index
+Figure Index
 ```
 
-规则：
+目标是让用户不需要线性读完整本书，也能快速找到：
+
+```text
+“这个概念在哪里定义？”
+“这个 failure 应该读哪几章？”
+“我面试 Agent Data 应该走哪条路线？”
+```
+
+---
+
+# 10. Cross-reference Audit
+
+统一规则：
 
 ```text
 Canonical Chapter = Definition
 Dependent Chapter = Application
 ```
 
----
-
-# 10. 后续阶段
+交叉引用应明确写：
 
 ```text
-Phase A — Canonical + TRIM/LINK
-当前进行中
+关于 X 的 canonical definition 见第 N 章；本节只讨论 X 在当前问题中的应用。
+```
 
-Phase B — Canonical Cases
-统一 C1–C5 ID、variant、引用方式
+需要最终检查：
 
-Phase C — Visual System
-统一 Master Figures
+```text
+旧 root links
+broken chapter links
+old chapter names
+stale section references
+missing glossary / casebook references
+```
 
-Phase D — Navigation
-Concept Index
-Role Index
-Problem Index
-Interview Index
-Checklist Index
+---
 
-Phase E — Verification
-论文题名
+# 11. Verification 阶段
+
+正文结构稳定以后再做：
+
+```text
+论文正式题名 / 副标题
 作者 / 年份 / arXiv
 Benchmark 名称
 实验数字
-公式 / 术语
+公式符号
+非标准行业术语
+Research Example 的 claim scope
 Broken Links / Anchors
+```
 
-Phase F — Derived Editions
+重点：
+
+```text
+More Thinking 正式题名
+RoTFuse / K17 阶段性结果 vs 普遍结论
+```
+
+统一标记：
+
+```text
+Research Example
+Current Experimental Evidence
+Not a Universal Claim
+```
+
+---
+
+# 12. Derived Editions
+
+母本稳定后再抽取：
+
+```text
 Interview Quick Reference
 Project Checklist Edition
 Learning Path Edition
 ```
 
+原则是：
+
+> **所有衍生版本都从母本抽取，不形成新的知识事实源。**
+
 ---
 
-# 11. 最终完成标准
+# 13. 最终完成标准
 
 精修完成后，应能快速回答：
 
@@ -631,7 +569,7 @@ Learning Path Edition
 
 ---
 
-# 12. 编辑总原则
+# 14. 编辑总原则
 
 1. **不为了简洁牺牲关键区分。**
 2. **不为了完整在每章重新讲同一套定义。**
@@ -639,6 +577,6 @@ Learning Path Edition
 4. **不把 Model / Data / Eval / Tool / Harness / Environment failure 混成一个问题。**
 5. **不继续扩正文章节；新内容优先进入已有章、Casebook、Glossary、Figure 或 Index。**
 
-一句话总结：
+一句话总结当前状态：
 
-> **现在的目标不是继续“写知识”，而是让已有知识变成一套可以被稳定调用的系统。**
+> **书的骨架与章节职责已经基本完成；接下来要做的是让它更一致、更可查、更可视化，并完成事实与引用核验。**
