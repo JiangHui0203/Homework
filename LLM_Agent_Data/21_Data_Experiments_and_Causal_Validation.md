@@ -57,12 +57,12 @@ Data Quality 高
 
 # 21.1 Data Experiment 的因果对象
 
-可以把问题写成：
+更一般地，可以把一个 Data Intervention 写成作用在 baseline data mixture \(B\) 上的算子 \(I_D\)：
 
 \[
-\Delta(D;M_0,T,E)
+\Delta(I_D;M_0,T,E)
 =
-Metric(Train(M_0,B+D,T),E)
+Metric(Train(M_0,I_D(B),T),E)
 -
 Metric(Train(M_0,B,T),E)
 \]
@@ -70,16 +70,26 @@ Metric(Train(M_0,B,T),E)
 其中：
 
 ```text
-M0 = base model / checkpoint
-B  = baseline data mixture
-D  = data intervention
-T  = training protocol
-E  = frozen evaluation protocol
+M0  = base model / checkpoint
+B   = baseline data mixture
+I_D = 对 B 施加的数据 intervention
+T   = training protocol
+E   = frozen evaluation protocol
+```
+
+`I_D` 可以统一表示：
+
+```text
+Add
+Remove
+Replace
+Reweight
+Transform
 ```
 
 真正要估计的是：
 
-> **在其他关键条件尽量受控时，改变数据 D 导致了什么变化。**
+> **在其他关键条件尽量受控时，改变 Data Policy / Data Composition 导致了什么变化。**
 
 ---
 
