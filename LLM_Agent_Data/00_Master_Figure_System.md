@@ -1,6 +1,6 @@
 # LLM / Agent Data Knowledge System：Master Figure System
 
-> 状态：**Canonical Visual System / Production Refinement**
+> 状态：**Canonical Visual System / Production Refined Complete**
 >
 > 目的：为 0–25 章维护一套稳定、可复用、可版本化的 Master Figures。图的任务不是装饰，而是压缩跨章节关系、固定对象边界、帮助读者建立全书级 mental model。
 >
@@ -108,7 +108,7 @@ F9  Data Flywheel
 F14 Operating Model + Capability Map
 ```
 
-这六张应满足：
+六张均已完成 production refinement，并满足：
 
 > **即使脱离章节单独展示，也能在 30–90 秒内讲清自己的主问题。**
 
@@ -126,6 +126,8 @@ F11 Governance / Lineage
 F12 Data Production
 F13 Monitoring / Drift
 ```
+
+八张均已完成 production refinement。
 
 ## Level C — Chapter-local
 
@@ -145,7 +147,7 @@ Chapter-local Figure
 
 # 4. Figure File Contract
 
-F1–F14 顶部统一包含：
+F1–F14 顶部现在统一包含：
 
 ```text
 Figure Question
@@ -155,16 +157,17 @@ Primary Case
 Scope
 ```
 
-Mermaid 之后优先包含：
+Mermaid 之后统一具备：
 
 ```text
 Read the Spine
 Critical Boundaries
 Case Lens
 Cross-links
+Caption
 ```
 
-不是所有图都必须机械使用四个标题；但任何图单独打开时，必须能够回答：
+这使任何一张图单独打开时，都能够回答：
 
 ```text
 它在讲什么？
@@ -172,6 +175,7 @@ Cross-links
 最容易混淆什么？
 哪个 case 能证明？
 应该去哪里继续读？
+怎么单独引用这张图？
 ```
 
 ---
@@ -247,22 +251,24 @@ How do we keep the system operating and learning?
 
 ---
 
-# 7. Production Refinement Order
+# 7. Production Refinement Result
 
-成品化按两层进行：
+已完成：
 
 ```text
 Batch A — Level A
 F1 / F4 / F6 / F8 / F9 / F14
+✓
 
 Batch B — Level B
 F2 / F3 / F5 / F7 / F10 / F11 / F12 / F13
+✓
 ```
 
-每张图只做：
+本轮只改变：
 
 ```text
-header contract
+metadata contract
 reading spine
 critical boundaries
 case lens
@@ -270,9 +276,16 @@ caption readiness
 cross-links
 ```
 
-不在本阶段改变 canonical relation。
+未改变：
 
-之后才考虑：
+```text
+canonical concept relation
+Case ID semantics
+figure ownership
+chapter ownership
+```
+
+因此可以安全进入下一阶段：
 
 ```text
 publication SVG redraw
@@ -280,11 +293,11 @@ slide progressive reveal
 social / interview quick-reference derivative
 ```
 
+而不需要重新讨论知识结构。
+
 ---
 
 # 8. Visual Acceptance
-
-当前基础状态：
 
 ```text
 F1–F14 semantic registry
@@ -299,10 +312,19 @@ Duplicate global visual definitions
 Figure Design Contract
 ✓ established
 
-Production refinement
-→ active
+Figure file contract
+✓ unified
+
+Level A production refinement
+✓ complete
+
+Level B production refinement
+✓ complete
+
+Caption readiness
+✓ complete
 ```
 
-最终目标：
+最终目标已经达到：
 
 > **读者即使暂时不读 25 章全文，也能通过 14 张 Master Figures 建立正确的整体结构；再进入章节时，只是在放大某个局部，而不是重新学习一套世界。**
