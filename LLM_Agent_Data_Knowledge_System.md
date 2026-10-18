@@ -2,7 +2,7 @@
 
 > **LLM / Agent Data Knowledge System**
 >
-> 当前状态：**Stable Mother Edition — V3.0**。25 章主体、7-Part 架构、Canonical Concepts、C1–C5、F1–F14、Retrieval Indexes、公式 / 数字口径 / 术语 / 视觉真源 / 关键链接验收与 0→25 连续通读均已完成；V3.x 开始在不改骨架的前提下增加 Practical Case Studies、Playbooks 与 Condensed Guide。
+> 当前状态：**Stable Mother Edition — V3.0**。25 章主体、7-Part 架构、Canonical Concepts、C1–C5、F1–F14、Retrieval Indexes、公式 / 数字口径 / 术语 / 视觉真源 / 关键链接验收与 0→25 连续通读均已完成；V3.x 在不改骨架的前提下增加 Practical Case Studies、Playbooks、Artifact Kit、Reference Layer 与 Visual Derivatives。
 >
 > 当前版本：**V3.0（2026-10-18）**
 >
@@ -136,7 +136,7 @@ Master Figure：F14。
 
 ---
 
-# 六套导航与调用资产
+# 八套导航与调用资产
 
 ## 1. Canonical Concepts
 
@@ -205,14 +205,18 @@ C5 Code / Execution Agent
 
 ## 6. Practical Use Layer
 
+- [Practical Use Map](./LLM_Agent_Data/00_Practical_Use_Map.md)
 - [Practical Case Studies](./LLM_Agent_Data/case_studies/README.md)
   - [C1 — End-to-End Data Learning Loop](./LLM_Agent_Data/case_studies/C1_End_to_End_Walkthrough.md)
   - [C3 — Permission / Harness Ownership](./LLM_Agent_Data/case_studies/C3_Permission_Harness_Ownership_Walkthrough.md)
   - [C4 — Reasoning Intervention](./LLM_Agent_Data/case_studies/C4_Reasoning_Intervention_Walkthrough.md)
+  - [C5 — Executable Truth / Verifier Coverage](./LLM_Agent_Data/case_studies/C5_Executable_Truth_Verifier_Coverage_Walkthrough.md)
 - [Practical Playbooks](./LLM_Agent_Data/00_Practical_Playbooks.md)
+- [Practical Artifact Kit](./LLM_Agent_Data/00_Practical_Artifact_Kit.md)
+- [C1 Filled Artifact Pack](./LLM_Agent_Data/case_studies/C1_Artifact_Pack.md)
 - [Condensed Guide](./LLM_Agent_Data/00_Condensed_Guide.md)
 
-三层分别回答：
+职责分别是：
 
 ```text
 Case Study
@@ -221,9 +225,62 @@ Case Study
 Playbook
 → 给我一个现实输入，今天按什么步骤推进到 Decision？
 
+Artifact Kit
+→ 每一步最终应该落下什么可审计工件？
+
 Condensed Guide
 → 怎样在 30–90 分钟建立整套 shared mental model？
 ```
+
+## 7. Reference Layer
+
+- [Reference & Source Policy](./LLM_Agent_Data/00_Reference_Source_Policy.md)
+- [Canonical References](./LLM_Agent_Data/00_Canonical_References.md)
+
+当前维护一组少而稳定的外部锚点，覆盖：
+
+```text
+Human Preference / RLHF
+DPO
+Process Supervision
+Synthetic Instruction
+Tool Use / ReAct
+LLM-as-a-Judge
+Benchmark Protocol
+Agent / Web Environment Evaluation
+Executable Evaluation
+Dataset Governance
+Contamination / Fresh Evaluation
+```
+
+固定边界：
+
+```text
+External Literature
+≠ Internal Research Evidence
+≠ Canonical Teaching Case
+≠ Engineering Convention
+```
+
+外部论文不能替内部 Research Example 证明数字或结果。
+
+## 8. Visual Derivative Layer
+
+- [Visual Derivatives](./LLM_Agent_Data/visual_derivatives/README.md)
+- [Visual Release Manifest](./LLM_Agent_Data/00_Visual_Release_Manifest.md)
+- [Publication Visual Derivative Spec](./LLM_Agent_Data/00_Publication_Visual_Derivative_Spec.md)
+- [Figure Presentation Kit](./LLM_Agent_Data/00_Figure_Presentation_Kit.md)
+
+Level A 六张已经形成：
+
+```text
+Canonical Master Figure
+→ D1 Publication SVG
+→ D2 16:9 Progressive Reveal
+→ D3 Quick-reference Card
+```
+
+并通过 source SHA 与 semantic acceptance 绑定。
 
 ---
 
@@ -272,6 +329,9 @@ Exhaustive rendered heading-anchor proof
 - [Canonical Casebook](./LLM_Agent_Data/00_Canonical_Casebook.md)
 - [Case Integration Index](./LLM_Agent_Data/00_Case_Integration_Index.md)
 - [Master Figure System](./LLM_Agent_Data/00_Master_Figure_System.md)
+- [Reference & Source Policy](./LLM_Agent_Data/00_Reference_Source_Policy.md)
+- [Canonical References](./LLM_Agent_Data/00_Canonical_References.md)
+- [Visual Release Manifest](./LLM_Agent_Data/00_Visual_Release_Manifest.md)
 - [Verification Log](./LLM_Agent_Data/00_Verification_Log.md)
 - [Link Audit](./LLM_Agent_Data/00_Link_Audit.md)
 - [Final Read-through Log](./LLM_Agent_Data/00_Final_Readthrough_Log.md)
@@ -340,9 +400,9 @@ Core Acceptance Blockers
 
 ```text
 Condensed Guide
-→ F1 / F4 / F6 / F8 / F14
+→ Level A Quick-reference / Presentation Kit
 → Interview Index
-→ C1 / C3 / C4 Practical Studies
+→ C1 / C3 / C4 / C5 Practical Studies
 ```
 
 ## Agent Data / Agent Evaluation
@@ -375,12 +435,20 @@ Condensed Guide
 → C3 Practical Walkthrough
 ```
 
+## Eval / Verifier / Code Agent
+
+```text
+15 → 16 → 19 → 21 → 23
+→ C5 Practical Walkthrough
+```
+
 ## 今天就要开始做项目
 
 ```text
-Problem Index
+Practical Use Map
+→ Problem Index
 → Practical Playbook
-→ 对应 Checklist
+→ Artifact Kit
 → 对应 Case Study
 → Canonical Chapter
 ```
@@ -398,12 +466,12 @@ V3.0 不是“以后不再改”，而是：
 ```text
 补 Case variant
 补 Practical Case Study
-补 Playbook
+补 Playbook / Artifact Template
 补局部解释
 更新 bibliography / Source Anchor
 补 external evidence
 扩 Retrieval Index
-优化 Master / local figure
+优化 Master / derivative figure
 新增 checklist item
 修 broken link / typo
 ```
