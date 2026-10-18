@@ -1,0 +1,42 @@
+name: Patch Agent Knowledge 4.5
+
+on:
+  push:
+    branches:
+      - agent-doc-4-5-persistence
+    paths:
+      - '.github/workflows/agent-doc-4-5-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent-doc-4-5-persistence
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Patch 4.5
+        run: python scripts/patch_agent_knowledge_4_5.py
+      - name: Verify
+        run: |
+          grep -F '#### 4.5.1 定义：Persistence 到底是什么？' Agent_Knowledge_System.md
+          grep -F '| II | 4. Context, Memory & Retrieval | 进行中：4.1–4.5 已完成 |' Agent_Knowledge_System.md
+          grep -F '下一步：继续 **II. Capabilities & Interoperability → 4. Context, Memory & Retrieval → 4.6 Retrieval**。' Agent_Knowledge_System.md
+      - name: Cleanup patch helpers
+        run: |
+          rm -f .agent_doc_staging/4_5_persistence.md
+          rm -f scripts/patch_agent_knowledge_4_5.py
+          rm -f .github/workflows/agent-doc-4-5-patch.yml
+      - name: Commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m 'docs: complete 4.5 Persistence'
+          git push origin HEAD:agent-doc-4-5-persistence
