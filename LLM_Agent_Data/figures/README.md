@@ -2,6 +2,16 @@
 
 本目录保存 `LLM / Agent Data Knowledge System` 的全书级 Master Figures。
 
+当前原则：
+
+```text
+Mermaid Master Figure
+= semantic source of truth
+
+SVG / PNG / PPT / PDF redraw
+= presentation derivative
+```
+
 目标：
 
 ```text
@@ -9,10 +19,15 @@
 可 diff
 可版本化
 GitHub 直接渲染
+可单独截图讲解
 后续可统一重绘成出版级 SVG
 ```
 
-完整视觉规范见：[`00_Master_Figure_System.md`](../00_Master_Figure_System.md)。
+视觉体系入口：
+
+- [`Master Figure System`](../00_Master_Figure_System.md)
+- [`Figure Design Contract`](../00_Figure_Design_Contract.md)
+- [`Figure Integration Audit`](../00_Figure_Integration_Audit.md)
 
 ---
 
@@ -49,9 +64,11 @@ GitHub 直接渲染
 
 ---
 
-# 推荐阅读
+# 两条推荐阅读路径
 
-如果只想快速建立整本书的 mental model，先读 Level A：
+## 1. 只想快速建立全书 mental model
+
+先读 Level A：
 
 ```text
 F1
@@ -62,7 +79,56 @@ F1
 → F14
 ```
 
-如果需要深入某个 Part，再补对应 Level B 图。
+它对应：
+
+```text
+Learning System
+→ Agent World
+→ Credit / Failure
+→ Evaluation
+→ Continuous Learning
+→ Operating Model
+```
+
+## 2. 想把每一层补完整
+
+在 Level A 之间插入对应 Level B：
+
+```text
+F1
+→ F2 → F3
+→ F4 → F5 → F6
+→ F7 → F8
+→ F9 → F10 → F11
+→ F12 → F13 → F14
+```
+
+---
+
+# Figure Reading Contract
+
+每张成品化 Master Figure 应能独立回答：
+
+```text
+Figure Question
+→ 它到底解决什么问题？
+
+Read the Spine
+→ 第一眼先看哪条主链？
+
+Critical Boundaries
+→ 哪几个概念最容易混？
+
+Case Lens
+→ 真实 case 怎样穿过这张图？
+
+Cross-links
+→ 继续读哪一章 / 哪张图？
+```
+
+因此 Figure file 不是“只有 Mermaid 的图片仓库”，而是：
+
+> **一张 canonical visual + 最小必要读图说明。**
 
 ---
 
@@ -76,12 +142,29 @@ Chapter-local Figure
 = local lens / local pipeline
 ```
 
-后续旧图审计将使用：
+视觉真源已经完成去重；当前进入 production refinement：
 
 ```text
-KEEP
-REPLACE WITH MASTER
-KEEP AS LOCAL LENS
+统一 metadata
+统一读图顺序
+统一 critical boundaries
+统一 case 标记
+统一 caption readiness
 ```
 
-避免同一概念长期存在多套互相漂移的视觉定义。
+而不是重新设计知识结构。
+
+---
+
+# Future Derivatives
+
+同一个 Mermaid semantic source 未来可以派生：
+
+```text
+Book / PDF Figure
+Slides / Progressive Reveal
+Interview Quick Reference
+Social / Share Card
+```
+
+如果 presentation redraw 需要改变概念关系，必须先回写 Master Figure source。
