@@ -2,9 +2,11 @@
 
 > **LLM / Agent Data Knowledge System**
 >
-> 当前状态：25 章主体、结构性编辑、Canonical Cases、14 张 Master Figures 与 Retrieval Indexes 均已完成；进入 Cross-reference / Verification / Final Read-through 阶段。
+> 当前状态：**Stable Mother Edition — V3.0**。25 章主体、7-Part 架构、Canonical Concepts、C1–C5、F1–F14、Retrieval Indexes、公式 / 数字口径 / 术语 / 视觉真源 / 关键链接验收与 0→25 连续通读均已完成。
 >
-> 当前版本：V2.4（2026-10-18）
+> 当前版本：**V3.0（2026-10-18）**
+>
+> 版本含义：核心架构、canonical definitions、Case IDs、Figure IDs 与 Retrieval Assets 已进入稳定维护阶段；后续内容默认通过现有 Chapter / Case / Figure / Index 演进，而不是继续无序扩章。
 >
 > 关联文档：[`Agent_Knowledge_System.md`](./Agent_Knowledge_System.md)
 
@@ -169,8 +171,9 @@ C5 Code / Execution Agent
 
 - [Master Figure System](./LLM_Agent_Data/00_Master_Figure_System.md)
 - [Figure Index](./LLM_Agent_Data/figures/README.md)
+- [Figure Integration Audit](./LLM_Agent_Data/00_Figure_Integration_Audit.md)
 
-14 张 Master Figure 已全部完成。
+14 张 Master Figure 已完成并明确 canonical visual ownership；Ch14 / Ch15 / Ch19 的三处竞争性总图已收敛到 F6 / F7 / F11。
 
 ## 4. Role / Problem Retrieval
 
@@ -201,24 +204,41 @@ C5 Code / Execution Agent
 
 ---
 
-# Verification & Audit
+# Verification & Acceptance
 
 - [Verification Log](./LLM_Agent_Data/00_Verification_Log.md)
 - [Cross-reference / Link Audit](./LLM_Agent_Data/00_Link_Audit.md)
+- [Final Continuous Read-through Log](./LLM_Agent_Data/00_Final_Readthrough_Log.md)
+- [Terminology & Style Audit](./LLM_Agent_Data/00_Terminology_Style_Audit.md)
+- [Figure Integration Audit](./LLM_Agent_Data/00_Figure_Integration_Audit.md)
+- [Release Readiness](./LLM_Agent_Data/00_Release_Readiness.md)
 
-它们专门回答：
+它们分别回答：
 
 ```text
-哪些链接已经检查？
-哪些只是 spot-check？
-哪些公式已通过语义审计？
-哪些数字仍缺 source anchor？
-哪些 research example 只能支持 scoped claim？
+公式 / 数字 / claim scope 是否安全？
+主要路径和高风险链接是否真实存在？
+0→25 连续阅读有没有章节断点？
+canonical terminology 是否稳定？
+Master Figure 与局部图是否争抢定义权？
+母本当前还剩什么 blocker？
 ```
 
 审计原则与正文一致：
 
-> **部分验证不写成全量保证；没有来源的数字不因为“看起来熟悉”就标成已核验。**
+> **验证到哪里，就只声明到哪里；部分验证不写成全量保证，没有来源的数字不因为“看起来熟悉”就标成已核验。**
+
+当前有两个明确、非阻塞的 P1：
+
+```text
+More Thinking fixed-depth research numbers
+→ 等待正式 paper / arXiv 或 internal frozen result summary 作为 Source Anchor
+
+Exhaustive rendered heading-anchor proof
+→ 当前 canonical file targets / high-risk paths 已通过；未来工具允许时可补全量 DOM-level deep-anchor checker
+```
+
+它们不影响 V3.0 的方法论架构与母本稳定性。
 
 ---
 
@@ -231,39 +251,49 @@ C5 Code / Execution Agent
 - [Master Figure System](./LLM_Agent_Data/00_Master_Figure_System.md)
 - [Verification Log](./LLM_Agent_Data/00_Verification_Log.md)
 - [Link Audit](./LLM_Agent_Data/00_Link_Audit.md)
+- [Final Read-through Log](./LLM_Agent_Data/00_Final_Readthrough_Log.md)
+- [Terminology & Style Audit](./LLM_Agent_Data/00_Terminology_Style_Audit.md)
+- [Figure Integration Audit](./LLM_Agent_Data/00_Figure_Integration_Audit.md)
+- [Release Readiness](./LLM_Agent_Data/00_Release_Readiness.md)
 
-当前精修顺序：
+V3.0 acceptance：
 
 ```text
 Structure / Concept Ownership
 ✓
 
-Canonical Cases
+Canonical Cases C1–C5
 ✓
 
-Master Figures
+Master Figures F1–F14
 ✓
 
 Retrieval Indexes
 ✓
 
-Header / Path Audit
-✓ Round 1–2
+Header / Main Path Audit
+✓
 
 Formula / Metric Audit
-✓ Round 1; two notation refinements pending
+✓
 
-Research Number / Denominator Audit
-✓ Round 1
+Research Number / Denominator Scope Audit
+✓
 
-Bibliographic Source Anchors
-→ 当前阶段
+Terminology / Style Audit
+✓
 
-Deep Body Anchor Audit
-→ 部分 pending
+Visual Canonicalization
+✓
 
-Final Continuous Read-through
-→ 最终
+Final Case / Figure Link Spot-check
+✓
+
+Continuous Read-through Ch0–25
+✓
+
+Core Acceptance Blockers
+0
 ```
 
 ---
@@ -321,6 +351,42 @@ Final Continuous Read-through
 → 19 → 20
 → 22 → 23 → 24
 ```
+
+---
+
+# V3.0 以后怎样维护？
+
+V3.0 不是“以后不再改”，而是：
+
+> **骨架进入稳定期，新增知识优先进入已有 canonical owner，而不是静默改变概念或继续无边界扩章。**
+
+兼容变化：
+
+```text
+补 Case variant
+补局部解释
+更新 bibliography / Source Anchor
+补 external evidence
+扩 Retrieval Index
+优化 local figure
+新增 checklist item
+修 broken link / typo
+```
+
+需要重新做 version review 的变化：
+
+```text
+改变 canonical concept definition
+重编号章节
+改变 C1–C5 stable ID semantics
+改变 F1–F14 canonical relation
+改变 Task / Case / Episode / Trajectory object model
+改变 Tool / Harness / Environment boundary
+```
+
+原则：
+
+> **内容可以继续成长，但骨架不能静默漂移。**
 
 ---
 
