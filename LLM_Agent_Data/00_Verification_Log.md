@@ -1,21 +1,22 @@
 # LLM / Agent Data Knowledge System：Verification Log
 
-> 状态：Active Verification Ledger
+> 状态：Acceptance Cleanup / Verification Ledger
 >
-> 目的：记录全书在 Cross-reference、Fact、Citation、Number、Formula 与 Research Claim Scope 上的核验结果。所有验证结论都写清“检查了什么、证据是什么、还有什么没检查”，避免把部分审计写成全量保证。
+> 目的：记录全书在 Cross-reference、Fact、Citation、Number、Formula、Visual Integration 与 Research Claim Scope 上的核验结果。所有验证结论都写清“检查了什么、证据是什么、还有什么没检查”，避免把部分审计写成全量保证。
 
 ---
 
 # 0. Verification Scope
 
-当前分为五类：
+当前分为六类：
 
 ```text
 A. Navigation / Cross-reference
 B. Bibliographic / External Fact
 C. Internal Research Example
 D. Number / Formula / Metric
-E. Final Continuous Read-through
+E. Visual Integration
+F. Final Continuous Read-through
 ```
 
 状态：
@@ -70,8 +71,6 @@ Ch17–25
 限制：
 
 > 本轮是 header / navigation-level audit；正文深处的所有 Markdown link 尚未逐链接解析，因此不能声称“全仓库 0 broken link”。
-
-下一步：正文链接 / anchor deep audit。
 
 ---
 
@@ -142,11 +141,31 @@ figures/README.md
 
 ---
 
+## 1.5 Deep-link / Markdown Anchor Audit
+
+状态：`PARTIAL / NEEDS VERIFY`
+
+已知事实：
+
+1. 默认分支 recursive Git tree 已确认 Ch0–25、C1–C5、F1–F14、Indexes 与编辑基础设施文件真实存在。
+2. Header-level relative paths 已逐章检查。
+3. GitHub Code Search 当前对该仓库返回过 `incomplete_results=true`，因此“搜索 0 条”不能当作“绝对不存在”。
+4. 本地全仓库 Markdown parser 方案受运行环境外网 DNS 限制，未能建立可声称的全量 anchor proof。
+5. 已将 Ch4 顶部 C4 链接从脆弱 heading anchor 改成稳定独立 case-file path。
+
+因此当前只允许声称：
+
+> **主导航和已检查 target paths 正常；尚不声称所有正文 heading anchor 已被形式化全量验证。**
+
+详见：[`00_Link_Audit.md`](./00_Link_Audit.md)。
+
+---
+
 # 2. Bibliographic / External Fact Audit
 
 ## 2.1 More Thinking Is Not Always Better
 
-状态：`SAFE IN CURRENT TEXT / FULL BIBLIOGRAPHIC VERIFY STILL PENDING`
+状态：`SAFE IN CURRENT TEXT / NEEDS SOURCE ANCHOR`
 
 背景：早期草稿曾存在一个未核验的完整副标题风险。
 
@@ -164,26 +183,25 @@ More Thinking Is Not Always Better
 统一在引用审计阶段核验。
 ```
 
-2026-10-18 公开 Web 检索没有建立“此前那个完整副标题”与该项目的一一对应公开记录，因此当前做法是：
+2026-10-18 的公开检索没有建立“此前那个完整副标题”与该项目的一一对应公开记录；使用精确数字、四个 benchmark 名以及 Answerer–Auditor 组合反查，也没有找到可以安全充当正式公开来源的唯一记录。
 
-> **不猜副标题；只使用已经确定的主标题 / 项目名。**
+因此当前处理原则：
 
-待后续核验：
+> **不猜副标题，不拿相似公开论文冒充来源；只使用已经确定的项目主标题，并把它当 Internal Research Example。**
 
-```text
-正式 title
-authors
-venue / arXiv
-publication year
-```
-
-如果该项目尚未公开，则保持：
+最终书稿若保留研究数字，需要二选一：
 
 ```text
-Research Project / Research Example
+A. 链接正式 paper / arXiv / published artifact
 ```
 
-而不是伪造 bibliographic entry。
+或：
+
+```text
+B. 链接内部 frozen experiment summary / result table
+```
+
+在 Source Anchor 建立之前，不伪造 bibliographic entry。
 
 ---
 
@@ -191,7 +209,7 @@ Research Project / Research Example
 
 ## 3.1 More Thinking Research Example
 
-状态：`CLAIM SCOPE CONTROLLED`
+状态：`CLAIM SCOPE CONTROLLED / NEEDS SOURCE ANCHOR FOR NUMBERS`
 
 允许写：
 
@@ -270,8 +288,6 @@ P(y_w\succ y_l\mid x)
 - 章节明确把它作为“经典 pairwise 概率”而不是唯一 Reward Model 形式；
 - 没有把 learned reward 写成客观真值。
 
-无需修改。
-
 ---
 
 ## 4.2 Ch4 — Recoverability Notation
@@ -301,12 +317,6 @@ P(y_w\succ y_l\mid x)
 
 > **问“是否存在更好的未来”，而不是“是否存在一个更好的单步动作”。**
 
-同时 Ch4 顶部的 C4 链接已从 heading anchor 改为稳定独立 case file：
-
-```text
-./cases/C4_Reasoning_Continue_Repair.md
-```
-
 ---
 
 ## 4.3 Ch18 — Data Value / ROI / Marginal Utility
@@ -333,7 +343,7 @@ Quality\times Relevance\times Novelty\times Learnability\times Applicability
 DataROI(D)=\frac{\Delta Utility(D)}{TotalCost(D)}
 \]
 
-作为资源配置 ratio 合理；Utility 的具体定义由项目决定。
+作为资源配置 ratio 合理。
 
 \[
 MU_k=\frac{\Delta Utility}{\Delta Cost}
@@ -355,11 +365,11 @@ V(A+B)\neq V(A)+V(B)
 
 用于强调 mixture interaction，不声称具体交互形式。
 
-结论：当前表达安全，不需要为了“数学化”进一步伪精确。
+结论：当前表达安全，不为了“数学化”进一步伪精确。
 
 ---
 
-## 4.4 Ch20 — Mixture / Temperature Sampling
+## 4.4 Ch20 — Mixture / Temperature Sampling / Effective Information
 
 状态：`PASS`
 
@@ -387,7 +397,15 @@ p_i\propto n_i^\alpha
 
 语义正确，并明确说明它只是 mixture implementation tool，不是通用最优策略。
 
-备注：早期草稿曾规划 weighted effective sample size，但当前精修版 Ch20 已不存在该公式，因此不需要再对不存在的表达做核验。
+当前正文还使用加权样本的直觉表达：
+
+\[
+N_{eff}\approx\frac{(\sum_i w_i)^2}{\sum_i w_i^2}
+\]
+
+正文明确将其定位为“直觉公式”，用于提醒 `Exposure ≠ Independent Information`，没有把它包装成对所有相关/簇结构都成立的精确有效样本量定律。
+
+判断：`PASS WITH SCOPE CLEAR`。
 
 ---
 
@@ -460,8 +478,6 @@ S_{fixed}=\sum_k p_{ref}(k)S_k
 
 两者回答不同问题，正文已经明确不能互相替代。
 
-无需修改。
-
 ---
 
 ## 4.7 Formula Audit Summary
@@ -470,7 +486,8 @@ S_{fixed}=\sum_k p_{ref}(k)S_k
 Ch3  Pairwise logistic      PASS
 Ch4  Recoverability        FIXED
 Ch18 ROI / MU / heuristics PASS
-Ch20 Mixture / temperature PASS
+Ch20 Mixture / temperature / N_eff
+                            PASS with scope clear
 Ch21 Data intervention     FIXED
 Ch23 Fixed-mix metric      PASS
 ```
@@ -516,19 +533,7 @@ FOLIO
 
 > 书内尚未给这三个数字一个可点击的内部 experiment artifact / paper source anchor。
 
-因此 final publication 前需要二选一：
-
-```text
-A. 链接正式 paper / arXiv / published artifact
-```
-
-或：
-
-```text
-B. 链接内部项目中的 frozen experiment summary / result table
-```
-
-在 Source Anchor 建立之前，不把这三个数标记成“外部 bibliographic fact 已核验”。
+因此 final publication 前需要建立 source anchor；在此之前，不把这三个数标记成“外部 bibliographic fact 已核验”。
 
 ---
 
@@ -548,8 +553,6 @@ fixed2 74.09% / 4,678 tokens
 但当前结构性精修后的 Ch4 正文只保留 fixed-depth 三个 accuracy 数字；`5,001`、`76.03`、`2,988`、`4,678` 目前没有写入本章。
 
 因此当前书稿不需要为“已经被删掉的数字”制造新的引用负担。
-
-若未来重新加入，必须和 frozen protocol / dataset / model / token accounting 一起加入，而不是只加漂亮结果数字。
 
 ---
 
@@ -601,89 +604,124 @@ Denominator discipline
 → 留在通用方法论章节
 ```
 
-因此 888 / 750 / 138 不需要在 Ch16 里重新加回。
+---
+
+# 6. Visual Integration Audit
+
+状态：`PASS — ownership clear / 3 replacement tasks pending`
+
+详见：[`00_Figure_Integration_Audit.md`](./00_Figure_Integration_Audit.md)。
+
+结论：
+
+- F1–F14 已有唯一 canonical visual ownership；
+- 大多数章节图不是冗余，而是有额外教学价值的 `LOCAL LENS`；
+- 只有三处属于高置信“同一全局关系被画两套”：
+
+```text
+R1  Ch14 §14.0 → F6 Credit → Failure Causal Map
+R2  Ch15 §15.0 → F7 Evidence → Evaluator Stack
+R3  Ch19 §19.5 → F11 Governance / Lineage DAG
+```
+
+这些整改属于视觉真源统一，不改变正文知识结构。
 
 ---
 
-## 5.4 Number Audit Principle
+# 7. Final Continuous Read-through
+
+状态：`PASS — one bridge fix identified`
+
+详见：[`00_Final_Readthrough_Log.md`](./00_Final_Readthrough_Log.md)。
+
+覆盖：
 
 ```text
-Illustrative Number
-→ 明确是 example / hypothetical
-
-Internal Research Number
-→ 需要 source artifact + protocol + denominator
-
-External Published Number
-→ 需要 bibliographic citation
-
-Canonical Definition
-→ 尽量不要依赖某次实验数字
+Ch0–25
 ```
 
-这能避免：
+书级结论：
 
-> 某次研究 cohort 的数字逐渐被写成整本书的固定常识。
+```text
+Chapter Order
+PASS
+
+Part Boundaries
+PASS
+
+Canonical Ownership Under Continuous Reading
+PASS
+
+Cross-chapter Problem Handoff
+PASS except Ch18 → Ch19 bridge
+
+Synthesis / Ending
+PASS
+```
+
+唯一明确的文字结构修复：
+
+```text
+Ch18 → Ch19
+BRIDGE FIX
+```
+
+含义：Ch18 已经完整回答“数据预算应该投哪里”，但结尾还缺一句把读者自然送进：
+
+```text
+长期投资的数据资产
+→ 必须拥有可追溯身份、版本、历史和 usage lineage
+→ Ch19 Governance / Lineage
+```
+
+这不需要重写 Ch18 主体，只需要补短 bridge。
 
 ---
 
-# 6. Pending Verification Queue
+# 8. Remaining Acceptance Queue
 
-## P0 — Navigation
-
-```text
-[ ] Deep body-link audit
-[ ] Markdown anchor audit
-[ ] Next-chapter link audit
-[ ] Case / Figure links inside chapters after integration
-```
-
-## P1 — Bibliography
+## P0 — Book seams
 
 ```text
-[ ] More Thinking formal metadata / internal source anchor
-[ ] 文中其他显式 paper / method citation
-[ ] arXiv / venue / author spelling
+[ ] Ch18 → Ch19 bridge
 ```
 
-## P1 — Numbers
+## P0 — Visual canonicalization
+
+```text
+[ ] Ch14 §14.0 → F6
+[ ] Ch15 §15.0 → F7
+[ ] Ch19 §19.5 → F11
+[ ] 给 canonical owner chapters 补轻量 Master Figure pointer
+```
+
+## P1 — Bibliography / Source Anchor
 
 ```text
 [ ] More Thinking fixed-depth source anchor
-[ ] 其他仍保留在正文中的 research example percentages / cohort counts
+[ ] formal metadata if / when a reliable source exists
 ```
 
-已关闭：
+## P1 — Terminology
 
 ```text
-5,001 / Gap-Audit token numbers
-→ 当前书稿未使用
-
-K17 888 / 750 / 138
-→ 当前通用 Ch16 未使用具体数字，只保留 denominator principle
+[ ] Pretraining / Post-training spelling consistency
+[ ] LLM-as-a-Judge hyphenation consistency
+[ ] Agent-visible State / World State capitalization consistency
+[ ] canonical English term capitalization spot-check
 ```
 
-## P1 — Formula / Metric
+## P1 — Navigation
 
 ```text
-[x] Ch4 Recoverability notation final patch
-[x] Ch21 general Data Intervention notation final patch
-[ ] paired / coverage metric notation spot-check
-[ ] remaining chapter-local equations spot-check
-```
-
-## P2 — Terminology
-
-```text
-[ ] industry term capitalization
-[ ] Pretraining / Post-training spelling
-[ ] LLM-as-a-Judge hyphenation
-[ ] Agent-visible State / World State consistency
+[ ] deep body-link audit as tooling permits
+[ ] Markdown heading-anchor audit as tooling permits
+[ ] case / figure links after final integration
 ```
 
 ---
 
-# 7. Verification Discipline
+# 9. Verification Discipline
 
 1. **没核验就写 NEEDS VERIFY，不靠记忆补 bibliographic detail。**
 2. **Internal research result 可以保留，但必须绑定 protocol / version / denominator。**
@@ -693,10 +731,11 @@ K17 888 / 750 / 138
 6. **部分审计不写成全量保证。**
 7. **Heuristic 不伪装成定律；canonical formula 的 notation 必须匹配语义。**
 8. **具体研究 cohort 数字优先留在 research artifact；通用章节保留可迁移的方法论。**
+9. **Master Figure 是全局视觉真源；局部图只保留真正增加分析粒度的 Lens。**
 
 ---
 
-# 8. Current Status
+# 10. Current Status
 
 ```text
 Architecture
@@ -708,7 +747,7 @@ Concept Ownership
 Cases
 ✓
 
-Figures
+Master Figures
 ✓
 
 Retrieval Indexes
@@ -718,21 +757,29 @@ Header / Navigation Audit Round 1
 ✓
 
 Formula / Metric Audit Round 1
-✓ all identified canonical-notation issues fixed
+✓
 
 Research Number / Denominator Audit Round 1
-✓ More Thinking / K17
+✓ More Thinking / K17 scope audited
 
-Deep Link Audit
-→ pending
-
-Bibliographic Source Anchor Audit
-→ active
+Figure Integration Audit
+✓ analysis complete
+→ 3 visual replacements pending
 
 Final Continuous Read-through
-→ final stage
+✓ complete
+→ one Ch18→19 bridge pending
+
+Deep Link Audit
+→ partial / tooling-limited
+
+Bibliographic Source Anchor
+→ More Thinking pending
+
+Terminology Consistency
+→ next cleanup pass
 ```
 
 一句话：
 
-> **现在的目标已经不是继续增加“看起来正确的内容”，而是逐项证明：链接是真的、题名是真的、数字有来源、公式语义一致、研究结论没有越过证据边界。**
+> **全书已经通过骨架、概念、公式、数字口径与连续阅读验收；剩余工作是少量接缝、视觉真源、术语一致性和引用锚点，不再属于知识体系重写。**
