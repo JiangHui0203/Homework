@@ -1,10 +1,14 @@
 # F8 — Benchmark / Evaluation Protocol
 
-> 角色：固定“一个模型 / 方法提升结论到底怎样成立”。
+> **Figure Question：** “这个模型 / 方法更好”这一结论到底怎样才成立？
 >
-> Canonical owner：Ch16
+> **Level：** Book-level
 >
-> 主案例：C1 family / paired model comparison
+> **Canonical Owner：** Ch16
+>
+> **Primary Case：** `C1` family / paired Baseline–Treatment comparison
+>
+> **Scope：** 固定从 Scientific Question 到 Claim Scope 的完整比较协议；不负责单样本 evaluator semantics，那部分由 F7 / Ch15 定义。
 
 ```mermaid
 flowchart TD
@@ -35,25 +39,61 @@ flowchart TD
     U --> C[Claim Scope]
 ```
 
-## 四个不同对象
+## Read the Spine
+
+真正的主链不是：
+
+```text
+Run Model A
+→ Run Model B
+→ compare accuracy
+```
+
+而是：
+
+```text
+Question
+→ Capability
+→ Benchmark Object
+→ Frozen Protocol
+→ Baseline / Treatment Runs
+→ Paired / Matched Analysis
+→ Metrics
+→ Uncertainty
+→ Claim Scope
+```
+
+其中 Protocol 必须冻结至少：
+
+```text
+Population
+Runtime
+Budget
+Evaluator
+Seeds / Repetitions
+```
+
+否则“方法差异”和“实验条件差异”会混在一起。
+
+## Critical Boundaries
 
 ```text
 Benchmark Object
-= 测什么 case
+≠ Evaluation Protocol
+≠ Evaluation Run
+≠ Evaluation Report
 
-Evaluation Protocol
-= 怎么运行和怎么判
+Full Population
+≠ Triggered Population
 
-Evaluation Run
-= 某一次具体执行
+Better Score
+≠ Better Score at Matched Budget
 
-Evaluation Report
-= 对 runs 的统计与结论
+Observed Improvement
+≠ Universal Capability Improvement
 ```
 
-## Population Accounting
-
-Selective / triggered system 必须保留：
+尤其 selective / triggered system：
 
 ```text
 Full Population
@@ -64,52 +104,58 @@ Triggered
 ↓
 Intervened
 ↓
-Resolved / Observed Outcome
+Observed Outcome
 ```
 
-任何分数必须说明 denominator。
+每一个分数都必须说明 denominator。
 
-## Paired Comparison
+## Case Lens — C1 Family
 
-同一 Case 上比较 Baseline 与 Treatment：
+同一 Case 比较 Baseline 和 Treatment：
 
 ```text
-Baseline wrong → Treatment right
+Baseline wrong
+→ Treatment right
 = Rescue / Repair
 
-Baseline right → Treatment wrong
+Baseline right
+→ Treatment wrong
 = Harmful / Degradation
+
+Both same
+= Neutral transition
 ```
 
-仅比较两个总体平均分，会隐藏 intervention 到底修了什么、伤了什么。
-
-## Budget Discipline
+只看两个总体均值，会把：
 
 ```text
-Better Score
+修了多少
+伤了多少
+在哪些 slice 上变化
 ```
 
-必须同时问：
+全部压掉。
+
+同时还要比较：
 
 ```text
-Same token budget?
-Same tool budget?
-Same number of candidates?
-Same latency class?
+Tokens
+Tool Calls
+Candidates
+Latency
+Coverage
 ```
 
-否则结论可能只是：
+否则“更好”可能只是“花得更多”。
 
-> 花了更多计算，所以更高。
+## Cross-links
 
-## Claim Scope
+- [`Ch15 — Grader / Verifier / Judge`](../15_Grader_Verifier_and_LLM_as_a_Judge.md)
+- [`Ch16 — Benchmark Design & Evaluation Protocol`](../16_Benchmark_Design_and_Evaluation_Protocol.md)
+- [`F7 — Evidence → Evaluator Stack`](./F7_Evidence_Verifier_Grader_Judge.md)
+- [`F9 — Data Flywheel`](./F9_Data_Flywheel.md)
+- [`C1 — Order / Refund Agent`](../cases/C1_Order_Refund_Agent.md)
 
-最后的结论应与证据匹配：
+## Caption
 
-```text
-Observed on this benchmark / protocol
-≠
-Universal capability improvement
-```
-
-尤其小样本、many-config exploration、single-seed 结果需要限制表述范围。
+**F8 — Benchmark / Evaluation Protocol.** 一个“方法更好”的结论需要从问题、能力、benchmark、冻结协议、matched run、metrics、uncertainty 一直走到 claim scope；尤其 selective system 必须保持 population accounting，且任何收益都应同时报告预算和代价。
