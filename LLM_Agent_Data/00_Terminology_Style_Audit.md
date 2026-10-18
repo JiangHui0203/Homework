@@ -1,6 +1,6 @@
 # LLM / Agent Data Knowledge System：Terminology & Style Audit
 
-> 状态：Acceptance Cleanup / Language Consistency
+> 状态：`PASS — Acceptance Baseline / Maintenance Reference`
 >
 > 目的：统一全书 canonical terminology 的拼写、大小写、连字符与语义边界，同时避免把自然语言正文机械改造成“每个英文词都首字母大写”的不自然文本。
 >
