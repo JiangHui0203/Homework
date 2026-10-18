@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/home/runner/work/Homework/Homework/scripts/tmp_patch_agent_4_1.py", line 2729, in <module>
+    text = section_pattern.sub(new_section.rstrip("\n"), text, count=1)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/re/__init__.py", line 334, in _compile_template
+    return _sre.template(pattern, _parser.parse_template(repl, pattern))
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/re/_parser.py", line 1075, in parse_template
+    raise s.error('bad escape %s' % this, len(this)) from None
+re.error: bad escape \c at position 1459 (line 75, column 7)
