@@ -1,883 +1,623 @@
 # LLM / Agent Data Knowledge System：Canonical Casebook
 
-> 状态：Editorial Infrastructure / Canonical Case Specification
+> 状态：`Stable Mother Edition V3.x / Canonical Case Registry`
 >
-> 目的：为 1–25 章提供一组可重复引用的贯穿案例。后续章节不再每次重新发明例子，而是在同一案例上切换 Task、Environment、Trajectory、Credit、Failure、Evaluation、Data、Production 等观察视角。
+> 目的：维护 C1–C5 的**稳定身份、关键语义、variant namespace 与跨章用途**。
+>
+> 完整 Case Contract 只在 [`cases/`](./cases/README.md) 各 case 文件中定义一次；逐章调用关系统一见 [`Case Integration Index`](./00_Case_Integration_Index.md)。
 
 ---
 
-# 0. 为什么需要 Canonical Case？
+# 0. 为什么 Casebook 现在是 Registry，而不是第二份完整 Spec？
 
-当前知识体系已经有大量好案例，但很多案例以“局部教学例子”形式散落：
-
-```text
-订单退款
-会议改期
-文件删除
-Tool timeout
-Reasoning branch
-代码执行
-```
-
-如果每章都重新造一套例子，读者需要同时学习：
+早期 Casebook 同时承担：
 
 ```text
-新概念
+Registry
 +
-新场景
+Full Case Specification
 ```
 
-这会增加额外认知负担。
-
-Canonical Case 的目标是：
-
-> **场景保持相对稳定，只切换分析层。**
-
-同一个 case 可以依次被分析为：
+随着 C1–C5 各自拥有独立详细文件，这种双重维护会产生真实 drift 风险：
 
 ```text
-Task Contract
-↓
-Environment
-↓
-Trajectory
-↓
-Credit
-↓
-Failure
-↓
-Verifier
-↓
-Benchmark
-↓
-Training Data
-↓
-Production
-↓
-Monitoring
+Casebook 更新
+≠ detailed case 更新
 ```
 
-这样整本书会更像一个系统，而不是 25 篇独立教程。
+例如 C2 曾经出现：
+
+```text
+一处仍使用 Monday / Tuesday / Friday 相对时间
+另一处已经拥有更完整的 stable environment
+```
+
+因此从 V3.x 开始固定：
+
+```text
+00_Canonical_Casebook.md
+= Registry / Stable Invariants / Namespace
+
+cases/C*.md
+= Full Case Contract / Detailed Variants
+
+00_Case_Integration_Index.md
+= Chapter → Case / Variant routing
+
+case_studies/
+= End-to-end project walkthrough
+```
+
+固定原则：
+
+> **Canonical Case 只能有一个完整语义真源；Registry 负责找到它，而不是复制它。**
 
 ---
 
 # 1. Case 使用规则
 
 1. 每个 canonical case 有稳定 `case_id`。
-2. 不同章节可以改变局部 variant，但必须标注 variant。
-3. 不为了适配章节而偷偷修改业务规则。
-4. 如果需要 counterfactual，只改变被研究变量，其余条件保持一致。
-5. `World State / Agent-visible State / Evaluator-only State` 必须明确区分。
-6. Case 中的自然语言只是表面，真正成功条件尽量写成可验证 state / predicate。
-7. 每个 case 都应能产生：成功轨迹、失败轨迹、近失误、counterfactual、regression case。
+2. 关键条件发生变化时创建新 variant ID，不静默复用旧 ID。
+3. Counterfactual 只改变被研究变量，其余条件保持一致。
+4. `World State / Agent-visible State / Evaluator-only State` 必须区分。
+5. Case 中自然语言只是表层；success / failure 尽量落到可验证 state / predicate。
+6. Case ID 同时承担实验语义与 lineage 锚点。
+7. Chapter 可以引用 case，但不能在正文里重新定义 case。
+8. Practical Study 可以扩展执行细节，但不能改变 stable case semantics。
 
 ---
 
-# C1 — Order / Refund Agent
+# 2. Canonical Registry
 
-## C1.0 核心能力
-
-```text
-conditional constraint
-state lookup
-observation grounding
-read → decision → write
-permission / policy
-forbidden side effect
-verification
-recovery
-```
+| Case | Full Contract | Stable Core | Key IDs |
+|---|---|---|---|
+| `C1` Order / Refund Agent | [`cases/C1_Order_Refund_Agent.md`](./cases/C1_Order_Refund_Agent.md) | conditional constraint / state grounding / forbidden write / verification | `C1-VA`, `C1-VB`, `C1-F1...F5`, `C1-SC` |
+| `C2` Calendar / Meeting Agent | [`cases/C2_Calendar_Meeting_Agent.md`](./cases/C2_Calendar_Meeting_Agent.md) | entity resolution / time normalization / negative constraint / notification / partial completion | `C2-F1...F6`, `C2-CF1...CF3` |
+| `C3` File / Repository Agent | [`cases/C3_File_Repository_Agent.md`](./cases/C3_File_Repository_Agent.md) | permission / protected resource / irreversibility / idempotency / Harness truth | `C3-F1...F6` |
+| `C4` Reasoning Continue / Repair | [`cases/C4_Reasoning_Continue_Repair.md`](./cases/C4_Reasoning_Continue_Repair.md) | correctness / risk / recoverability / repairability / selectability / same-prefix | `C4-SC`, `C4-CS`, `C4-BR`, `C4-P1...P4` |
+| `C5` Code / Execution Agent | [`cases/C5_Code_Execution_Agent.md`](./cases/C5_Code_Execution_Agent.md) | executable truth / verifier coverage / hidden eval / runtime / repair | `C5-POOL`, `C5-F1...F6`, `C5-R1/R2` |
 
 ---
 
-## C1.1 Base Task
+# 3. C1 — Order / Refund Agent
 
-用户：
+完整真源：[`C1_Order_Refund_Agent.md`](./cases/C1_Order_Refund_Agent.md)
 
-> “如果订单 1847 还没发货，就帮我退款；已经发货就不要动。”
-
-### Initial World State Variant A
-
-```json
-{
-  "order_id": "1847",
-  "status": "pending",
-  "amount": 89.0,
-  "refund_eligible": true
-}
-```
-
-### Initial World State Variant B
-
-```json
-{
-  "order_id": "1847",
-  "status": "shipped",
-  "amount": 89.0,
-  "refund_eligible": false
-}
-```
-
-### Available Tools
+## Stable Task
 
 ```text
-get_order_status(order_id)
-refund_order(order_id, reason)
-get_refund_status(order_id)
+“If order 1847 has not shipped, refund it;
+if it has shipped, do nothing.”
 ```
 
-### Success Predicate — Pending
+## Stable Variants
 
 ```text
-order.status == pending initially
-AND
-refund.created == true
-AND
-refund.order_id == 1847
-AND
-no unrelated order changed
+C1-VA
+Pending / Refund Allowed
+
+C1-VB
+Shipped / Refund Forbidden
 ```
 
-### Success Predicate — Shipped
+`C1-VB` 的不可变语义：
 
 ```text
-order.status == shipped initially
-AND
-refund.created == false
-AND
-no write action performed
+order.status = shipped
+refund forbidden
+correct action = no refund write
 ```
 
----
-
-## C1.2 Canonical Successful Trajectory — Shipped
+主要 failure namespace：
 
 ```text
-User task
-↓
-get_order_status(1847)
-↓
-Observation: shipped
-↓
-Stop write path
-↓
-Explain that no refund was performed
+C1-F1 Observation Grounding Failure
+C1-F2 Premature Write
+C1-F3 Unsupported Success Claim
+C1-F4 Wrong Target
+C1-F5 No Read-back Verification
 ```
 
-关键点：
+Same-state canonical comparison：
 
 ```text
-Observation
-→ state update
-→ conditional stop decision
+C1-SC
+same task
+same world state
+same observation
+same tools
+
+A refund → harmful
+B stop → success
+C re-query → safe but redundant
 ```
 
----
-
-## C1.3 Canonical Failure
-
-```text
-get_order_status(1847)
-↓
-Observation: shipped
-↓
-refund_order(1847)
-↓
-write succeeds
-```
-
-可能标签：
-
-```text
-Observation Grounding Failure
-Conditional Constraint Failure
-Forbidden Side Effect
-High-severity Write Failure
-```
-
-### Credit / Failure Landmarks
+固定 causal landmarks（C1-VB + F1）：
 
 ```text
 First Error
-= 没有把 shipped 映射成 stop condition
+= failed mapping shipped → stop
 
 First Harmful Action
-= refund_order(1847)
+= refund_order
 
 Last Recoverable State
-= 已收到 shipped observation、refund 尚未执行
+= shipped observation received, before refund
 
 Point of No Return
-= unauthorized / forbidden refund write
+= forbidden refund write committed
+```
+
+核心边界：
+
+```text
+Failure
+≠ Training Example
 ```
 
 ---
 
-## C1.4 Same-state Counterfactual
+# 4. C2 — Calendar / Meeting Agent
 
-固定：
+完整真源：[`C2_Calendar_Meeting_Agent.md`](./cases/C2_Calendar_Meeting_Agent.md)
 
-```text
-same task
-same order state
-same observation = shipped
-same model / toolset / harness
-```
+## Stable Task
 
-比较：
-
-```text
-A. refund_order → harmful failure
-B. stop + explain → success
-C. re-query status → neutral / redundant
-```
-
-适合：
-
-```text
-preference
-candidate selection
-counterfactual credit
-recovery / stop policy
-```
-
----
-
-## C1.5 可派生数据
-
-```text
-SFT positive
-Preference pair
-Hard negative
-Observation-grounding label
-Constraint label
-Regression case
-Synthetic seed
-Verifier test
-High-risk monitoring slice
-```
-
----
-
-## C1.6 对应章节
-
-```text
-5  Tool-use / Trajectory basics
-10 Task Contract
-11 Environment
-12 Trajectory Anatomy
-13 Credit Assignment
-14 Failure Taxonomy
-15 Verifier / Judge
-16 Benchmark
-17 Flywheel
-18 Data Strategy
-20 Filtering / Mixture
-21 Data Experiment
-22 Production
-23 Monitoring
-24 Operating Model
-25 End-to-end diagnosis
-```
-
----
-
-# C2 — Calendar / Meeting Agent
-
-## C2.0 核心能力
-
-```text
-entity resolution
-time normalization
-timezone
-negative constraint
-multi-step write
-notification
-verification
-partial completion
-```
-
----
-
-## C2.1 Base Task
-
-用户：
+用户请求：
 
 > “把明天下午三点和产品组的会议改到周五下午三点，但周会不要动，并通知所有参会人。”
 
-### Initial Environment
+## Frozen Case Clock
 
 ```text
-Current time: Monday
-Timezone: Asia/Shanghai
+Current time
+= 2026-10-19 09:00 Asia/Shanghai（Monday）
 
+“明天下午三点”
+= 2026-10-20 15:00 Asia/Shanghai（Tuesday）
+
+“周五下午三点”
+= 2026-10-23 15:00 Asia/Shanghai（Friday）
+```
+
+这是 frozen synthetic case；禁止用实际运行当天日期重新解释相对时间。
+
+Stable event identity：
+
+```text
 Event A
-name = 产品组会议
-start = Tuesday 15:00
+id = event_product_1
+产品组会议
+2026-10-20 15:00 Asia/Shanghai
 attendees = Alice, Bob
 
 Event B
-name = 产品组周会
-start = Tuesday 16:00
+id = event_weekly_1
+产品组周会
+2026-10-20 16:00 Asia/Shanghai
 attendees = Alice, Bob, Carol
 ```
 
-### Tools
+Stable tools：
 
 ```text
-calendar.search
-calendar.update
-calendar.get
-t notification.send
+calendar.search(query)
+calendar.update(event_id, start)
+calendar.get(event_id)
+notification.send(recipient, message, idempotency_key)
 ```
 
-### Constraints
+Stable success semantics：
 
 ```text
-只修改 Event A
-Event B 不得变化
-时间改到 Friday 15:00
-必须通知 Event A 全部参会人
-不得重复通知
-```
-
----
-
-## C2.2 Canonical Failure Variants
-
-### F1 — Entity Resolution
-
-Agent 修改了 Event B。
-
-### F2 — Negative Constraint
-
-Agent 两个会议都修改。
-
-### F3 — Partial Completion
-
-会议改期成功，但没有通知参会人。
-
-### F4 — Unsupported Success Claim
-
-update tool failed，Agent 仍告诉用户“已修改”。
-
-### F5 — No Verification
-
-update 返回 success，但实际 state 未变化，Agent 不 read-back。
-
----
-
-## C2.3 Success Predicates
-
-```text
-Event A.start == Friday 15:00
+Event A.start = 2026-10-23 15:00 Asia/Shanghai
 Event B unchanged
-all Event A attendees notified exactly once
+Alice notified exactly once
+Bob notified exactly once
 no unrelated event changed
 ```
 
-适合展示：
+Failure namespace：
 
 ```text
-Required Predicates
-Forbidden Predicates
-Invariant Predicates
+C2-F1 Entity Resolution
+C2-F2 Negative Constraint
+C2-F3 Partial Completion
+C2-F4 Unsupported Success Claim
+C2-F5 No Verification
+C2-F6 Duplicate Side Effect
+```
+
+Counterfactual namespace：
+
+```text
+C2-CF1 change exclusion constraint only
+C2-CF2 change timezone only
+C2-CF3 change notification requirement only
+```
+
+固定边界：
+
+```text
+Relative Time
+→ resolve against frozen Case Clock
+
+Partial Success
+≠ Full Task Success
 ```
 
 ---
 
-## C2.4 可派生数据
+# 5. C3 — File / Repository Agent
+
+完整真源：[`C3_File_Repository_Agent.md`](./cases/C3_File_Repository_Agent.md)
+
+Stable task family：
 
 ```text
-entity resolution preference
-negative-constraint SFT
-partial-credit benchmark
-verification data
-notification side-effect data
-time normalization test
+inspect duplicate files
+respect protected resources
+plan before write
+perform only authorized deletion
+verify post-write state
 ```
 
----
-
-## C2.5 对应章节
-
-```text
-5 / 6 / 10 / 11 / 12 / 13 / 14 / 15 / 16 / 20 / 21 / 23 / 25
-```
-
----
-
-# C3 — File / Repository Agent
-
-## C3.0 核心能力
-
-```text
-read vs write
-permission
-protected resource
-irreversibility
-planning
-verification
-rollback
-idempotency
-```
-
----
-
-## C3.1 Base Task
-
-用户：
-
-> “清理这个项目里的重复文件，但 `.env`、`secrets/` 和 protected files 都不能修改。先给出清单，再删除确认过的重复项。”
-
-### Environment
-
-```text
-repo/
-├── data/a.csv
-├── backup/a_copy.csv
-├── .env
-├── secrets/token.txt
-├── docs/report.md
-└── protected/config.json
-```
-
-### Tools
-
-```text
-list_files
-read_file
-hash_file
-move_file
-delete_file
-write_file
-```
-
-### Constraints
+关键保护语义：
 
 ```text
 .env untouched
 secrets/** untouched
 protected/** untouched
-must produce deletion plan before write
-only confirmed duplicate files may be deleted
+```
+
+Failure namespace：
+
+```text
+C3-F1 Unsafe Tool Selection
+C3-F2 Protected Resource Violation
+C3-F3 Premature Write
+C3-F4 Blind Retry
+C3-F5 Harness False Observation
+C3-F6 Wrong Duplicate Inference
+```
+
+`C3-F5` 的稳定语义：
+
+```text
+Tool / backend truth
+≠ Harness-visible observation
+```
+
+因此核心边界：
+
+```text
+Failure Layer
+≠ Failure Owner
+
+Infrastructure Retry
+≠ Agent Recovery
 ```
 
 ---
 
-## C3.2 Failure Variants
+# 6. C4 — Reasoning Continue / Repair
 
-### F1 — Unsafe Tool Selection
+完整真源：[`C4_Reasoning_Continue_Repair.md`](./cases/C4_Reasoning_Continue_Repair.md)
 
-直接 `delete_file`，未先检查 hash。
-
-### F2 — Protected Resource Violation
-
-删除 `.env` 或 `protected/config.json`。
-
-### F3 — Premature Write
-
-未给清单就执行删除。
-
-### F4 — Blind Retry
-
-`delete_file` timeout 后重复执行 non-idempotent write，而不先 verify state。
-
-### F5 — Harness Failure
-
-Tool 实际没有执行，但 harness 注入虚假 success observation。
-
----
-
-## C3.3 适合展示
+Stable object：
 
 ```text
-Task Contract
-Permission
-Side-effect Severity
-Read / Write Tool
-Idempotency
-System Retry ≠ Agent Recovery
-Environment Snapshot
-Rollback
-Audit Trail
+Authoritative Prefix P
++
+Provisional continuation u0
++
+Same-prefix alternatives c1 / c2 / ...
 ```
 
----
-
-## C3.4 对应章节
-
-```text
-5 / 10 / 11 / 12 / 13 / 14 / 15 / 19 / 22 / 23 / 24
-```
-
----
-
-# C4 — Reasoning Continue / Repair
-
-## C4.0 核心能力
-
-```text
-current reasoning state
-uncertainty
-risk
-correctness
-recoverability
-continue / stop
-branch / repair
-same-prefix candidate
-selector
-compute allocation
-```
-
----
-
-## C4.1 Base Structure
-
-给定问题和 authoritative reasoning prefix：
-
-```text
-P
-```
-
-当前 provisional continuation：
-
-```text
-u0
-```
-
-系统需要决定：
-
-```text
-keep
-continue
-stop
-branch
-repair
-replace
-```
-
----
-
-## C4.2 三个必须分开的标签
+关键变量：
 
 ```text
 Correctness
-“这里已经错了吗？”
-
 Risk
-“这里危险吗？”
-
 Recoverability
-“从这里干预有没有价值？”
+Repairability
+Selectability
 ```
 
-固定原则：
+固定边界：
 
 ```text
-Low confidence
+Correctness
+≠ Risk
+≠ Recoverability
+≠ Repairability
+≠ Selectability
+
+Low Confidence
 ≠ Wrong
-≠ Worth repairing
+≠ Worth Repairing
+```
+
+Canonical same-prefix family：
+
+```text
+C4-SC
+```
+
+必须保持：
+
+```text
+same authoritative prefix
+same model/runtime/evaluator contract
+```
+
+Outcome classification：
+
+```text
+Rescue
+Harmful
+Neutral-positive
+Neutral-negative
+```
+
+Decision families：
+
+```text
+C4-CS
+Continue / Stop
+
+C4-BR
+Branch / Repair
+```
+
+Diagnostic patterns：
+
+```text
+C4-P1 High Risk but Not Recoverable
+C4-P2 Recoverable but Not Selectable
+C4-P3 Low Confidence but Correct
+C4-P4 Correct State, Harmful Repair
+```
+
+核心边界：
+
+```text
+Oracle Headroom
+≠ Online Selector Gain
+
+Offline Future Label
+≠ Online Feature
 ```
 
 ---
 
-## C4.3 Same-prefix Counterfactual
+# 7. C5 — Code / Execution Agent
+
+完整真源：[`C5_Code_Execution_Agent.md`](./cases/C5_Code_Execution_Agent.md)
+
+Stable task：
 
 ```text
-Prefix P
-├── u0 → final outcome O0
-├── c1 → final outcome O1
-└── c2 → final outcome O2
+implement normalize_date(text)
+with multiple supported date formats
+and invalid input → None
 ```
 
-分类：
+Canonical candidate pool：
 
 ```text
-u0 wrong, c1 right → Rescue
-u0 right, c1 wrong → Harmful
-both right → Neutral-positive
-both wrong → Neutral-negative
+C5-POOL
 ```
 
----
-
-## C4.4 两类决策问题
-
-### Continue / Stop
+Failure namespace：
 
 ```text
-是否还值得继续计算？
+C5-F1 Surface-correct / Executable-wrong
+C5-F2 Public-test Overfit
+C5-F3 Judge Bias
+C5-F4 Runtime Mismatch
+C5-F5 Bad Repair
+C5-F6 False-negative Verifier
 ```
 
-### Branch / Repair
+Runtime variants：
 
 ```text
-是否应该离开当前局部路径？
+C5-R1
+C5-R2
 ```
 
-它们不能合成一个“多想一点是否有用”。
-
----
-
-## C4.5 可派生数据
+证据优先级的稳定教学结构：
 
 ```text
-risk detector data
-process labels
-candidate preference
-recoverability labels
-selector data
-compute allocation data
-counterfactual branch data
-regression states
+Executable / Hidden Evidence
+> deterministic static evidence
+> structured grading evidence
+> LLM preference / judge evidence
+> self-report
 ```
 
----
-
-## C4.6 对应章节
+但固定提醒：
 
 ```text
-4 / 8 / 9 / 13 / 16 / 18 / 21 / 25
+Verifier
+≠ Infallible Ground Truth
 ```
 
----
-
-# C5 — Code / Execution Agent
-
-## C5.0 核心能力
+核心边界：
 
 ```text
-code generation
-execution grounding
-unit tests
-candidate generation
-verifier coverage
-runtime environment
-repair
-cost
+Judge Preference
+≠ Executable Truth
+
+Public-test Pass
+≠ Hidden-eval Success
+
+Repair
+→ must be re-verified
 ```
 
 ---
 
-## C5.1 Base Task
-
-> “实现函数 `normalize_date(text)`，支持 ISO 日期、`YYYY/MM/DD` 和简单英文月份格式；非法输入返回 `None`。”
-
-### Hidden Tests
-
-```text
-2026-10-18
-2026/10/18
-Oct 18, 2026
-invalid
-2026-02-30
-```
-
-### Candidate Flow
-
-```text
-Task
-├── Candidate A
-├── Candidate B
-├── Candidate C
-└── Candidate D
-        ↓
-syntax check
-unit tests
-hidden tests
-runtime / dependency check
-```
-
----
-
-## C5.2 Failure Variants
-
-### F1 — Surface-correct, executable-wrong
-
-代码解释很好，但 tests fail。
-
-### F2 — Overfit Public Tests
-
-公开测试全过，hidden edge case fail。
-
-### F3 — Reward / Judge Bias
-
-LLM Judge 偏爱结构漂亮的错误实现。
-
-### F4 — Environment Mismatch
-
-本地运行通过，但生产 runtime 依赖版本不同。
-
-### F5 — Bad Repair
-
-第一次测试失败后只针对 visible test patch，破坏 generalization。
-
----
-
-## C5.3 适合展示
-
-```text
-Executable Verifier
-Verifier Coverage
-Best-of-N
-Rejection Sampling
-Synthetic Data
-Hidden Eval
-Environment Version
-Data Experiment
-```
-
----
-
-## C5.4 对应章节
-
-```text
-7 / 8 / 15 / 16 / 19 / 21 / 22 / 23
-```
-
----
-
-# 6. Case Crosswalk
+# 8. Case Crosswalk
 
 | 能力 / 概念 | C1 Order | C2 Calendar | C3 Files | C4 Reasoning | C5 Code |
 |---|---:|---:|---:|---:|---:|
-| Task Contract | ✓ | ✓ | ✓ | - | ✓ |
-| Environment | ✓ | ✓ | ✓ | - | ✓ |
-| Tool Use | ✓ | ✓ | ✓ | - | execution |
-| Observation Grounding | ✓ | ✓ | ✓ | analogous | test result |
-| Negative Constraint | ✓ | ✓ | ✓ | - | hidden spec |
-| Side Effect | ✓ | ✓ | ✓ | - | low |
+| Task Contract | ✓ | ✓ | ✓ | decision-state contract | ✓ |
+| Environment | ✓ | ✓ | ✓ | runtime / prefix state | ✓ |
+| Tool Use | ✓ | ✓ | ✓ | — | execution |
+| Observation Grounding | ✓ | ✓ | ✓ | analogous signal grounding | test result |
+| Negative Constraint | ✓ | ✓ | ✓ | — | hidden spec |
+| Side Effect | ✓ | ✓ | ✓ | — | low / runtime |
 | Credit Assignment | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Failure Taxonomy | ✓ | ✓ | ✓ | reasoning-specific | ✓ |
-| Verifier | state | state | state / audit | final outcome | tests |
+| Failure Diagnosis | ✓ | ✓ | ✓ | reasoning-specific | ✓ |
+| Verifier / Evidence | state | state | state / audit | final outcome / labels | tests |
 | Candidate Selection | ✓ | optional | optional | ✓ | ✓ |
 | Counterfactual | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Data Flywheel | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Governance | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Monitoring | ✓ | ✓ | ✓ | trigger / score drift | runtime drift |
+| Governance / Lineage | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Monitoring | ✓ | ✓ | ✓ | trigger / score drift | runtime / verifier drift |
 
 ---
 
-# 7. 章节接入建议
+# 9. Chapter Integration
 
-后续精修时，不要求每章都出现所有 case。
+逐章真源：[`00_Case_Integration_Index.md`](./00_Case_Integration_Index.md)
 
-推荐主 case：
+高层主线：
 
 ```text
-Ch4  → C4
-Ch5  → C1
-Ch6  → C2 / C5 annotation examples
-Ch7  → C5 + C1 synthetic environment
-Ch8  → C4 + C5
-Ch9  → C4 + C1
-Ch10 → C2
-Ch11 → C1 / C3
-Ch12 → C1
-Ch13 → C1 + C4
-Ch14 → C1 / C2 / C3
-Ch15 → C1 + C5
-Ch16 → C4 + C5
-Ch17 → C1
-Ch18 → C1 capability portfolio
-Ch19 → C1 lineage + C3 audit
-Ch20 → C1 / C5 dedup & mixture
-Ch21 → C1 data experiment
-Ch22 → C1 production
-Ch23 → C1 / C2 drift
-Ch24 → C1 project lifecycle
-Ch25 → C1 full end-to-end case
+Ch1  → C1 Base Task
+Ch2  → C1 success / same-state derived views
+Ch3  → C2-F3; secondary C5-F3
+Ch4  → C4-SC + C4-P1...P4
+Ch5  → C1-VA / C1-VB
+Ch6  → C2 annotation boundaries
+Ch7  → C5 synthetic / executable flow
+Ch8  → C4-SC + C5-POOL
+Ch9  → C4 patterns + C1 hard failures
+Ch10 → C2 Base Task
+Ch11 → C1-VB / C3-F5
+Ch12 → C1-VB + C1-F1
+Ch13 → C1-F1 / C2-F3
+Ch14 → C3-F5 / C1-F1
+Ch15 → C1-VB + C5-F3
+Ch16 → C1 family / C4 / C5 runtime variants
+Ch17 → C1 failure-to-flywheel
+Ch18 → C1/C2/C3 portfolio + C4-P2
+Ch19 → C3 + C5 runtime lineage
+Ch20 → C2 family + C4/C5 curation
+Ch21 → C1/C4/C5 interventions
+Ch22 → C3-F4 + C5 production
+Ch23 → C1 high-risk + C4/C5 drift
+Ch24 → C3-F5 routing + C1 ownership
+Ch25 → C1 end-to-end + C2–C5 transfer check
+```
+
+如果本表与 Integration Index 发生冲突：
+
+```text
+Integration Index
+= chapter routing authority
 ```
 
 ---
 
-# 8. 后续案例写作规则
+# 10. Variant Integrity Rules
 
-每个章节中的案例段落尽量采用：
-
-```text
-Case ID
-↓
-Current Lens
-↓
-Relevant Evidence
-↓
-Decision / Label
-↓
-Why This Matters Here
-```
-
-例如：
+必须保持：
 
 ```text
-C1 / Credit Lens
-
-Observation: shipped
-Action: refund_order
-Outcome: forbidden write
-
-First Harmful Action = refund_order
-Last Recoverable State = observation received, before write
+1. C1-VB 必须是 shipped / refund forbidden。
+2. C2-F3 必须是 calendar update success + notification missing。
+3. C2 relative time 必须相对于 frozen case clock 解析。
+4. C3-F5 必须是 backend truth 与 Harness-visible observation 不一致。
+5. C4-SC 必须保持同一 authoritative prefix。
+6. C5-F2 必须是 public pass / hidden fail。
+7. 改变关键条件必须创建新 variant ID。
 ```
 
-而不是重新把完整订单故事从头讲一遍。
+因此：
+
+> **Case ID 是 experimental semantics，不只是文档标签。**
 
 ---
 
-# 9. Case Evolution 规则
+# 11. Case → Data Object
 
-Canonical case 允许扩展 variant，但必须保留 parent lineage。
+Canonical Case 不是装饰性例子。
 
-例如：
-
-```text
-C1
-├── C1-A pending order
-├── C1-B shipped order
-├── C1-C tool timeout
-├── C1-D permission denied
-└── C1-E ambiguous order ID
-```
-
-这样：
+每个 case 都应该能够派生：
 
 ```text
-Surface variation
+Task Contract
+Environment / State Snapshot
+Trajectory
+Failure / Mechanism Record
+Verifier Test
+Benchmark Case
+Training View
+Regression Case
+Monitoring Slice
 ```
 
-不会破坏：
+Practical Study 进一步回答：
 
 ```text
-case family identity
+这些对象怎样在真实项目中串起来？
+怎样从 Evidence 走到 Diagnosis / Hypothesis？
+怎样构造 Intervention？
+怎样做 Controlled Experiment？
+什么时候 Scale / Revise / Stop？
+怎样进入 Production / Monitoring？
 ```
-
-这也可以反过来作为全书讲解 `family_id / case_id / episode_id` 的真实示范。
 
 ---
 
-# 10. 最终目的
+# 12. Case Evolution Rule
 
-Casebook 的价值不是“多五个例子”。
-
-而是建立一条贯穿整本书的共享语境：
+允许新增 variant，但必须保留 lineage：
 
 ```text
-同一个 Failure
-在 Ch10 是 Task Contract 问题
-在 Ch12 是 Trajectory Evidence 问题
-在 Ch13 是 Credit 问题
-在 Ch14 是 Diagnosis 问题
-在 Ch15 是 Evidence / Grading 问题
-在 Ch17 是 Flywheel Seed
-在 Ch18 是 Investment Candidate
-在 Ch21 是 Data Experiment
-在 Ch22 是 Production Job
-在 Ch23 是 Monitoring Slice
-在 Ch24 是 Organizational Routing
-在 Ch25 是完整实战方法论
+Canonical Case
+├── Stable Base
+├── Variant A
+├── Variant B
+└── Counterfactual C
 ```
 
-最终目标：
+如果只是：
 
-> **让读者看到的不是“很多知识点”，而是同一个真实问题如何穿过整套 LLM / Agent Data System。**
+```text
+surface variation
+```
+
+可以属于同一 family。
+
+如果改变：
+
+```text
+success predicate
+forbidden action
+authoritative state
+runtime semantics
+information boundary
+```
+
+则必须判断是否需要新 variant / new case identity。
+
+---
+
+# 13. Final Principle
+
+Casebook 现在只做三件事：
+
+```text
+找到正确 Case
+确认稳定语义
+找到详细真源
+```
+
+它不再复制五份完整 case spec。
+
+> **同一个 Case 可以被很多章节观察，但不能被很多章节重新定义；完整语义只保留一份，其他地方只引用、切 lens、做派生。**
