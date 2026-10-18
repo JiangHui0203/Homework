@@ -1,0 +1,34 @@
+name: Patch Agent Knowledge 4.1
+
+on:
+  push:
+    branches:
+      - agent-doc-4-1-context-engineering
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent-doc-4-1-context-engineering
+          fetch-depth: 0
+
+      - name: Patch document
+        run: python scripts/tmp_patch_agent_4_1.py
+
+      - name: Commit patched document
+        run: |
+          if git diff --quiet -- Agent_Knowledge_System.md; then
+            echo "No document changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Agent_Knowledge_System.md
+          git commit -m "docs: write 4.1 context engineering"
+          git push origin HEAD:agent-doc-4-1-context-engineering
