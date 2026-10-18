@@ -966,7 +966,125 @@ V3.x Compatible Evolution / Maintenance
 
 ---
 
-# 15. Final Principle
+# 15. Maintenance Sweep — High-frequency Navigation Alignment
+
+本轮只检查四个最高频入口：
+
+```text
+LLM_Agent_Data_Knowledge_System.md
+00_Overview.md
+00_Practical_Use_Map.md
+00_Condensed_Guide.md
+```
+
+目标不是继续润色，而是确认第一次进入系统时不会被旧 routing 带偏。
+
+## 15.1 Landing page — first-entry ownership corrected
+
+`LLM_Agent_Data_Knowledge_System.md` 原来的 `Interview / Execution Retrieval` 把：
+
+```text
+Interview Index
+Checklist Index
+```
+
+同时解释成面试、项目立项和 30-minute diagnosis 的入口，已经落后于当前职责分工。
+
+现明确：
+
+```text
+Interview Index
+= 27-question retrieval / deeper expansion
+
+Checklist Index
+= stage-specific execution review / omission prevention
+
+Interview first entry
+= Interview Pack
+
+Project first entry
+= Project Starter Pack
+
+30-minute diagnosis
+= Condensed Guide §13 / Practical Use Map
+```
+
+没有改变 Index / Pack 的内部语义，只修正 landing routing。
+
+## 15.2 Overview — remove failure-led-only implication
+
+`00_Overview.md` 结尾原来把成熟能力压成：
+
+```text
+懂模型为什么错
+→ 把错误变成数据
+→ 证明数据有用
+```
+
+这对 Failure-led 项目成立，但不足以覆盖已经稳定的：
+
+```text
+Monitoring-led
+Hypothesis-led
+Evaluation-led
+Asset-led / Curation-led
+```
+
+现保留 Learning System 主线，同时显式说明：
+
+```text
+不同 Entry
+→ Relevant Contract + Evidence
+→ Correct Intervention Owner
+→ Controlled Evaluation
+→ Decision
+→ Monitoring / Re-entry
+```
+
+因此 Overview 不再暗示所有项目必须先拥有 failure 或最终都落成 Data Intervention。
+
+## 15.3 Practical Use Map / Condensed Guide — audit only
+
+两份文件已经正确反映：
+
+```text
+five-entry model
+Interview Pack first
+Project Starter Pack first
+A1–A11 composable catalog
+C1 / C3 / C4 / C5 Practical Studies
+A5-M / A10-I / A6-C conditional extensions
+Reference / Visual / Scenario routes
+```
+
+未发现需要修改的高置信 drift，因此保持原文。
+
+这属于有意的高频 compression，不为了四文件形式对称做无意义改写。
+
+## 15.4 Scope guard
+
+本轮没有：
+
+```text
+扩 Ch26+
+新增 Pack / Figure / Template
+新增 C2 walkthrough
+新增 A12 / P8
+改变 canonical concept ownership
+扩 Level B derivatives
+重写 V3.0 Release Readiness
+声称 exhaustive rendered deep-heading validation
+```
+
+本轮仍属于：
+
+```text
+V3.x Compatible Evolution / Use-driven Maintenance
+```
+
+---
+
+# 16. Final Principle
 
 ```text
 Release Snapshot
