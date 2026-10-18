@@ -151,15 +151,72 @@ E2E Gain
 
 ---
 
-# Three-study Coverage
+## C5 — Code / Execution Agent
 
-当前三篇 walkthrough 已经覆盖三类彼此不可替代的问题空间：
+- [`C5_Executable_Truth_Verifier_Coverage_Walkthrough.md`](./C5_Executable_Truth_Verifier_Coverage_Walkthrough.md)
+
+主链：
+
+```text
+Executable Task Contract
+→ Candidate Pool
+→ Runtime Evidence
+→ Public / Hidden Verifier
+→ Judge / Verifier Conflict
+→ Verifier Coverage
+→ Runtime Attribution
+→ Repair + Re-verification
+→ Data Assets
+→ Controlled Experiment
+→ Production / Lineage / Monitoring
+```
+
+主要使用：
+
+```text
+C5-POOL
+C5-F2  Public-test Overfit
+C5-F3  Judge Bias
+C5-F4  Runtime Mismatch
+C5-F5  Bad Repair
+C5-F6  False-negative Verifier
+```
+
+核心教学任务：
+
+> **当任务存在 executable truth 时，怎样让 Data、Evaluation、Repair 与 Selection 服从真实执行证据，而不是服从“看起来更正确”的代理信号。**
+
+固定边界：
+
+```text
+Executable Evidence
+≠ Judge Preference
+
+Public Test Pass
+≠ Task Correctness
+
+Verifier
+≠ Ground Truth by definition
+
+Local Patch
+≠ General Repair
+
+Artifact Failure
+≠ Runtime Failure
+```
+
+---
+
+# Four-study Coverage
+
+当前四篇 walkthrough 已覆盖四类彼此不可替代的问题空间：
 
 | Study | 主要世界 | 核心问题 |
 |---|---|---|
 | C1 | External Agent Decision | failure 怎样进入完整 data learning loop |
 | C3 | Runtime / Permission / Side Effect | failure layer 和 failure owner 为什么不同 |
 | C4 | Explicit Reasoning Intervention | trigger / candidate / selector / cost 怎样拆解 |
+| C5 | Executable Task / Verifier | executable truth、verifier coverage、runtime 与 repair 怎样对齐 |
 
 可以压成：
 
@@ -172,30 +229,51 @@ C3
 
 C4
 → Does intervention headroom actually convert into online value?
+
+C5
+→ What evidence is strong enough to call the output correct?
 ```
 
-这三问已经覆盖大多数 Agent Data / Reasoning Data 项目最容易误判的三个层级。
+这四问已经覆盖大多数 Agent Data / Reasoning Data / Evaluation 项目最容易误判的四个层级。
 
 ---
 
-# Planned Studies
+# Why C2 Is Not Forced Into a Full Study
 
-后续不机械追求 C1–C5 全部各写一篇。
-
-只有在提供新的不可替代结构时才继续：
+`C2 Calendar / Meeting Agent` 仍然是重要 canonical case，尤其适合：
 
 ```text
-C2
-→ Multi-constraint / Partial Completion / Notification
-
-C5
-→ Executable Truth / Hidden Tests / Verifier Coverage
+entity resolution
+multi-constraint satisfaction
+partial completion
+notification completeness
 ```
 
-当前优先级低于：
+但当前这些结构已经能分别通过：
 
 ```text
-C1 / C3 / C4
+C1
+→ conditional constraint / completion
+
+C3
+→ side effect / permission / verification
 ```
 
-因为 C2 的部分结构已被 C1 覆盖，C5 的价值主要在 executable verification，适合后续与代码 / verifier 专题一起扩。
+得到较强覆盖。
+
+因此当前不为了“C1–C5 各写一篇”机械增加 C2 walkthrough。
+
+只有当后续需要专门展开：
+
+```text
+Partial Success
+Multi-entity Mutation
+Notification as Secondary Obligation
+Dependency-aware Task Completion
+```
+
+时，再让 C2 独立成篇。
+
+原则仍然是：
+
+> **Case Study 数量服从不可替代的教学结构，而不是服从编号完整性。**
