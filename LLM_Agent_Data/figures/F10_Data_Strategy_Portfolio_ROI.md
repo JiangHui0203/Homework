@@ -1,10 +1,14 @@
 # F10 — Data Strategy / Portfolio / ROI
 
-> 角色：展示 Data Strategy 的核心不是“多做数据”，而是在多个 capability gap 之间分配有限预算。
+> **Figure Question：** 有限 Data Budget 应该投到哪些 Capability Gap，什么时候 Scale、Maintain、Rework 或 Stop？
 >
-> Canonical owner：Ch18
+> **Level：** Part-level
 >
-> 主案例：C1–C5 作为 capability portfolio
+> **Canonical Owner：** Ch18
+>
+> **Primary Case：** `C1–C5` capability portfolio
+>
+> **Scope：** 固定 Data Strategy 的资源配置循环；Mixture 技术细节归 Ch20，因果证明归 Ch21。
 
 ```mermaid
 flowchart LR
@@ -33,72 +37,115 @@ flowchart LR
     D -->|Stop / Retire| A[Archive / Regression Only]
 ```
 
-## Data Value 不是单变量
+## Read the Spine
 
-概念上可以把一批数据的价值理解为：
-
-```text
-Value
-≈ Relevance
-× Novelty
-× Learnability
-× Verifiability
-× Applicability
-× Risk / Business Importance
-```
-
-再除以：
+Data Strategy 不是：
 
 ```text
-Acquisition + Verification + Training + Engineering Cost
+哪个 dataset 最大
+哪个 benchmark 最差
+哪个 failure 最多
 ```
 
-重点不是公式精确，而是提醒：
+而是：
 
 ```text
-Hard ≠ Valuable
-Rare ≠ Valuable
-High Judge Score ≠ Valuable
-Large Dataset ≠ Valuable
+Capability Gap
+→ Value / Risk / Importance
+→ Learnability / Verifiability
+→ Cost / Feasibility
+→ Portfolio Prioritization
+→ Data Experiment
+→ Measured Gain / Regression / Cost
+→ Scale / Maintain / Rework / Stop
 ```
 
-## Marginal Utility
+也就是说，真正的决策单位是：
 
-真正应该问：
+> **Capability-level Data Investment。**
+
+## Critical Boundaries
 
 ```text
-再增加下一批同类数据，还值不值？
+Hard
+≠ Valuable
+
+Rare
+≠ Low Priority
+
+High Judge Score
+≠ High Learning Value
+
+Large Dataset
+≠ High ROI
+
+Historical Value
+≠ Positive Marginal Utility now
 ```
 
-而不是：
+任何价值判断都应该绑定：
 
 ```text
-这类数据历史上有没有用？
+Model
+Capability
+Metric
+Distribution
+Risk Profile
+Training Recipe
 ```
 
-因此 Data Strategy 必须允许：
+## Case Lens — C1–C5 Portfolio
 
 ```text
-SCALE
-MAINTAIN
-REBALANCE
-STOP
-RETIRE
+C1
+conditional constraint / grounding
+
+C2
+multi-constraint / partial completion
+
+C3
+permission / side-effect / harness ownership
+
+C4
+reasoning continuation / repair
+
+C5
+execution / verifier coverage
 ```
 
-## Build / Buy / Generate / Mine
-
-同一个 capability gap 可以有多种获取方式：
+团队不是“五个 case 都做一样多”，而是比较：
 
 ```text
-Human Build
-External / Buy
-Synthetic Generate
-Production Mine
+expected value
+risk reduction
+learnability
+verification quality
+cost
+marginal return
 ```
 
-决策依据不是来源偏好，而是：
+再决定组合。
+
+同一个 gap 也可以选择：
 
 ```text
-quality × coverage × speed × rights × cost × expected learning value
+Build
+Buy
+Generate
+Mine
 ```
+
+来源不是价值本身。
+
+## Cross-links
+
+- [`Ch18 — Data Strategy & Data Valuation`](../18_Data_Strategy_and_Data_Valuation.md)
+- [`Ch20 — Data Quality / Filtering / Mixture`](../20_Data_Quality_Filtering_Deduplication_and_Mixture.md)
+- [`Ch21 — Data Experiments`](../21_Data_Experiments_and_Causal_Validation.md)
+- [`F9 — Data Flywheel`](./F9_Data_Flywheel.md)
+- [`F11 — Governance / Lineage DAG`](./F11_Governance_Lineage_DAG.md)
+- [`Case Index`](../00_Case_Integration_Index.md)
+
+## Caption
+
+**F10 — Data Strategy / Portfolio / ROI.** Data Strategy 的核心不是多做数据，而是在多个 capability gap 之间比较价值、风险、可学性、可验证性与总成本，并用真实 Data Experiment 的边际收益决定 Scale、Maintain、Rework、Stop 或 Retire。
