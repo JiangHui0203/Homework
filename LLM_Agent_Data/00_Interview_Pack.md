@@ -1,6 +1,6 @@
 # LLM / Agent Data Interview Pack
 
-> 状态：`Stable Mother Edition V3.x / Scenario Assembly`
+> 状态：`Stable Mother Edition V3.x / Scenario Assembly / Stress-tested`
 >
 > 目标：把已经稳定的知识、图、Case、Interview Index 与 Quick-reference **装配成一套可以直接用于面试 / 答辩 / 自我介绍的使用路径**。
 >
@@ -13,6 +13,8 @@
 > 视觉表达：[`Figure Presentation Kit`](./00_Figure_Presentation_Kit.md)
 >
 > 快速卡片：[`Level A Quick-reference Cards`](./visual_derivatives/quick_reference/Level_A_Quick_Reference_Cards.md)
+>
+> 压力测试：[`Scenario Pack Stress Test`](./00_Scenario_Pack_Stress_Test.md)
 
 ---
 
@@ -44,6 +46,111 @@ Problem
 而是训练：
 
 > **遇到一个开放问题时，能否快速把它压回同一套问题解决系统。**
+
+但压力测试后再加一条：
+
+> **Framework 是地图，不是答案。第一句话必须先回答当前问题。**
+
+---
+
+# 0.1 Answer Contract：先回答，再展开
+
+面试时统一使用：
+
+```text
+Direct Answer
+→ Boundary
+→ Mechanism / Evidence
+→ Example
+→ Broader System only if needed
+```
+
+例如被问：
+
+```text
+“Verifier 和 Judge 有什么区别？”
+```
+
+不要从 F1 开始讲 Learning System。
+
+第一层应该直接说：
+
+```text
+Verifier 更依赖可明确检查的 evidence / predicate；
+Judge 更适合解释性 quality criterion。
+但二者都不是天然 Ground Truth，关键仍是 claim 与 evidence 是否匹配。
+```
+
+然后看面试官是否继续追。
+
+## Stop Depth
+
+回答默认只展开到“最小充分深度”：
+
+```text
+30 秒
+→ thesis / direct answer
+
+2 分钟
+→ boundary + mechanism + evidence
+
+5 分钟
+→ case + experiment + decision
+```
+
+不要为了证明自己系统，主动把每个问题都讲成一堂课。
+
+## Evidence Provenance
+
+口头上必须能听出四种信息来源：
+
+```text
+Public Literature
+→ “公开工作里……”
+
+My Project / Frozen Result
+→ “我自己的项目里实际冻结的是……”
+
+Canonical Teaching Case
+→ “为了说明结构，我用 C1 举例……”
+
+Hypothetical Design
+→ “如果让我新做这个项目，我会……”
+```
+
+固定边界：
+
+```text
+我知道
+≠ 我做过
+≠ 我用来教学的例子
+≠ 我假设会怎么做
+```
+
+## Quantitative Claim Contract
+
+任何实验数字，至少带：
+
+```text
+Population / denominator
+Baseline vs Treatment
+Protocol
+Budget
+Metric
+Claim Scope
+```
+
+如果是 selective / routing system，再补：
+
+```text
+Full
+Eligible / Screened
+Triggered
+Intervened
+Observed
+```
+
+数字本身不是加分点；**数字的实验语义说清楚才是。**
 
 ---
 
@@ -143,6 +250,8 @@ Define
 
 来自 [`Interview Index`](./00_Interview_Index.md)。
 
+这套骨架只在需要展开时使用；**不能替代 Direct Answer。**
+
 ---
 
 # 2. 30 分钟面试前复习路径
@@ -197,11 +306,14 @@ shipped observation
 ## 25–30 min：检查表达红线
 
 ```text
+有没有第一句话没回答问题，先开始背框架？
 有没有把 Failure 直接等于 Data Gap？
 有没有把 Judge 当 Ground Truth？
 有没有只报 Accuracy 不报 Budget？
 有没有把 Agent failure 自动归 Model？
+有没有混淆“公开工作 / 我做过 / 教学例子 / hypothetical”？
 有没有给内部研究结果编外部出处？
+有没有报数字但没说 denominator / protocol？
 ```
 
 ---
@@ -223,6 +335,15 @@ Interview Index 按题型抽查
 
 10 min
 模拟追问
+```
+
+模拟追问不只测“能不能答”，还测：
+
+```text
+能不能先直接答？
+会不会把一个 hypothesis 讲成唯一 root cause？
+会不会在数字追问里丢 denominator？
+会不会把公开文献和自己的实验混在一起？
 ```
 
 目标不是“读完”，而是能脱稿完成：
@@ -263,6 +384,14 @@ SFT / DPO / Agent / Judge / Synthetic / Benchmark...
 
 然后接自己的一个真实研究 / 项目案例。
 
+一旦进入自己的项目，显式切换话语：
+
+```text
+“在我自己的项目里……”
+```
+
+不要让面试官猜哪些是 literature、哪些是 personal evidence。
+
 ---
 
 # 5. 五类面试问题，五种入口
@@ -280,7 +409,7 @@ Verifier 和 Judge 有什么区别？
 回答方式：
 
 ```text
-Canonical Definition
+Direct Definition
 → Neighbor Boundary
 → Example
 ```
@@ -341,11 +470,19 @@ Judge score 涨但真实 success 不涨怎么办？
 
 ```text
 Metric / Evidence
+→ Alternative Hypotheses
 → Tool / Harness / Environment
 → Evaluator
 → Failure Chain
 → Owner
 → Intervention
+```
+
+压力测试后的固定纪律：
+
+```text
+提出一个可能 root cause
+≠ 已经证明它是 root cause
 ```
 
 优先资产：
@@ -374,11 +511,13 @@ Problem Index
 Hypothesis
 → Baseline
 → Intervention
+→ Population Ledger
 → Matched Budget
 → Frozen Protocol
 → Target / Transfer / Regression
 → Uncertainty
 → Cost
+→ Claim Scope
 → Scale / Stop
 ```
 
@@ -403,6 +542,15 @@ C4 / C5
 ```
 
 回答方式：
+
+先给“第一步”：
+
+```text
+先确认对象是否可信：
+identity / provenance / task-family / success evidence / environment version
+```
+
+再展开：
 
 ```text
 Problem Gate
@@ -431,6 +579,8 @@ Ch18 / Ch24 / Ch25
 ↓
 怎么知道问题真的在这里？
 ↓
+还有哪些 alternative hypotheses？
+↓
 Evidence 从哪来？
 ↓
 数据怎么构造？
@@ -439,9 +589,13 @@ label / verifier 靠谱吗？
 ↓
 实验怎么公平？
 ↓
+denominator / budget 是什么？
+↓
 有没有 regression？
 ↓
 成本值不值？
+↓
+这个结论能说多大？
 ↓
 上线后怎么监控？
 ```
@@ -449,7 +603,7 @@ label / verifier 靠谱吗？
 一个答案如果能一路走到：
 
 ```text
-Decision + Monitoring
+Decision + Claim Scope + Monitoring
 ```
 
 通常比只讲 pipeline 更完整。
@@ -496,16 +650,19 @@ Decision + Monitoring
 
 ---
 
-# 9. 面试表达的七条红线
+# 9. 面试表达的十条红线
 
 ```text
-1. 不把 Agent Failure 自动归 Model。
-2. 不把 Production Log 自动当 Training Data。
-3. 不把 Judge Agreement 当 Ground Truth Validity。
-4. 不把 Oracle Headroom 当 Online Selector Gain。
-5. 不把 Triggered-only 结果当 E2E。
-6. 不把更高 Score 与不同 Budget 混在一起。
-7. 不把未公开的内部 Research Result 包装成外部事实。
+1. 不让 Framework 盖过问题本身；第一句话先回答问题。
+2. 不把 Agent Failure 自动归 Model。
+3. 不把 Production Log 自动当 Training Data。
+4. 不把 Judge Agreement 当 Ground Truth Validity。
+5. 不把 Oracle Headroom 当 Online Selector Gain。
+6. 不把 Triggered-only 结果当 E2E。
+7. 不把更高 Score 与不同 Budget 混在一起。
+8. 不把一个 diagnostic hypothesis 讲成已确认 Root Cause。
+9. 不混淆 Public Literature / My Project / Teaching Case / Hypothetical Design。
+10. 不报脱离 denominator / protocol / claim scope 的数字，也不把未公开内部结果包装成外部事实。
 ```
 
 ---
@@ -535,11 +692,15 @@ F14
 然后记住：
 
 ```text
+一个 Direct Answer
++
 一个 Case
 +
 一个 Experiment
 +
 一个 Decision
++
+一个 Claim Scope
 ```
 
 比背二十个术语更有说服力。
@@ -566,8 +727,11 @@ F14
 
 方法出处
 → Canonical References
+
+压力测试
+→ Scenario Pack Stress Test
 ```
 
 最终原则：
 
-> **面试不是证明“我见过这些名词”，而是证明“我能把真实问题组织成可验证、可决策、可迭代的系统”。**
+> **面试不是证明“我见过这些名词”，而是证明“我能先准确回答眼前问题，再把它组织进一个有证据、有边界、有决策的系统”。**
