@@ -207,13 +207,27 @@ F1–F14 是 canonical visual ownership；局部图只能作为 analytical lens�
 - [Interview Index](./LLM_Agent_Data/00_Interview_Index.md)
 - [Checklist Index](./LLM_Agent_Data/00_Checklist_Index.md)
 
-用于：
+固定职责：
 
 ```text
-面试快速组织回答
-项目立项 / review
-数据生产 / 评测 / 上线前检查
-30-minute quick diagnosis
+Interview Index
+= 27-question retrieval / deeper expansion
+
+Checklist Index
+= stage-specific execution review / omission prevention
+```
+
+第一入口不要混淆：
+
+```text
+面试 / 答辩
+→ Interview Pack
+
+真实项目启动 / 选择五入口
+→ Project Starter Pack
+
+30-minute diagnosis
+→ Condensed Guide §13 / Practical Use Map
 ```
 
 ## 6. Practical Use Layer
