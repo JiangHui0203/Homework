@@ -2,9 +2,9 @@
 
 > **LLM / Agent Data Knowledge System**
 >
-> 当前状态：25 章主体完成，进入全书编辑与精修阶段。
+> 当前状态：25 章主体与结构性编辑完成，进入 Case / Figure / Index / Verification 精修阶段。
 >
-> 当前版本：V2.0（2026-10-18）
+> 当前版本：V2.1（2026-10-18）
 >
 > 关联文档：[`Agent_Knowledge_System.md`](./Agent_Knowledge_System.md)
 
@@ -51,6 +51,8 @@ Fresh Failure / Drift
 ```
 
 > **数据不是流水线的起点，而是模型—环境—评测—训练闭环中的经验与学习信号。**
+
+总图见：[F1 — Learning System Overview](./LLM_Agent_Data/figures/F1_Learning_System_Overview.md)。
 
 ---
 
@@ -145,6 +147,11 @@ Failure Attribution
 Root Cause
 ```
 
+Master Figures：
+
+- [F4 — Agent Task–Environment–Trajectory](./LLM_Agent_Data/figures/F4_Agent_Task_Environment_Trajectory.md)
+- [F6 — Credit → Failure Causal Map](./LLM_Agent_Data/figures/F6_Credit_to_Failure_Causal_Map.md)
+
 ---
 
 ## Part IV — Measurement
@@ -169,6 +176,8 @@ Metric + Cost + Risk + Uncertainty
 ↓
 Scoped Claim
 ```
+
+Master Figure：[F8 — Benchmark / Evaluation Protocol](./LLM_Agent_Data/figures/F8_Benchmark_Evaluation_Protocol.md)。
 
 ---
 
@@ -197,6 +206,8 @@ Scoped Claim
 ↓
 Scale / Maintain / Revise / Stop
 ```
+
+Master Figure：[F9 — Data Flywheel](./LLM_Agent_Data/figures/F9_Data_Flywheel.md)。
 
 ---
 
@@ -251,30 +262,92 @@ Monitoring
 Next Decision
 ```
 
+Master Figure：[F14 — Operating Model + Capability Map](./LLM_Agent_Data/figures/F14_Operating_Model_and_Capability_Map.md)。
+
+---
+
+# 三套导航资产
+
+除了线性章节目录，现在全书还维护三套非正文章节型导航。
+
+## 1. Canonical Concepts
+
+- [Canonical Glossary & Notation](./LLM_Agent_Data/00_Glossary_and_Notation.md)
+
+用于回答：
+
+```text
+这个术语在哪里定义？
+Outcome / Reward / Credit 有什么区别？
+Tool / Harness / Environment 如何区分？
+```
+
+## 2. Canonical Cases
+
+- [Canonical Casebook](./LLM_Agent_Data/00_Canonical_Casebook.md)
+- [Case Integration Index](./LLM_Agent_Data/00_Case_Integration_Index.md)
+- [Cases Directory](./LLM_Agent_Data/cases/README.md)
+
+用于回答：
+
+```text
+这个概念在一个真实 case 中是什么样？
+同一个 failure 如何穿过不同章节？
+C1-VB / C3-F5 / C4-SC 到底指什么？
+```
+
+## 3. Master Figures
+
+- [Master Figure System](./LLM_Agent_Data/00_Master_Figure_System.md)
+- [Master Figures Directory](./LLM_Agent_Data/figures/README.md)
+
+第一批已经完成：
+
+```text
+F1  Learning System Overview
+F4  Agent Task–Environment–Trajectory
+F6  Credit → Failure Causal Map
+F8  Benchmark / Evaluation Protocol
+F9  Data Flywheel
+F14 Operating Model + Capability Map
+```
+
+用于回答：
+
+> **这些概念和案例在一张图上到底怎么连接？**
+
 ---
 
 # 编辑基础设施
 
-全书主体完成后，当前进入结构统一与精修阶段。以下文件不是正文，而是编辑基础设施：
+以下文件不是正文，而是全书编辑与维护基础设施：
 
-- [全书精修施工图](./LLM_Agent_Data/00_Book_Refinement_Blueprint.md)：逐章 `KEEP / TRIM / LINK / UNIFY / VERIFY` 施工依据。
-- [Canonical Glossary & Notation](./LLM_Agent_Data/00_Glossary_and_Notation.md)：全书术语与符号标准。
-- [Canonical Casebook](./LLM_Agent_Data/00_Canonical_Casebook.md)：贯穿 1–25 章的稳定案例库。
+- [全书精修施工图](./LLM_Agent_Data/00_Book_Refinement_Blueprint.md)
+- [Canonical Glossary & Notation](./LLM_Agent_Data/00_Glossary_and_Notation.md)
+- [Canonical Casebook](./LLM_Agent_Data/00_Canonical_Casebook.md)
+- [Case Integration Index](./LLM_Agent_Data/00_Case_Integration_Index.md)
+- [Master Figure System](./LLM_Agent_Data/00_Master_Figure_System.md)
 
-后续精修遵循：
+当前精修顺序：
 
 ```text
-先定结构
-↓
-再定概念所有权
-↓
-再统一术语
-↓
-再做交叉引用与去重
-↓
-再统一案例
-↓
-最后做 Master Figures / Index / 衍生版本
+结构 / Concept Ownership
+✓
+
+Canonical Cases
+✓ 基础设施与稳定 ID
+
+Master Figures
+→ 正在进行
+
+Indexes
+→ 下一阶段
+
+Fact / Citation Verification
+→ 后续
+
+Final Continuous Read-through
+→ 最终
 ```
 
 ---
@@ -355,8 +428,6 @@ Next Decision
 
 # 五个贯穿案例
 
-全书后续精修将统一使用五个 canonical case：
-
 ```text
 C1 Order / Refund Agent
 C2 Calendar / Meeting Agent
@@ -365,9 +436,7 @@ C4 Reasoning Continue / Repair
 C5 Code / Execution Agent
 ```
 
-详细定义见：[Canonical Casebook](./LLM_Agent_Data/00_Canonical_Casebook.md)。
-
-它们的作用不是增加例子数量，而是让同一个问题可以被连续观察：
+它们不是增加例子数量，而是让同一个问题可以被连续观察：
 
 ```text
 Task
@@ -382,6 +451,8 @@ Task
 → Production
 → Monitoring
 ```
+
+详细定义与稳定 variant ID 见：[Cases Directory](./LLM_Agent_Data/cases/README.md)。
 
 ---
 
