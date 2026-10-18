@@ -75,6 +75,40 @@ Operating Model
 
 ---
 
+# Presentation — Level A
+
+状态：**D2 Complete / 16:9 Progressive Reveal**
+
+总入口：[`slides/README.md`](./slides/README.md)
+
+| Figure | Progressive Reveal Storyboard |
+|---|---|
+| F1 | [Learning System](./slides/F1_Learning_System_Progressive_Reveal.md) |
+| F4 | [Agent World](./slides/F4_Agent_World_Progressive_Reveal.md) |
+| F6 | [Credit → Failure](./slides/F6_Credit_Failure_Progressive_Reveal.md) |
+| F8 | [Evaluation Protocol](./slides/F8_Evaluation_Protocol_Progressive_Reveal.md) |
+| F9 | [Data Flywheel](./slides/F9_Data_Flywheel_Progressive_Reveal.md) |
+| F14 | [Operating Model](./slides/F14_Operating_Model_Progressive_Reveal.md) |
+
+每张 storyboard 已定义：
+
+```text
+1920 × 1080 canvas
+Frame IDs
+Visible Objects
+New Objects
+Hidden Until Later
+Speaker Line
+Critical Boundary
+30s route
+90s route
+semantic acceptance
+```
+
+因此真正生成 PPT / Keynote / Reveal.js 时，不重新设计 reveal logic。
+
+---
+
 # Publication Design Rule
 
 Level A v1 已验证三种不同结构可以稳定派生：
@@ -99,34 +133,45 @@ Derivative 可以压缩 annotation density，但不能：
 改变 owner / layer boundary
 ```
 
-F1 v1 在验收时曾主动修正一次：
+已经通过 derivative audit 抓到并修正过的高风险先例：
 
 ```text
-Experience Acquisition
-→ Experience Objects
+F1
+Experience Acquisition ≠ Experience Objects
+
+F4
+Observation → Harness → Agent-visible State
+
+F9
+Production → Monitoring → Signals
+Deploy? Yes → Production / No → Capability Gap
+
+F14
+Decision → Scale / Revise / Stop
+Revise → Diagnosis
+Stop → Archive / Knowledge
 ```
 
-不能为了视觉简洁压成一个 `Experience` 节点。
-
-这条修正作为后续视觉派生的 reference precedent。
+这些修正作为后续视觉派生的 reference precedent。
 
 ---
 
-# Next Derivatives
-
-下一阶段不是继续重画 Level A，而是：
+# Current Derivative Status
 
 ```text
-Presentation / Slide D2
-→ F1 / F4 / F6 / F8 / F9 / F14 progressive reveal
+D1 Publication / Level A
+✓ complete
+
+D2 Presentation / Level A
+✓ complete
+
+D3 Quick-reference / Level A
+→ next
 
 Publication Level B
-→ 只在书稿确实需要时补 F2 / F3 / F5 / F7 / F10 / F11 / F12 / F13
-
-Quick-reference D3
-→ 最后裁剪
+→ only when book / report needs it
 ```
 
 优先保持：
 
-> **Level A 六图是整本书最稳定、最值得对外展示的视觉骨架。**
+> **Level A 六图是整本书最稳定、最值得对外展示的视觉骨架；任何 presentation convenience 都不能覆盖 canonical semantics。**
