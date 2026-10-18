@@ -1,10 +1,14 @@
 # F11 — Governance / Lineage DAG
 
-> 角色：展示一个最终结论如何沿数据、标签、训练和评测链路追溯回原始证据。
+> **Figure Question：** 一个最终模型 / 报告怎样沿数据、标签、训练和评测关系追溯回原始 Evidence？
 >
-> Canonical owner：Ch19
+> **Level：** Part-level
 >
-> 主案例：C1 family assets
+> **Canonical Owner：** Ch19
+>
+> **Primary Case：** `C1` family assets
+>
+> **Scope：** 固定 system-wide lineage / provenance 主关系；trajectory-local event lineage 归 F5 / Ch12。
 
 ```mermaid
 flowchart LR
@@ -27,80 +31,93 @@ flowchart LR
     P --> HASH[Hashes / Manifests]
 ```
 
-## Lineage 不是文件名链
+## Read the Spine
 
-真正要能回答：
+主链是：
 
 ```text
-这个模型为什么这样？
-↓
-用了哪个 training run？
-↓
-用了哪些 dataset view？
-↓
-这些 view 来自哪些 asset / batch？
-↓
-这些 label 是谁、按什么 rubric / verifier 产生？
-↓
-原始 evidence 是什么？
+Raw Evidence
+→ Canonical Record
+→ Labels / Scores / Metadata
+→ Curated Data Asset
+→ Training / Eval View
+→ Run
+→ Model / Report
 ```
 
-## 三种历史动作必须分开
+旁边的 Provenance 不是“备注字段”，而是贯穿整条链的：
 
 ```text
-Re-score
-= 原输出不变，只重新评价
-
-Re-run
-= 用当前 policy / runtime 重新执行
-
-Replay
-= 尽量按冻结历史输入和环境重现当时执行
+Stable ID
+Version
+Manifest / Hash
+Origin / Transform / Usage relation
 ```
 
-因此：
+这样才允许双向追踪。
+
+## Critical Boundaries
 
 ```text
+Identity
+≠ Label
+
+Raw Evidence
+≠ Derived Interpretation
+
+Dataset View
+≠ Source Asset
+
 Historical Decision
 ≠ Corrected Label
 ≠ Fresh Re-execution Result
+
+Re-score
+≠ Re-run
+≠ Replay
 ```
 
-## C1 Example
+Lineage 的目的不是保留漂亮文件名，而是：
+
+> **允许系统纠错而不篡改历史。**
+
+## Case Lens — C1 Family
 
 ```text
 C1-F1 raw trajectory
 → corrected failure label
-→ preference pair
-→ recovery_pref_v4
+→ preference / recovery asset
 → mixture_v12
 → train_run_203
 → model_v18
 → recovery_eval_v6
 ```
 
-如果后来发现 Judge 有 bug，优先：
+如果后来发现旧 Judge 有 bug：
 
 ```text
-reuse raw trajectory
-→ re-score
+Preserve Raw Evidence
+→ Correct Label Version
+→ Rebuild Derived Views
+→ Re-score Frozen Outputs
+→ Trace affected Runs / Models
 ```
 
-而不是重新生成 trajectory，避免把 evaluator change 和 policy change 混在一起。
-
-## Governance Minimum
-
-即使是研究原型，至少也应有：
+而不是：
 
 ```text
-Stable ID
-Version
-Code / Config
-Manifest
-Hash / Count
-Raw Evidence Preservation
+重新生成一条 trajectory
+然后把新行为覆盖旧历史
 ```
 
-目标不是官僚化，而是：
+## Cross-links
 
-> **让结论可以被解释、纠正和重建。**
+- [`Ch19 — Data Governance / Lineage / Reproducibility`](../19_Data_Governance_Lineage_and_Reproducibility.md)
+- [`F5 — Trajectory Anatomy`](./F5_Trajectory_Anatomy.md)
+- [`F10 — Data Strategy / Portfolio / ROI`](./F10_Data_Strategy_Portfolio_ROI.md)
+- [`F12 — Data Production System`](./F12_Data_Production_System.md)
+- [`C1 — Order / Refund Agent`](../cases/C1_Order_Refund_Agent.md)
+
+## Caption
+
+**F11 — Governance / Lineage DAG.** 成熟数据系统必须能把模型、报告、run、dataset view、label 和 canonical record 一直追溯到 Raw Evidence；Derived interpretation 可以修正和版本化，但 Raw Facts 与 Historical Decisions 不能被静默改写。
