@@ -8,6 +8,8 @@
 >
 > 编辑基础设施：[`Canonical Glossary`](./00_Glossary_and_Notation.md) · [`Canonical Casebook`](./00_Canonical_Casebook.md)
 >
+> **Master Figure：** [`F11 — Governance / Lineage DAG`](./figures/F11_Governance_Lineage_DAG.md)
+>
 > 本章定位：**Identity / Provenance / Lineage / Versioning / Reproducibility，以及 Historical Decision / Corrected Label / Re-score / Re-run / Replay 边界的 canonical chapter。**
 >
 > 本章核心问题：**一条数据、一条标签、一次评测、一个模型版本，能不能回答“它是谁、从哪来、经历了什么、谁判的、为什么被选中、后来哪里变了、影响过什么，以及今天能不能重新得到同一个可解释结论”。**
@@ -310,21 +312,19 @@ Training View
 
 # 19.5 Lineage：不是文件路径，而是关系图
 
-真实 lineage 通常是 DAG：
+全书的 canonical lineage visual 统一由 [`F11 — Governance / Lineage DAG`](./figures/F11_Governance_Lineage_DAG.md) 维护。
 
-```mermaid
-flowchart TD
-    A[Raw Trajectory] --> B[Canonical Trajectory]
-    B --> C1[Human Label v1]
-    B --> C2[Judge Output]
-    C1 --> D[Adjudicated Label v2]
-    C2 --> D
-    D --> E[Curated Asset]
-    E --> F1[Preference View]
-    E --> F2[Regression View]
-    F1 --> G[Training Run]
-    G --> H[Model]
-    F2 --> I[Evaluation Run]
+这里保留本章真正需要的三层语义：
+
+```text
+Lineage Node
+= 数据、标签、Dataset View、Run、Model、Report 等稳定对象
+
+Lineage Edge
+= parent → child 的 transformation / usage 关系
+
+Lineage Query
+= 沿 DAG 正向或反向追踪影响范围
 ```
 
 Lineage 节点和边应回答：
@@ -359,6 +359,10 @@ Bad Label
 → affected Training Runs
 → affected Models / Reports
 ```
+
+所以重点不是再画一张第二套总 DAG，而是保证：
+
+> **同一套 lineage graph 能同时支持“这个结果从哪里来”与“这个坏源头影响了什么”两类查询。**
 
 ---
 
