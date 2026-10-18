@@ -30,13 +30,13 @@ case_studies/
 | [C2 Calendar / Meeting Agent](./C2_Calendar_Meeting_Agent.md) | entity resolution、negative constraint、partial completion、notification | `C2-F1...F6`, `C2-CF1...CF3` | optional future study |
 | [C3 File / Repository Agent](./C3_File_Repository_Agent.md) | permission、protected resource、irreversibility、idempotency、Harness | `C3-F1...F6` | [Permission / Harness Ownership Walkthrough](../case_studies/C3_Permission_Harness_Ownership_Walkthrough.md) |
 | [C4 Reasoning Continue / Repair](./C4_Reasoning_Continue_Repair.md) | correctness / risk / recoverability / selectability、same-prefix | `C4-SC`, `C4-CS`, `C4-BR`, `C4-P1...P4` | [Reasoning Intervention Walkthrough](../case_studies/C4_Reasoning_Intervention_Walkthrough.md) |
-| [C5 Code / Execution Agent](./C5_Code_Execution_Agent.md) | executable verifier、hidden eval、runtime、repair | `C5-POOL`, `C5-F1...F6`, `C5-R1/R2` | optional future study |
+| [C5 Code / Execution Agent](./C5_Code_Execution_Agent.md) | executable verifier、hidden eval、runtime、repair | `C5-POOL`, `C5-F1...F6`, `C5-R1/R2` | [Executable Truth / Verifier Coverage Walkthrough](../case_studies/C5_Executable_Truth_Verifier_Coverage_Walkthrough.md) |
 
 ---
 
-## Three-study Coverage
+## Four-study Coverage
 
-当前最核心的三篇 Practical Study 已覆盖三类不可互相替代的问题：
+当前四篇 Practical Study 已覆盖四类不可互相替代的问题：
 
 ```text
 C1
@@ -50,11 +50,40 @@ Permission / Runtime / Side Effect
 C4
 Explicit Reasoning Intervention
 → trigger / oracle / selector / cost 怎样拆开
+
+C5
+Executable Task / Verifier
+→ executable truth / verifier coverage / runtime / repair 怎样对齐
+```
+
+对应四个最重要的实战问题：
+
+```text
+C1
+Should this behavior become learning data?
+
+C3
+Is the model even the right owner to fix?
+
+C4
+Does intervention headroom actually convert into online value?
+
+C5
+What evidence is strong enough to call the output correct?
 ```
 
 因此不追求“每个 canonical case 都机械写一篇 walkthrough”。
 
-后续只有在 C2 / C5 能提供新的不可替代结构时再扩展。
+C2 仍保留为重要 canonical case；只有在需要独立展开：
+
+```text
+multi-constraint completion
+partial success
+notification obligation
+multi-entity mutation
+```
+
+时再升级成 Practical Study。
 
 ---
 
