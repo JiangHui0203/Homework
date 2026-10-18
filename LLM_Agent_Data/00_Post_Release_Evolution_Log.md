@@ -381,7 +381,7 @@ Relevant Contract + Evidence
 → Monitoring / Re-entry
 ```
 
-因此 Artifact Chain 不再被解释成：
+因此 A1–A11 Artifact Catalog 不再被解释成：
 
 ```text
 所有项目必须 A1 → A10
@@ -632,7 +632,172 @@ P4 新增 Measurement Bridge；P7 新增 last-known-good / Change Ledger / conta
 
 ---
 
-# 13. Final Principle
+# 13. Maintenance Sweep — Naming / Status / High-frequency Entry Sync
+
+这一轮继续只处理 drift，不扩知识层。
+
+## 13.1 Master Figure System 状态同步
+
+修正早期 stale wording：
+
+```text
+“下一阶段进入 publication / slides / quick-reference”
+```
+
+因为 Level A 实际已经完成：
+
+```text
+D1 Publication SVG
+D2 16:9 Progressive Reveal Storyboard
+D3 Quick-reference Cards
+```
+
+现在固定：
+
+```text
+Level A
+→ D1 / D2 / D3 released
+
+Level B
+→ semantic / production-refined complete
+→ derivative 按真实需求生成
+```
+
+不为了“14 张都整齐”机械制造 Level B derivative。
+
+## 13.2 Figure Canonical Naming
+
+F7 在 Master Figure Registry 中曾被简写为：
+
+```text
+Evidence → Evaluator Stack
+```
+
+现统一回 canonical title：
+
+```text
+Evidence → Verifier → Grader → Judge
+```
+
+Figure Index / file / Master Registry 使用同一名称。
+
+同时明确：
+
+```text
+Figure Presentation Kit
+= scene selection / talk track / common misread
+
+D2 Storyboard
+= actual 16:9 frame / reveal implementation
+```
+
+## 13.3 Visual Freshness Re-check
+
+重新读取 F1 / F4 / F6 / F8 / F9 / F14 当前 source blob SHA。
+
+结果：
+
+```text
+6 / 6
+current source SHA
+== Visual Release Manifest recorded SHA
+```
+
+因此 Level A D1 / D2 / D3 当前仍为：
+
+```text
+CURRENT
+```
+
+未触发 stale review。
+
+## 13.4 Reference Policy 命名同步
+
+`A1–A11 Artifact Chain` 的旧工程措辞已收紧为：
+
+```text
+A1–A11 Artifact Catalog / stable Artifact IDs
+```
+
+并明确：
+
+```text
+Composable Artifact Catalog
+≠ Mandatory Sequential Chain
+```
+
+S3 Teaching Case 示例也完整列为 C1–C5，避免入口层对 C2 形成无意缺席。
+
+## 13.5 Terminology Audit 状态关闭
+
+`00_Terminology_Style_Audit.md` 的内容早已验收 PASS，但文件头仍停在：
+
+```text
+Acceptance Cleanup / Language Consistency
+```
+
+现同步为：
+
+```text
+PASS — Acceptance Baseline / Maintenance Reference
+```
+
+不改变任何 canonical terminology rule。
+
+## 13.6 Condensed Guide 高频入口同步
+
+精简版原来仍残留：
+
+```text
+三篇 Practical Study
+C1 / C3 / C4
+```
+
+以及 failure-led-only 的 30-minute Diagnosis、`开始项目 → Checklist` 的旧路由。
+
+现同步为：
+
+```text
+C1 / C3 / C4 / C5
+```
+
+并将 quick diagnosis 改为：
+
+```text
+Entry + Scope
+→ Contract + Evidence
+→ Entry-specific Branch
+→ Intervention Gate
+→ Minimum Controlled Change
+→ Decision
+```
+
+项目入口统一回：
+
+```text
+Project Starter Pack
+```
+
+而：
+
+```text
+Checklist
+= execution review
+Artifact Kit
+= auditable outputs
+Playbook
+= action sequence
+```
+
+面试入口统一回：
+
+```text
+Interview Pack
+```
+
+---
+
+# 14. Final Principle
 
 ```text
 Release Snapshot
