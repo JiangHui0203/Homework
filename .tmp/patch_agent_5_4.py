@@ -27,7 +27,8 @@ sec61 = re.search(r'(?m)^### (6\.1[^\n]*)$', text)
 if not chapter6 or not sec61:
     raise SystemExit('could not derive Chapter 6 / 6.1 headings')
 
-footer_pattern = re.compile(r'(?m)^下一步：继续 \*\*II\. Capabilities & Interoperability → 5\. Capability Extension & Protocols → 5\.4 Capability Discovery\*\*。$')
+# Match only the single next-step line that explicitly points to 5.4.
+footer_pattern = re.compile(r'(?m)^下一步：继续 .*5\.4 Capability Discovery.*$')
 footer_matches = list(footer_pattern.finditer(text))
 if len(footer_matches) != 1:
     raise SystemExit(f'expected exactly one 5.4 next-step footer, found {len(footer_matches)}')
