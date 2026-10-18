@@ -67,7 +67,19 @@ jobs:
           PY
 
       - name: Patch document
-        run: python scripts/tmp_patch_agent_4_1.py
+        run: |
+          set +e
+          python scripts/tmp_patch_agent_4_1.py > scripts/tmp_patch_agent_4_1_error.log 2>&1
+          status=$?
+          cat scripts/tmp_patch_agent_4_1_error.log
+          if [ "$status" -ne 0 ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add scripts/tmp_patch_agent_4_1_error.log
+            git commit -m "chore: capture 4.1 patch failure"
+            git push origin HEAD:agent-doc-4-1-context-engineering
+            exit "$status"
+          fi
 
       - name: Commit patched document
         run: |
