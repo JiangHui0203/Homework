@@ -26,6 +26,7 @@
       .boundary { fill:#fff; stroke:#666; stroke-width:1.5; rx:14; ry:14; }
       .boundaryTitle { font:700 15px Arial,Helvetica,sans-serif; fill:#333; }
       .boundaryText { font:700 16px Arial,Helvetica,sans-serif; fill:#111; }
+      .edgeLabel { font:700 12px Arial,Helvetica,sans-serif; fill:#444; }
       .caption { font:400 14px Arial,Helvetica,sans-serif; fill:#555; }
     </style>
   </defs>
@@ -84,14 +85,23 @@
   <path class="edge" d="M1020 425 L1060 425"/>
   <path class="edge" d="M1280 425 L1295 425"/>
 
+  <!-- Decision outcomes -->
   <rect class="node" x="1160" y="485" width="180" height="58"/><text class="nodeText" x="1250" y="520">Production / Platform</text>
   <rect class="node" x="940" y="485" width="180" height="58"/><text class="nodeText" x="1030" y="520">Deploy</text>
   <rect class="node" x="720" y="485" width="180" height="58"/><text class="nodeText" x="810" y="520">Monitoring</text>
+  <rect class="node" x="1380" y="485" width="130" height="58"/><text class="nodeText" x="1445" y="520">Archive</text>
 
+  <text x="1320" y="485" class="edgeLabel">Scale</text>
   <path class="edge" d="M1370 465 C1360 485, 1325 505, 1340 514"/>
   <path class="edge" d="M1160 514 L1120 514"/>
   <path class="edge" d="M940 514 L900 514"/>
   <path class="feedback" d="M720 514 C570 545, 420 470, 475 295"/>
+
+  <text x="1428" y="480" class="edgeLabel">Stop</text>
+  <path class="edge" d="M1410 455 C1430 465, 1440 472, 1445 485"/>
+
+  <text x="920" y="370" class="edgeLabel">Revise</text>
+  <path class="edge" d="M1295 420 C1080 360, 790 350, 580 275"/>
 
   <!-- Practitioner panel -->
   <rect class="panel" x="60" y="590" width="1480" height="280"/>
