@@ -1,18 +1,16 @@
 # LLM / Agent Data Knowledge System：Cross-reference / Link Audit
 
-> 状态：Round 1–2 Complete / Deep Anchor Audit Pending
+> 状态：Release Spot-check Complete / Deep Rendered-anchor Audit Deferred
 >
 > 目的：单独记录书内导航、相对路径、Case / Figure / Index target 与 Markdown anchor 的检查范围和证据强度。
 
 ---
 
-# 1. 已完成的检查
-
-## 1.1 Default-branch Git Tree
+# 1. Default-branch Target Inventory
 
 状态：`PASS`
 
-通过 GitHub default branch recursive tree 确认当前仓库真实存在：
+通过 GitHub default branch tree / directory listing 确认当前仓库真实存在：
 
 ```text
 LLM_Agent_Data_Knowledge_System.md
@@ -29,102 +27,133 @@ LLM_Agent_Data/00_Problem_Index.md
 LLM_Agent_Data/00_Interview_Index.md
 LLM_Agent_Data/00_Checklist_Index.md
 LLM_Agent_Data/00_Verification_Log.md
+LLM_Agent_Data/00_Final_Readthrough_Log.md
+LLM_Agent_Data/00_Figure_Integration_Audit.md
+LLM_Agent_Data/00_Terminology_Style_Audit.md
+LLM_Agent_Data/00_Release_Readiness.md
 
 LLM_Agent_Data/cases/README.md
-LLM_Agent_Data/cases/C1...C5.md
+LLM_Agent_Data/cases/C1_Order_Refund_Agent.md
+LLM_Agent_Data/cases/C2_Calendar_Meeting_Agent.md
+LLM_Agent_Data/cases/C3_File_Repository_Agent.md
+LLM_Agent_Data/cases/C4_Reasoning_Continue_Repair.md
+LLM_Agent_Data/cases/C5_Code_Execution_Agent.md
 
 LLM_Agent_Data/figures/README.md
 LLM_Agent_Data/figures/F1...F14.md
 ```
 
-因此可以把 Git tree 当成：
+因此可以把 Git tree / directory listing 当成：
 
 > **Target-path truth table。**
 
 ---
 
-## 1.2 Ch0–25 Header Navigation
+# 2. Ch0–25 Header / Next-chapter Navigation
 
-状态：`PASS`
+状态：`PASS — read-through verified`
 
-已逐章读取 Header，检查：
+已逐章读取 Header，并在 Continuous Read-through 中检查章节交接。
 
-```text
-所属体系
-前置章节
-关联章节
-编辑基础设施
-```
-
-确认：
+主链确认：
 
 ```text
-Ch10 → 11 → 12 → 13 → 14 → 15 → 16
+Ch0 → 1 → 2 → 3 → 4 → 5
+→ 6 → 7 → 8 → 9
+→ 10 → 11 → 12 → 13 → 14
+→ 15 → 16
+→ 17 → 18 → 19 → 20 → 21
+→ 22 → 23 → 24 → 25
 ```
 
-以及：
+其中最终唯一的文字接缝：
 
 ```text
-Ch17 → 18 → 19 → 20 → 21 → 22 → 23 → 24 → 25
+Ch18 → Ch19
 ```
 
-前置链没有断裂。
+已补成稳定 file link：
 
-原先 Ch1–3 嵌在 root file 的旧结构已退出，当前 Header 使用独立 Ch1–3 文件。
+```text
+./19_Data_Governance_Lineage_and_Reproducibility.md
+```
 
 ---
 
-## 1.3 Old Plan Name Search
-
-状态：`PASS WITH SEARCH LIMITATION`
-
-检查旧计划标题：
-
-```text
-第 17 章 LLM-as-a-Judge
-第 20 章 Data Flywheel
-```
-
-没有发现残留。
-
-但需要注意 GitHub Code Search 对该仓库部分 query 返回：
-
-```text
-incomplete_results = true
-```
-
-因此：
-
-> **0 search result 只能作为辅助证据，不能作为“绝对不存在”的唯一证明。**
-
-最终判断以实际文件读取 + Git tree 为主。
-
----
-
-# 2. Case / Figure / Index Target Audit
-
-## Cases
+# 3. Case Target Audit
 
 状态：`PASS`
 
+已确认：
+
 ```text
-C1–C5 file paths all exist
+C1–C5 direct case files all exist
 cases/README.md exists
 00_Canonical_Casebook.md exists
 00_Case_Integration_Index.md exists
 ```
 
-## Figures
+之前 Ch4 使用的 fragile Casebook heading anchor 已经退出；当前直接链接：
+
+```text
+./cases/C4_Reasoning_Continue_Repair.md
+```
+
+因此已关闭此前的 anchor-risk TODO。
+
+原则继续保持：
+
+```text
+Stable File Link
+>
+Auto-generated Heading Anchor
+```
+
+除非 heading-level navigation 确实带来明显阅读价值。
+
+---
+
+# 4. Master Figure Target Audit
 
 状态：`PASS`
 
+F1–F14 路径均存在。
+
+本轮对 3 个 canonical visual handoff 做了双向 spot-check：
+
 ```text
-F1–F14 file paths all exist
-figures/README.md exists
-00_Master_Figure_System.md exists
+Ch14
+→ ./figures/F6_Credit_to_Failure_Causal_Map.md
+→ target exists
+→ F6 canonical owner = Ch13–14
+
+Ch15
+→ ./figures/F7_Evidence_Verifier_Grader_Judge.md
+→ target exists
+→ F7 canonical owner = Ch15
+
+Ch19
+→ ./figures/F11_Governance_Lineage_DAG.md
+→ target exists
+→ F11 canonical owner = Ch19
 ```
 
-## Retrieval Indexes
+并读回章节正文确认：
+
+```text
+relative path spelling
+figure title
+canonical ownership
+chapter lens
+```
+
+一致。
+
+因此 Figure Integration Audit 中 3 个高置信 `REPLACE` 项的路径风险已经关闭。
+
+---
+
+# 5. Retrieval Index Targets
 
 状态：`PASS`
 
@@ -136,118 +165,93 @@ figures/README.md exists
 00_Checklist_Index.md
 ```
 
-all exist on default branch.
+均存在于 default branch。
 
 ---
 
-# 3. Markdown Anchor Audit
+# 6. Old-plan / stale-navigation Search
 
-状态：`PARTIAL / PENDING DEEP AUDIT`
+状态：`PASS WITH SEARCH LIMITATION`
 
-Path 存在不等于：
+曾检查旧计划标题：
+
+```text
+第 17 章 LLM-as-a-Judge
+第 20 章 Data Flywheel
+```
+
+没有发现残留。
+
+但 GitHub Code Search 对部分 query 可能返回 incomplete indexing，因此：
+
+> **0 search result 只作为辅助证据；最终判断以实际文件读取 + Git tree / directory listing 为主。**
+
+---
+
+# 7. Rendered Markdown Anchor Audit
+
+状态：`DEFERRED / NON-BLOCKING`
+
+Path 存在不等于所有：
 
 ```text
 file.md#heading-slug
 ```
 
-的 heading slug 一定正确。
+都经过 rendered DOM 级验证。
 
-当前已知一个典型位置：Ch4 Header 仍使用：
-
-```text
-./00_Canonical_Casebook.md#c4--reasoning-continue--repair
-```
-
-Casebook 中对应 Heading 存在，但 GitHub 自动生成 anchor 的 slug 规则属于渲染层；当前工具不能直接对 rendered DOM 的 `id` 做全仓库验证。
-
-由于现在已经有独立：
+当前工具可以可靠检查：
 
 ```text
-./cases/C4_Reasoning_Continue_Repair.md
+file existence
+relative path target
+chapter content
+GitHub source Markdown
 ```
 
-最终编辑 pass 更推荐把 fragile heading-anchor link 改成 stable case-file path。
+但没有全仓库 rendered-heading-ID parser。
 
-原则：
+因此本书不声称：
 
 ```text
-Stable File Link
->
-Auto-generated Heading Anchor
+“100% all body links / rendered anchors were automatically verified”
 ```
 
-如果 anchor 只是为了跳到同一文件小节，且阅读收益明确，则可保留。
+更准确的 Release Claim 是：
+
+```text
+Canonical chapter paths
+✓
+
+Case direct-file paths
+✓
+
+Master Figure paths
+✓
+
+Retrieval index paths
+✓
+
+Header / next-chapter navigation
+✓
+
+Final high-risk case / figure spot-check
+✓
+
+All rendered deep heading anchors
+→ not formally exhaustively parsed
+```
+
+如未来获得完整 repository snapshot + Markdown link checker，再补机械化全量 anchor pass；它不阻塞当前 Stable Mother Edition。
 
 ---
 
-# 4. 为什么没有声称“100% 全仓库 Broken-link Checker 已运行”
-
-尝试把 default branch public snapshot 下载到本地运行 Markdown parser，但当前执行环境外网 DNS 不可用。
-
-GitHub connector 可以：
-
-```text
-读取文件
-读取 tree
-搜索代码
-```
-
-但当前没有提供：
-
-```text
-bulk materialize whole repository into local filesystem
-```
-
-同时 Code Search 结果存在 `incomplete_results=true`。
-
-因此当前最严谨的说法是：
-
-```text
-Path inventory
-→ 全量 default-branch tree 已检查
-
-Chapter header navigation
-→ Ch0–25 已逐章检查
-
-New Case / Figure / Index targets
-→ 已核对存在
-
-All body links / rendered heading anchors
-→ 尚未形式化全量解析
-```
-
-不把“当前工具做不到的部分”写成已经完成。
-
----
-
-# 5. Final Link Pass 计划
-
-最终连续阅读阶段处理：
-
-```text
-1. Stable file path first
-2. Replace fragile casebook anchors with direct case files where useful
-3. Check Next Chapter links
-4. Check Master Figure references
-5. Check Case IDs and variant links
-6. Check root landing page paths
-7. Check heading anchors only where actually needed
-```
-
-如未来获得可 materialize 的完整 repo snapshot，再补运行自动 Markdown link checker。
-
----
-
-# 6. Current Conclusion
+# 8. Release Conclusion
 
 当前可以有把握地说：
 
-> **书级信息架构和主要导航路径是完整的；新增的 Chapter / Case / Figure / Index target 都真实存在；目前尚未宣称所有正文深链和 GitHub-rendered anchors 已被自动形式化验证。**
+> **书级信息架构、章节主导航、Canonical Cases、Master Figures、Retrieval Indexes 与本轮高风险接入路径均已核对真实存在并正确指向；未把工具尚未覆盖的 rendered deep-anchor exhaustive check 夸大成已经完成。**
 
-这比写：
+这与全书自己的 Evaluation / Claim Scope 纪律一致：
 
-```text
-“所有链接检查通过”
-```
-
-更准确，也更符合本书自己的 Evaluation / Claim Scope 纪律。
+> **验证到哪里，就只声明到哪里。**
