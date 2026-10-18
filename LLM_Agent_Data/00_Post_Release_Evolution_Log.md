@@ -4,7 +4,7 @@
 >
 > 状态：`V3.x Compatible Evolution / Maintenance Log`
 >
-> 原则：**V3.0 Release Readiness 是历史发布快照，不因后续兼容演进而回写其当时结论。本文件只记录 V3.0 之后新增的 practical、visual、reference 与 scenario-validation 资产。**
+> 原则：**V3.0 Release Readiness 是历史发布快照，不因后续兼容演进而回写其当时结论。本文件只记录 V3.0 之后新增或修正的 practical、visual、reference、scenario-validation 与 maintenance 资产。**
 
 ---
 
@@ -22,7 +22,7 @@ Evolution Log 回答：
 ```text
 V3.0 之后
 在不改变 canonical semantics 的前提下
-又增加了哪些可调用能力？
+又增加 / 修正了哪些可调用能力？
 ```
 
 固定边界：
@@ -157,6 +157,14 @@ A11 Minimal Lineage Manifest
 ```
 
 其中 A2-S 为 selective / local intervention optional extension。
+
+后续维护已进一步固定：
+
+```text
+A1–A11
+= composable artifact catalog
+≠ mandatory linear workflow
+```
 
 ---
 
@@ -446,7 +454,185 @@ Reference / benchmark / evaluator freshness
 
 ---
 
-# 12. Final Principle
+# 12. Maintenance Sweep — Single Source + Multi-entry Alignment
+
+本轮不增加新的知识层，只处理稳定以后才暴露的维护 drift。
+
+## 12.1 Canonical Case 单一真源
+
+发现：
+
+```text
+00_Canonical_Casebook.md
++
+cases/C*.md
+```
+
+早期曾同时维护接近完整的 Case Spec，形成双真源风险。
+
+处理后：
+
+```text
+00_Canonical_Casebook.md
+= Registry / Stable Invariants / Variant Namespace
+
+cases/C*.md
+= Full Case Contract / Detailed Variants
+
+00_Case_Integration_Index.md
+= Chapter → Case / Variant Routing
+
+case_studies/
+= End-to-end Walkthrough
+```
+
+固定：
+
+> **Canonical Case 只有一个完整语义真源；Registry 负责定位，不复制完整 spec。**
+
+## 12.2 C2 Frozen Case Clock
+
+C2 原来使用：
+
+```text
+Monday / Tuesday / Friday
+```
+
+相对时间，且 Casebook 旧副本残留工具名 typo。
+
+现冻结为：
+
+```text
+Case clock
+= 2026-10-19 09:00 Asia/Shanghai
+
+“明天下午三点”
+= 2026-10-20 15:00 Asia/Shanghai
+
+“周五下午三点”
+= 2026-10-23 15:00 Asia/Shanghai
+```
+
+并固定：
+
+```text
+Relative Time
+→ resolve against frozen Case Clock
+≠ runtime current date
+```
+
+## 12.3 Case Integration Routing
+
+`00_Case_Integration_Index.md` 已从旧语义：
+
+```text
+Casebook / Case File
+= stable scenario / stable contract
+```
+
+收紧为：
+
+```text
+Casebook
+= registry
+
+Case File
+= full contract
+
+Chapter
+= analytical lens
+```
+
+并把 C2 frozen clock 纳入 Variant Integrity Rules。
+
+## 12.4 Checklist 多入口对齐
+
+`00_Checklist_Index.md` 不再默认所有项目都从 failure / Data Problem 开始。
+
+新增 Entry Router checklist：
+
+```text
+Failure-led
+Monitoring-led
+Hypothesis-led
+Evaluation-led
+Asset-led / Curation-led
+```
+
+同时回写：
+
+```text
+Selector
+→ Population / Information / Cost Ledger
+
+Evaluator
+→ Measurement Bridge on version change
+
+Monitoring
+→ Last-known-good / Change Ledger / Containment
+
+Curation
+→ Source Lineage / Rebuildable Dataset View
+```
+
+## 12.5 Artifact Kit 工件目录化
+
+`00_Practical_Artifact_Kit.md` 现在明确：
+
+```text
+A1–A11
+= composable artifact catalog
+≠ mandatory sequential workflow
+```
+
+关键修正：
+
+```text
+A1 project_origin
++ monitoring_led
++ asset_led
+
+A5
++ measurement_bridge_ref
+
+A10
++ last-known-good
++ raw-vs-fixed-mix
++ containment
+
+A11
++ source_asset / dataset_view / build_recipe_ref
+```
+
+P2 大批 trajectory 路径改为：
+
+```text
+A11 source truth
+→ batch evidence / curation
+→ downstream validation
+```
+
+而不是先强制制造 A1 / A4。
+
+## 12.6 Playbook 入口一致性
+
+`00_Practical_Playbooks.md` 保留 P1–P7，但显式标记 Entry：
+
+```text
+P1 Failure-led
+P2 Asset-led / Curation-led
+P3 Hypothesis / Production-led
+P4 Evaluation-led
+P5 Hypothesis-led Selective Research
+P6 Data Strategy
+P7 Monitoring-led
+```
+
+P4 新增 Measurement Bridge；P7 新增 last-known-good / Change Ledger / containment；Universal Exit Condition 不再要求所有项目都有 Root Cause 或 Data Intervention。
+
+---
+
+# 13. Final Principle
 
 ```text
 Release Snapshot
@@ -460,6 +646,9 @@ Stress Test
 
 Promotion Gate
 控制 Core 膨胀
+
+Maintenance Sweep
+消除 drift / duplicate truth / stale execution semantics
 ```
 
-> **稳定母本不是停止生长，而是让生长有 lineage、有边界、有 promotion rule，并且永远不靠重写历史来制造“当前一致”。**
+> **稳定母本不是停止生长，而是让生长有 lineage、有边界、有 promotion rule；让维护优先消除漂移而不是制造新层，并且永远不靠重写历史来制造“当前一致”。**
