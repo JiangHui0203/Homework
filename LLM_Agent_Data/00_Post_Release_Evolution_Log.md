@@ -797,7 +797,176 @@ Interview Pack
 
 ---
 
-# 14. Final Principle
+# 14. Maintenance Sweep — Retrieval Index Alignment
+
+这一轮只检查四个 Retrieval Index 的 ownership、命名、stable ID 与 V3.x practical routing，不新增章节、Pack、Figure 或 Artifact ID。
+
+## 14.1 Concept Index — audit only
+
+`00_Concept_Index.md` 对照：
+
+```text
+Canonical Glossary
+Canonical Case Registry
+current Figure IDs
+```
+
+未发现需要立即修改的高置信 canonical owner / terminology / Case ID / Figure ID drift。
+
+因此本轮保持原文，不为了表面统一改写跨章节 context notes，也不把 retrieval compression 变成第二份 glossary。
+
+## 14.2 Role Index — role compression ≠ project workflow
+
+`00_Role_Index.md` 原来的“优先章节”容易被误读为项目执行 chain。
+
+现明确：
+
+```text
+Role Index
+= role-specific learning compression
+≠ project workflow
+≠ canonical ownership rewrite
+```
+
+真实项目入口统一回：
+
+```text
+Project Starter Pack / Entry Router
+```
+
+并保持五入口：
+
+```text
+Failure-led
+Monitoring-led
+Hypothesis-led
+Evaluation-led
+Asset-led / Curation-led
+```
+
+同时把已经存在的 Practical Studies 接回高频角色入口：
+
+```text
+Agent Data / Agent Evaluation
+→ C1 / C3 walkthroughs
+
+Evaluation / Benchmark Researcher
+→ C5 Executable Truth / Verifier Coverage
+
+Reasoning / Test-time / Selector Research
+→ C4 Reasoning Intervention
+```
+
+没有强行给 C2 新造 walkthrough。
+
+## 14.3 Problem Index — symptom-first scope + entry-specific routes
+
+`00_Problem_Index.md` 保留 symptom-first 职责，但现在显式声明：
+
+```text
+Problem Index
+→ most often Failure-led / Monitoring-led
+
+Hypothesis-led / Evaluation-led / Asset-led
+→ 不需要伪造 symptom
+→ 直接进入 Project Starter Pack
+```
+
+同步四个高置信 practical route：
+
+```text
+Judge score ↑ / real success 不涨
+→ Evaluation-led / A5 / optional A5-M
+
+Online success rate ↓
+→ Monitoring-led / A10 / optional A10-I
+
+Evaluator update 改变历史 score
+→ A5-M Measurement Bridge / re-score semantics
+
+Production throughput 高但 usable yield 低
+→ Asset-led / A11 / A6-C / A7
+```
+
+并保持：
+
+```text
+Monitoring Alert ≠ Model Regression
+Evaluator Upgrade ≠ Capability Improvement
+Source Asset ≠ Dataset View / Training Data
+```
+
+## 14.4 Interview Index — first-answer ownership restored
+
+`00_Interview_Index.md` 原来的“通用答题骨架”曾把：
+
+```text
+Define → Diagnose → ... → Flywheel
+```
+
+放在第一层，容易与已经稳定的 Interview Pack ownership 冲突。
+
+现固定：
+
+```text
+Interview Pack
+= Direct Answer / Stop Depth / Evidence Provenance
+
+Interview Index
+= 27-question retrieval / deeper expansion
+```
+
+七步框架保留，但明确为：
+
+```text
+deep-expansion map
+≠ first-answer protocol
+≠ mandatory chain
+```
+
+“如果让我负责一个数据项目”也先判断五入口，再汇合到：
+
+```text
+Relevant Contract + Evidence
+→ Controlled Change
+→ Evaluation
+→ Decision
+→ Monitoring / Re-entry
+```
+
+## 14.5 Verification scope
+
+本轮回验范围包括：
+
+```text
+C1 / C2 / C3 / C4 / C5 registry IDs
+F1–F14 current naming references used by the four Indexes
+Project Starter Pack Entry Router
+Interview Pack ownership
+existing C1 / C3 / C4 / C5 Practical Study paths
+```
+
+没有：
+
+```text
+重写 V3.0 Release Readiness
+扩 Ch26+
+新增 C2 walkthrough
+新增 A12 / P8
+扩 Level B derivatives
+重新引入 F6 / F7 / F11 competing global diagrams
+声称 exhaustive rendered deep-heading validation
+```
+
+本轮仍属于：
+
+```text
+V3.x Compatible Evolution / Maintenance
+```
+
+---
+
+# 15. Final Principle
 
 ```text
 Release Snapshot
