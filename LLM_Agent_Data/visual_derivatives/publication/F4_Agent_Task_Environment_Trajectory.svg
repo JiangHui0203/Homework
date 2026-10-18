@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="950" viewBox="0 0 1600 950" role="img" aria-labelledby="title desc">
+  <title id="title">F4 — Agent Task–Environment–Trajectory</title>
+  <desc id="desc">Publication derivative of canonical F4. Semantic source: figures/F4_Agent_Task_Environment_Trajectory.md, blob 5084a6e0704e3f876e7dd2129ce3089a18301fd0.</desc>
+  <!--
+    figure_id: F4
+    semantic_source: LLM_Agent_Data/figures/F4_Agent_Task_Environment_Trajectory.md
+    semantic_source_sha: 5084a6e0704e3f876e7dd2129ce3089a18301fd0
+    export_type: publication_svg
+    export_version: v1
+    created_at: 2026-10-18
+  -->
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#222"/></marker>
+    <marker id="arrowThin" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L8,3 z" fill="#666"/></marker>
+    <style>
+      .title { font:700 36px Arial,Helvetica,sans-serif; fill:#111; }
+      .subtitle { font:400 19px Arial,Helvetica,sans-serif; fill:#444; }
+      .band { fill:#fafafa; stroke:#d0d0d0; stroke-width:1.4; rx:18; ry:18; }
+      .bandLabel { font:700 15px Arial,Helvetica,sans-serif; fill:#555; }
+      .node { fill:#fff; stroke:#222; stroke-width:2.2; rx:15; ry:15; }
+      .nodeText { font:700 18px Arial,Helvetica,sans-serif; fill:#111; text-anchor:middle; }
+      .nodeSub { font:400 13px Arial,Helvetica,sans-serif; fill:#555; text-anchor:middle; }
+      .edge { fill:none; stroke:#222; stroke-width:2.5; marker-end:url(#arrow); }
+      .aux { fill:none; stroke:#666; stroke-width:2; stroke-dasharray:7 6; marker-end:url(#arrowThin); }
+      .boundary { fill:#fff; stroke:#666; stroke-width:1.5; rx:14; ry:14; }
+      .boundaryTitle { font:700 15px Arial,Helvetica,sans-serif; fill:#333; }
+      .boundaryText { font:700 16px Arial,Helvetica,sans-serif; fill:#111; }
+      .caption { font:400 14px Arial,Helvetica,sans-serif; fill:#555; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="950" fill="#fff"/>
+  <text x="70" y="65" class="title">F4 — Agent Task–Environment–Trajectory</text>
+  <text x="70" y="98" class="subtitle">Agent 运行不是“模型 + Tool Call”，而是 Task、Runtime 与 World 三层共同形成的交互闭环。</text>
+
+  <!-- Layer bands -->
+  <rect class="band" x="60" y="135" width="1480" height="170"/>
+  <text x="85" y="162" class="bandLabel">INTENT / CONTRACT LAYER</text>
+
+  <rect class="band" x="60" y="325" width="1480" height="245"/>
+  <text x="85" y="352" class="bandLabel">RUNTIME / AGENT LOOP</text>
+
+  <rect class="band" x="60" y="590" width="1480" height="180"/>
+  <text x="85" y="617" class="bandLabel">TRAJECTORY / EVIDENCE LAYER</text>
+
+  <!-- Intent layer -->
+  <rect class="node" x="105" y="190" width="250" height="85"/>
+  <text class="nodeText" x="230" y="222">Task Contract</text>
+  <text class="nodeSub" x="230" y="247">Goal · Constraints · Success · Forbidden</text>
+
+  <rect class="node" x="405" y="190" width="250" height="85"/>
+  <text class="nodeText" x="530" y="222">Case</text>
+  <text class="nodeSub" x="530" y="247">Frozen Initial World · Permissions · Versions</text>
+  <path class="edge" d="M355 233 L405 233"/>
+
+  <rect class="node" x="1085" y="190" width="330" height="85"/>
+  <text class="nodeText" x="1250" y="222">Success / Forbidden Predicates</text>
+  <text class="nodeSub" x="1250" y="247">Defined by Task Contract</text>
+  <path class="aux" d="M355 215 C650 130, 900 145, 1085 215"/>
+
+  <!-- Runtime / loop -->
+  <rect class="node" x="115" y="395" width="220" height="85"/>
+  <text class="nodeText" x="225" y="427">Model / Policy</text>
+  <text class="nodeSub" x="225" y="452">Chooses next decision</text>
+
+  <rect class="node" x="400" y="395" width="220" height="85"/>
+  <text class="nodeText" x="510" y="427">Harness</text>
+  <text class="nodeSub" x="510" y="452">Runtime orchestration</text>
+
+  <rect class="node" x="685" y="395" width="220" height="85"/>
+  <text class="nodeText" x="795" y="427">Action / Tool Call</text>
+  <text class="nodeSub" x="795" y="452">Executed request</text>
+
+  <rect class="node" x="970" y="395" width="220" height="85"/>
+  <text class="nodeText" x="1080" y="427">Tool Interface</text>
+  <text class="nodeSub" x="1080" y="452">Action API</text>
+
+  <rect class="node" x="1255" y="395" width="220" height="85"/>
+  <text class="nodeText" x="1365" y="427">Environment / World</text>
+  <text class="nodeSub" x="1365" y="452">State transition system</text>
+
+  <rect class="node" x="1255" y="495" width="220" height="60"/>
+  <text class="nodeText" x="1365" y="530">World State Transition</text>
+
+  <rect class="node" x="970" y="495" width="220" height="60"/>
+  <text class="nodeText" x="1080" y="530">Observation</text>
+
+  <rect class="node" x="400" y="495" width="220" height="60"/>
+  <text class="nodeText" x="510" y="530">Agent-visible State</text>
+
+  <path class="edge" d="M335 438 L400 438"/>
+  <path class="edge" d="M620 438 L685 438"/>
+  <path class="edge" d="M905 438 L970 438"/>
+  <path class="edge" d="M1190 438 L1255 438"/>
+  <path class="edge" d="M1365 480 L1365 495"/>
+  <path class="edge" d="M1255 525 L1190 525"/>
+  <path class="edge" d="M970 525 C800 525, 710 525, 620 525"/>
+  <path class="edge" d="M510 495 L510 480"/>
+  <path class="edge" d="M400 525 C300 525, 225 510, 225 480"/>
+  <path class="edge" d="M530 275 C530 330, 510 340, 510 395"/>
+
+  <!-- Trajectory / evidence -->
+  <rect class="node" x="250" y="640" width="640" height="85"/>
+  <text class="nodeText" x="570" y="673">Trajectory / Typed Event Log</text>
+  <text class="nodeSub" x="570" y="699">Action · Observation · World State · Harness / Runtime Evidence</text>
+
+  <rect class="node" x="975" y="640" width="250" height="85"/>
+  <text class="nodeText" x="1100" y="673">Outcome / Final State</text>
+  <text class="nodeSub" x="1100" y="699">What the world ended up as</text>
+
+  <path class="aux" d="M795 480 C795 575, 690 590, 650 640"/>
+  <path class="aux" d="M1080 555 C1080 590, 850 610, 780 640"/>
+  <path class="aux" d="M1365 555 C1365 605, 900 610, 860 640"/>
+  <path class="aux" d="M510 555 L510 640"/>
+  <path class="edge" d="M890 683 L975 683"/>
+  <path class="edge" d="M1100 640 C1130 560, 1210 320, 1250 275"/>
+
+  <!-- Critical boundaries -->
+  <rect class="boundary" x="80" y="800" width="1440" height="90"/>
+  <text class="boundaryTitle" x="105" y="828">Critical boundaries</text>
+  <text class="boundaryText" x="105" y="860">Tool ≠ Harness ≠ Environment</text>
+  <text class="boundaryText" x="435" y="860">World State ≠ Observation ≠ Agent-visible State</text>
+  <text class="boundaryText" x="895" y="860">Task ≠ Case ≠ Episode ≠ Trajectory</text>
+
+  <text x="80" y="925" class="caption">Semantic source: figures/F4_Agent_Task_Environment_Trajectory.md · source blob: 5084a6e0704e3f876e7dd2129ce3089a18301fd0 · publication derivative v1</text>
+</svg>
