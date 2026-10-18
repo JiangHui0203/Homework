@@ -27,6 +27,7 @@ GitHub 直接渲染
 
 - [`Master Figure System`](../00_Master_Figure_System.md)
 - [`Figure Design Contract`](../00_Figure_Design_Contract.md)
+- [`Figure Presentation Kit`](../00_Figure_Presentation_Kit.md)
 - [`Figure Integration Audit`](../00_Figure_Integration_Audit.md)
 
 ---
@@ -90,6 +91,20 @@ Learning System
 → Operating Model
 ```
 
+如果要把这六张直接用于面试、组会或答辩，继续看：
+
+- [`Figure Presentation Kit`](../00_Figure_Presentation_Kit.md)
+
+其中已经提供：
+
+```text
+30-second Track
+90-second Track
+Progressive Reveal
+Common Misread
+Best Use Cases
+```
+
 ## 2. 想把每一层补完整
 
 在 Level A 之间插入对应 Level B：
@@ -107,7 +122,7 @@ F1
 
 # Figure Reading Contract
 
-每张成品化 Master Figure 应能独立回答：
+每张成品化 Master Figure 现在都能独立回答：
 
 ```text
 Figure Question
@@ -124,11 +139,14 @@ Case Lens
 
 Cross-links
 → 继续读哪一章 / 哪张图？
+
+Caption
+→ 单独引用时怎样准确描述？
 ```
 
 因此 Figure file 不是“只有 Mermaid 的图片仓库”，而是：
 
-> **一张 canonical visual + 最小必要读图说明。**
+> **一张 canonical visual + 最小必要读图说明 + 可直接用于讲述的稳定语义。**
 
 ---
 
@@ -142,17 +160,40 @@ Chapter-local Figure
 = local lens / local pipeline
 ```
 
-视觉真源已经完成去重；当前进入 production refinement：
+当前状态：
 
 ```text
-统一 metadata
-统一读图顺序
-统一 critical boundaries
-统一 case 标记
-统一 caption readiness
+Semantic Registry
+✓ complete
+
+Canonical Ownership
+✓ complete
+
+Duplicate Visual Cleanup
+✓ complete
+
+Figure Design Contract
+✓ complete
+
+Level A Production Refinement
+✓ complete
+
+Level B Production Refinement
+✓ complete
+
+Presentation Talk Track
+✓ Level A complete
 ```
 
-而不是重新设计知识结构。
+下一阶段若继续视觉升级，重点应放在：
+
+```text
+publication SVG redraw
+slide progressive reveal implementation
+share-card derivative
+```
+
+而不是再次修改 canonical relation。
 
 ---
 
