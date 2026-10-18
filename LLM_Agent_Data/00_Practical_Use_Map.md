@@ -14,6 +14,12 @@
 我想快速建立框架
 → Condensed Guide
 
+我准备面试 / 答辩
+→ Interview Pack
+
+我今天要启动一个真实项目
+→ Project Starter Pack
+
 我想把图讲清楚
 → Figure Presentation Kit
 
@@ -65,11 +71,19 @@ F1
 
 - [`Figure Presentation Kit`](./00_Figure_Presentation_Kit.md)
 
+如果明确是在准备面试 / 答辩：
+
+- [`Interview Pack`](./00_Interview_Pack.md)
+
 ---
 
-# 2. 我刚拿到一个线上 bad case
+# 2. 我刚拿到一个线上 bad case / 新项目
 
-第一步：
+如果是“今天刚开始，先把顺序走对”：
+
+- [`Project Starter Pack`](./00_Project_Starter_Pack.md)
+
+如果已经有明确 symptom，第一步：
 
 - [`Problem Index`](./00_Problem_Index.md)
 
@@ -179,9 +193,9 @@ C3
 执行资产：
 
 ```text
-Playbook P1 / P2 / P7
-+
-Artifact A1–A10
+Project Starter Pack
+→ Playbook P1 / P2 / P7
+→ Artifact A1–A10
 ```
 
 外部方法锚点：
@@ -394,15 +408,21 @@ R15 LiveBench
 
 # 9. 我要准备面试 / 答辩 / 分享
 
-30–60 分钟准备：
+第一入口：
+
+- [`Interview Pack`](./00_Interview_Pack.md)
+
+它负责把：
 
 ```text
 Condensed Guide
-↓
-Figure Presentation Kit
-↓
-挑一篇 Practical Case Study
+Quick-reference
+Presentation Track
+Interview Index
+C1 / C3 / C4 / C5
 ```
+
+装配成 30 分钟 / 90 分钟准备路径、题型路由和追问树。
 
 推荐 case：
 
@@ -554,6 +574,12 @@ Master Figures
 Presentation Kit
 = How to Explain
 
+Interview Pack
+= How to Prepare / Answer / Handle Follow-ups
+
+Project Starter Pack
+= How to Start Day 0 → First Week
+
 Problem Index
 = Where to Diagnose
 
@@ -575,4 +601,4 @@ Reference Layer
 
 最终原则：
 
-> **不要为了“资料齐全”反复复制同一知识。每个 practical asset 都只解决一种调用问题；Reference Layer 只负责外部出处，不重新夺回 canonical definition 的所有权。**
+> **不要为了“资料齐全”反复复制同一知识。每个 practical asset 都只解决一种调用问题；Scenario Pack 只负责装配，不重新定义知识。**
