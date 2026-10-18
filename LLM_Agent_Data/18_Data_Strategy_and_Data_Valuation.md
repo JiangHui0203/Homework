@@ -1161,3 +1161,22 @@ Ch23
 本章负责的是最上层的一件事：
 
 > **决定有限的数据预算下一步应该压在哪里。**
+
+但一旦某类数据被决定继续 `SCALE / MAINTAIN`，它就不再只是一次性项目产物，而开始成为需要长期维护的 Data Asset。此时下一个问题自然变成：
+
+```text
+它是谁？
+从哪里来？
+经历过哪些 transformation？
+为什么被保留 / 重标 / 重建？
+被哪些 Dataset / Run / Model 使用过？
+以后发生修正时，能否沿历史准确追溯影响范围？
+```
+
+因此下一章进入：
+
+> [`第 19 章 Data Governance、Lineage 与 Reproducibility`](./19_Data_Governance_Lineage_and_Reproducibility.md)
+
+正式回答：
+
+> **当“值得投资”已经成立以后，怎样让这些数据资产在持续变化中仍然有稳定身份、版本、lineage 与可复现历史。**
