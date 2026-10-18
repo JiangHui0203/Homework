@@ -1,0 +1,46 @@
+name: Patch Agent Knowledge 4.6
+
+on:
+  push:
+    branches:
+      - agent-doc-4-6-retrieval
+    paths:
+      - tmp_agent_4_6_section.md
+      - scripts/tmp_patch_agent_4_6.py
+      - .github/workflows/agent-doc-4-6-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent-doc-4-6-retrieval
+          fetch-depth: 0
+
+      - name: Patch document
+        run: python scripts/tmp_patch_agent_4_6.py
+
+      - name: Verify patch
+        run: |
+          grep -F '#### 4.6.1 定义：Retrieval 到底是什么？' Agent_Knowledge_System.md
+          grep -F '#### 4.6.233 参考资料' Agent_Knowledge_System.md
+          grep -F '| II | 4. Context, Memory & Retrieval | 已完成：4.1–4.6 |' Agent_Knowledge_System.md
+          grep -F '5. Capability Extension → 5.1 Native Tools' Agent_Knowledge_System.md
+
+      - name: Remove temporary patch files
+        run: |
+          rm -f tmp_agent_4_6_section.md
+          rm -f scripts/tmp_patch_agent_4_6.py
+          rm -f .github/workflows/agent-doc-4-6-patch.yml
+
+      - name: Commit result
+        run: |
+          git config user.name 'A_Jiang'
+          git config user.email '79295145+JiangHui0203@users.noreply.github.com'
+          git add Agent_Knowledge_System.md tmp_agent_4_6_section.md scripts/tmp_patch_agent_4_6.py .github/workflows/agent-doc-4-6-patch.yml
+          git commit -m 'docs: complete 4.6 Retrieval'
+          git push origin HEAD:agent-doc-4-6-retrieval
