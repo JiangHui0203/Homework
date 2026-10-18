@@ -1,12 +1,14 @@
 # LLM / Agent Data Knowledge System：Master Figure System
 
-> 状态：**Canonical Visual System / Production Refined Complete**
+> 状态：**Canonical Visual System / Semantic Complete / Level A D1–D3 Released**
 >
 > 目的：为 0–25 章维护一套稳定、可复用、可版本化的 Master Figures。图的任务不是装饰，而是压缩跨章节关系、固定对象边界、帮助读者建立全书级 mental model。
 >
 > 原则：**一张图只承担一个主要认知任务；canonical concept 只在对应 Master Figure 中完整展开，其他章节优先引用而不是重复重画。**
 >
 > 视觉成品规范：[`Figure Design Contract`](./00_Figure_Design_Contract.md)
+>
+> Level A 派生发布：[`Visual Release Manifest`](./00_Visual_Release_Manifest.md)
 
 ---
 
@@ -18,11 +20,11 @@
 Mermaid Master Figure
 = semantic source of truth
 
-SVG / PNG / PPT / PDF redraw
-= presentation derivative
+D1 Publication / D2 Presentation / D3 Quick-reference
+= context-specific presentation derivatives
 ```
 
-因此未来可以升级：
+因此可以升级：
 
 ```text
 字体
@@ -33,7 +35,7 @@ SVG / PNG / PPT / PDF redraw
 动画 / progressive reveal
 ```
 
-但不能只在图片里静默修改：
+但不能只在 derivative 里静默修改：
 
 ```text
 node semantics
@@ -43,6 +45,19 @@ Case ID meaning
 ```
 
 如果语义关系改变，必须先回写 Mermaid source。
+
+当前发布状态：
+
+```text
+Level A
+F1 / F4 / F6 / F8 / F9 / F14
+→ D1 / D2 / D3 complete
+
+Level B
+F2 / F3 / F5 / F7 / F10 / F11 / F12 / F13
+→ semantic / production-refined Master Figure complete
+→ derivative 按实际使用需要生成，不作为当前必需项
+```
 
 ---
 
@@ -82,7 +97,7 @@ Mermaid 默认不依赖颜色表达核心含义，保证 GitHub Light / Dark Mod
 | [F4](./figures/F4_Agent_Task_Environment_Trajectory.md) | Agent Task–Environment–Trajectory | Task、Tool、Harness、Environment、Trajectory 怎么连接？ | Ch10–12 | C1-VB |
 | [F5](./figures/F5_Trajectory_Anatomy.md) | Trajectory Anatomy | 一条 trajectory 到底应该记录什么？ | Ch12 | C1-F1 |
 | [F6](./figures/F6_Credit_to_Failure_Causal_Map.md) | Credit → Failure Causal Map | 从 Outcome 到 Root Cause / Owner 应怎样拆？ | Ch13–14 | C1-F1 + C3-F5 |
-| [F7](./figures/F7_Evidence_Verifier_Grader_Judge.md) | Evidence → Evaluator Stack | 一条 Label 到底建立在什么 Evidence 和 Evaluator 上？ | Ch15 | C1-VB + C5-F3 |
+| [F7](./figures/F7_Evidence_Verifier_Grader_Judge.md) | Evidence → Verifier → Grader → Judge | 一条 Label 到底建立在什么 Evidence 和 Evaluator 上？ | Ch15 | C1-VB + C5-F3 |
 | [F8](./figures/F8_Benchmark_Evaluation_Protocol.md) | Benchmark / Evaluation Protocol | “方法更好”这个结论怎样才成立？ | Ch16 | C1 family |
 | [F9](./figures/F9_Data_Flywheel.md) | Data Flywheel | 一个真实 Failure 怎样重新进入 Learning Loop？ | Ch17 | C1 |
 | [F10](./figures/F10_Data_Strategy_Portfolio_ROI.md) | Data Strategy / Portfolio / ROI | 有限 Data Budget 应该投到哪里？ | Ch18 | C1–C5 portfolio |
@@ -112,6 +127,16 @@ F14 Operating Model + Capability Map
 
 > **即使脱离章节单独展示，也能在 30–90 秒内讲清自己的主问题。**
 
+同时已经发布：
+
+```text
+D1 Publication SVG
+D2 16:9 Progressive Reveal Storyboard
+D3 Quick-reference Cards
+```
+
+具体 source SHA 与 derivative 绑定见 [`Visual Release Manifest`](./00_Visual_Release_Manifest.md)。
+
 ## Level B — Part-level
 
 负责压缩某一个 Part 的核心关系：
@@ -120,7 +145,7 @@ F14 Operating Model + Capability Map
 F2  Learning Signals
 F3  Reasoning State
 F5  Trajectory Anatomy
-F7  Evaluator Stack
+F7  Evidence → Verifier → Grader → Judge
 F10 Data Strategy
 F11 Governance / Lineage
 F12 Data Production
@@ -128,6 +153,8 @@ F13 Monitoring / Drift
 ```
 
 八张均已完成 production refinement。
+
+当前不要求为了“图数整齐”机械生成 D1–D3；只有真实出版、汇报或快速复习需求出现时再按 Visual Derivative Contract 派生。
 
 ## Level C — Chapter-local
 
@@ -221,7 +248,7 @@ F5  Trajectory Anatomy
 ↓
 F6  Credit → Failure
 
-F7  Evidence / Evaluator
+F7  Evidence / Verifier / Grader / Judge
 ↓
 F8  Evaluation Protocol
 
@@ -251,9 +278,9 @@ How do we keep the system operating and learning?
 
 ---
 
-# 7. Production Refinement Result
+# 7. Production Refinement & Derivative Release Result
 
-已完成：
+Master Figure production refinement：
 
 ```text
 Batch A — Level A
@@ -265,18 +292,28 @@ F2 / F3 / F5 / F7 / F10 / F11 / F12 / F13
 ✓
 ```
 
-本轮只改变：
+Level A derivative release：
 
 ```text
-metadata contract
-reading spine
-critical boundaries
-case lens
-caption readiness
-cross-links
+D1 Publication SVG
+✓ complete
+
+D2 16:9 Progressive Reveal Storyboard
+✓ complete
+
+D3 Quick-reference Cards
+✓ complete
 ```
 
-未改变：
+Talk-track / scene-selection 入口：
+
+- [`Figure Presentation Kit`](./00_Figure_Presentation_Kit.md)
+
+真正的 D2 implementation storyboard：
+
+- [`visual_derivatives/slides/README.md`](./visual_derivatives/slides/README.md)
+
+本阶段未改变：
 
 ```text
 canonical concept relation
@@ -285,15 +322,15 @@ figure ownership
 chapter ownership
 ```
 
-因此可以安全进入下一阶段：
+后续默认进入维护态：
 
 ```text
-publication SVG redraw
-slide progressive reveal
-social / interview quick-reference derivative
+source SHA freshness check
+semantic acceptance
+按需生成 Level B derivative
 ```
 
-而不需要重新讨论知识结构。
+而不是重新讨论知识结构。
 
 ---
 
@@ -321,10 +358,13 @@ Level A production refinement
 Level B production refinement
 ✓ complete
 
-Caption readiness
-✓ complete
+Level A D1 / D2 / D3
+✓ released
+
+Visual Release Manifest
+✓ source-bound
 ```
 
 最终目标已经达到：
 
-> **读者即使暂时不读 25 章全文，也能通过 14 张 Master Figures 建立正确的整体结构；再进入章节时，只是在放大某个局部，而不是重新学习一套世界。**
+> **读者即使暂时不读 25 章全文，也能通过 14 张 Master Figures 建立正确的整体结构；Level A 还可以直接进入出版、演示和快速复习场景，而不产生第二套语义真源。**
