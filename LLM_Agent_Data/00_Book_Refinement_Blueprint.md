@@ -1,10 +1,10 @@
 # LLM / Agent Data Knowledge System：全书精修施工图
 
-> 状态：**Structure / Cases / Master Figures Complete — Retrieval Indexes Active**
+> 状态：**Structure / Cases / Figures / Retrieval Indexes Complete — Verification Active**
 >
 > 适用范围：`LLM_Agent_Data_Knowledge_System.md` + `LLM_Agent_Data/00_...` 至 `25_...` + `cases/` + `figures/`
 >
-> 原则：**完整定义只出现一次；dependent chapter 只讲当前场景的应用。Concept、Case、Figure 三套 canonical asset 都必须有稳定 owner / ID / 语义。**
+> 原则：**完整定义只出现一次；dependent chapter 只讲当前场景的应用。Concept、Case、Figure、Index 四套 canonical asset 必须保持稳定语义。**
 
 ---
 
@@ -12,145 +12,145 @@
 
 ```text
 Content Expansion
-✓ 完成
+✓
 
-Read-only Architecture Audit
-✓ 完成
+Architecture Audit
+✓
 
-Landing Page / 7-Part Information Architecture
-✓ 完成
+7-Part Information Architecture
+✓
 
-00 Overview + Ch1–3 独立化
-✓ 完成
+Ch0–25 Structural Editing
+✓
 
-Glossary / Notation
-✓ 完成
+Canonical Glossary / Concept Ownership
+✓
 
-Canonical Concept Ownership
-✓ 完成
-
-Foundational Consistency Pass
-✓ Ch1 / 2 / 3
-
-Canonical Chapter Stabilization
-✓ Ch4 / 10 / 11 / 12 / 13 / 14 / 15 / 16 / 19
-
-TRIM + LINK — Acquisition
-✓ Ch5 / 6 / 7 / 8 / 9
-
-TRIM + LINK — Lifecycle
-✓ Ch17 / 18 / 20 / 21
-
-TRIM + LINK — Operations
-✓ Ch22 / 23 / 24
-
-Synthesis Refactor
-✓ Ch25
-
-Canonical Case Infrastructure
-✓ C1–C5 独立 case files
-✓ Stable Variant IDs
-✓ Case Integration Index
-✓ Cases README
+Canonical Case System
+✓ C1–C5 + stable variant IDs
 
 Master Figure System
-✓ F1–F14 全部完成
-✓ Figure Index
-✓ Visual Grammar
+✓ F1–F14
+
+Retrieval Indexes
+✓ Concept Index
+✓ Role Index
+✓ Problem Index
+✓ Interview Index
+✓ Checklist Index
 
 Current
-→ Retrieval Indexes
+→ Cross-reference / Broken-link Audit
+→ Fact / Paper / Number / Formula Verification
 
-Next
-→ Cross-reference / broken-link audit
-→ Fact / paper / number / formula verification
+Then
 → Figure integration audit for old local diagrams
 → Final continuous read-through
+→ Derived editions
 ```
 
-当前阶段一句话：
+当前一句话：
 
-> **正文、案例和视觉骨架已经稳定；现在要让整套知识从“可以阅读”升级为“可以按问题、角色和任务快速检索”。**
+> **知识内容、结构、案例、视觉和检索坐标系已经完成；现在进入“证明所有链接、事实、数字和引用都站得住”的验证阶段。**
 
 ---
 
-# 1. 最终书级结构
+# 1. Canonical Assets
+
+## Concepts
+
+```text
+00_Glossary_and_Notation.md
+00_Concept_Index.md
+```
+
+## Cases
+
+```text
+00_Canonical_Casebook.md
+00_Case_Integration_Index.md
+cases/README.md
+cases/C1...C5.md
+```
+
+## Figures
+
+```text
+00_Master_Figure_System.md
+figures/README.md
+figures/F1...F14.md
+```
+
+## Retrieval
+
+```text
+00_Role_Index.md
+00_Problem_Index.md
+00_Interview_Index.md
+00_Checklist_Index.md
+```
+
+---
+
+# 2. Final Book Structure
 
 ```text
 Overview
-└── Ch0  LLM / Agent Data 是什么
+└── Ch0
 
 Part I — Learning Signals
-├── Ch1  Data Objects & Learning Signals
-├── Ch2  Pretraining / Instruction / SFT / Post-training
-├── Ch3  Preference / Reward / Feedback
-├── Ch4  Reasoning Data / Process Supervision
-└── Ch5  Tool-use / Agent Trajectory Data
+└── Ch1–5
 
 Part II — Data Acquisition & Selection
-├── Ch6  Human Data
-├── Ch7  Synthetic Data
-├── Ch8  Rollout / Candidate Selection
-└── Ch9  Hard Case Mining / Curriculum
+└── Ch6–9
 
 Part III — Agent World & Diagnosis
-├── Ch10 Task Design
-├── Ch11 Environment Design
-├── Ch12 Trajectory Anatomy
-├── Ch13 Credit Assignment
-└── Ch14 Failure Taxonomy
+└── Ch10–14
 
 Part IV — Measurement
-├── Ch15 Verifier / Grader / Judge
-└── Ch16 Benchmark / Evaluation Protocol
+└── Ch15–16
 
 Part V — Data Optimization & Lifecycle
-├── Ch17 Data Flywheel
-├── Ch18 Data Strategy / Valuation
-├── Ch19 Governance / Lineage
-├── Ch20 Quality / Filtering / Dedup / Mixture
-└── Ch21 Data Experiments
+└── Ch17–21
 
 Part VI — Data Operations
-├── Ch22 Data Production System
-├── Ch23 Monitoring / Drift
-└── Ch24 End-to-End Operating Model
+└── Ch22–24
 
 Part VII — Synthesis
-└── Ch25 Capability Map / Practical Methodology
+└── Ch25
 ```
 
 ---
 
-# 2. Canonical Concept Ownership
+# 3. Canonical Concept Ownership
 
-| Concept | Owner |
-|---|---:|
-| Dataset / Sample / Task / Case / Episode / Trajectory | Ch1 |
-| Pretraining / SFT / Post-training | Ch2 |
-| Preference / Reward / Relative Feedback | Ch3 |
-| Correctness / Risk / Recoverability / Repairability / Selectability | Ch4 |
-| Tool-use / Agent Experience basics | Ch5 |
-| Human Annotation / Gold / IAA / Adjudication | Ch6 |
-| Synthetic Generation / Evolution | Ch7 |
-| Candidate Pool / Best-of-N / Oracle / Selector | Ch8 |
-| Hard Case / Frontier / Acquisition / Curriculum | Ch9 |
-| Task Contract | Ch10 |
-| Tool / Harness / Environment / World State | Ch11 |
-| Typed Trajectory / Local State Lineage | Ch12 |
-| Outcome / Reward / Credit / First Harmful / Last Recoverable | Ch13 |
-| Symptom / Mechanism / Root Cause / Failure Owner | Ch14 |
-| Evidence / Verifier / Grader / Judge | Ch15 |
-| Benchmark / Protocol / Population / Statistics / Claim | Ch16 |
-| Data Flywheel Orchestration | Ch17 |
-| Data Value / ROI / Portfolio / Stop Rule | Ch18 |
-| Identity / Provenance / Lineage / Versioning / Reproducibility | Ch19 |
-| Quality / Filtering / Dedup / Mixture | Ch20 |
-| Data Intervention / Causal Validation | Ch21 |
-| Experience Manufacturing Infrastructure | Ch22 |
-| Monitoring / Online Feedback / Drift | Ch23 |
-| Organization Operating Model | Ch24 |
-| Practitioner Operating System | Ch25 |
+```text
+Ch1  Data Objects
+Ch2  Training Stages
+Ch3  Preference / Reward
+Ch4  Correctness / Risk / Recoverability / Repairability / Selectability
+Ch5  Agent Experience Basics
+Ch6  Human Annotation
+Ch7  Synthetic Generation
+Ch8  Candidate Pool / Oracle / Selector
+Ch9  Hard Case / Frontier / Acquisition
+Ch10 Task Contract
+Ch11 Tool / Harness / Environment
+Ch12 Typed Trajectory
+Ch13 Credit
+Ch14 Failure Diagnosis
+Ch15 Evidence / Evaluator
+Ch16 Benchmark / Protocol
+Ch17 Flywheel
+Ch18 Data Strategy / ROI
+Ch19 Governance / Lineage
+Ch20 Curation / Mixture
+Ch21 Data Intervention
+Ch22 Production
+Ch23 Monitoring / Drift
+Ch24 Organization Operating Model
+Ch25 Practitioner Operating System
+```
 
 规则：
 
@@ -161,46 +161,7 @@ Dependent Chapter = Application + Link
 
 ---
 
-# 3. Canonical Case System
-
-稳定案例：
-
-```text
-C1 Order / Refund Agent
-C2 Calendar / Meeting Agent
-C3 File / Repository Agent
-C4 Reasoning Continue / Repair
-C5 Code / Execution Agent
-```
-
-稳定 variant 示例：
-
-```text
-C1-VB = shipped / no refund allowed
-C2-F3 = update success / notification missing
-C3-F5 = tool truth failure / harness observation success
-C4-SC = same authoritative prefix sibling set
-C5-F2 = public tests pass / hidden test fail
-```
-
-规则：
-
-> **Case ID 具有实验语义。关键条件改变时创建新 variant，不允许沿用旧 ID 偷换定义。**
-
-基础设施：
-
-```text
-00_Canonical_Casebook.md
-00_Case_Integration_Index.md
-cases/README.md
-cases/C1...C5.md
-```
-
----
-
-# 4. Master Figure System — COMPLETE
-
-14 张图已全部完成：
+# 4. Master Figure System
 
 ```text
 F1  Learning System Overview
@@ -219,145 +180,125 @@ F13 Monitoring / Drift Diagnostic Tree
 F14 Operating Model + Capability Map
 ```
 
-视觉层形成的主链：
+后续不再无限新增 Master Figure，只做：
 
 ```text
-F1 Learning System
-↓
-F2/F3 Learning + Reasoning
-↓
-F4/F5/F6 Agent World + Diagnosis
-↓
-F7/F8 Measurement
-↓
-F9/F10/F11 Lifecycle + Strategy + Governance
-↓
-F12/F13/F14 Production + Monitoring + Operating Model
+KEEP
+REPLACE WITH MASTER
+KEEP AS LOCAL LENS
 ```
 
-规则：
-
-```text
-Master Figure = stable relationship model
-Chapter-local Figure = local lens
-```
-
-下一阶段只做 Figure Integration Audit，不再无限新增总图。
+的旧图审计。
 
 ---
 
-# 5. 当前跨章主链
+# 5. Retrieval System
 
-## Learning Signal
-
-```text
-Ch1 Objects
-→ Ch2 Training Purpose
-→ Ch3 Relative Feedback
-→ Ch4 Process State
-→ Ch5 Agent Experience
-```
-
-## Agent Science
+现在全书支持五种主要入口：
 
 ```text
-Ch10 Task
-→ Ch11 World / Tool / Harness
-→ Ch12 Representation
-→ Ch13 Credit
-→ Ch14 Diagnosis
-```
+Chapter Navigation
+→ 我想系统学
 
-## Measurement
-
-```text
-Ch15 Who judges / with what evidence
-→ Ch16 How to compare / what can be claimed
-```
-
-## Data Lifecycle
-
-```text
-Ch17 Flywheel
-→ Ch18 Strategy
-→ Ch19 Governance
-→ Ch20 Curation
-→ Ch21 Causal Validation
-```
-
-## Operations
-
-```text
-Ch22 Produce
-→ Ch23 Sense Change
-→ Ch24 Organize Team
-→ Ch25 Apply as Practitioner
-```
-
----
-
-# 6. Retrieval / Index Plan — CURRENT
-
-需要构建：
-
-```text
 Concept Index
+→ 我想查一个概念
+
 Role Index
+→ 我做这个岗位该学什么
+
 Problem Index
-Interview Index
-Checklist Index
+→ 我现在遇到这个问题先查什么
+
+Interview / Checklist
+→ 我要表达 / 执行
 ```
 
-Figure Index 与 Case Index 已由：
+Case / Figure 则作为横向坐标：
 
 ```text
-figures/README.md
-cases/README.md
-00_Case_Integration_Index.md
-```
+Case
+→ 同一个真实问题如何跨章流动
 
-承担。
-
-目标：
-
-```text
-“Recoverability 在哪定义？”
-“Judge 分数涨但线上不涨应该看什么？”
-“Agent Data 面试优先读哪些章？”
-“一个 Recovery Failure 从哪里一路追到 Data Experiment？”
-“C3-F5 应该看哪些章节和哪张图？”
+Figure
+→ 多个概念在一张图上如何连接
 ```
 
 ---
 
-# 7. Verification Plan
+# 6. Verification Plan — CURRENT
 
-Retrieval Index 稳定后，再做事实与引用审计：
+## A. Cross-reference / Broken-link Audit
+
+检查：
 
 ```text
-论文正式题名 / 副标题
+旧 Ch1–3 root links
+旧计划章节名称
+不存在的文件名
+改名后的相对路径
+Case / Figure links
+Next Chapter links
+```
+
+## B. Fact / Citation Audit
+
+检查：
+
+```text
+论文正式题名
 作者 / 年份 / arXiv
-Benchmark 名称
+Benchmark 正式名称
+模型名称
 实验数字
 公式符号
 行业术语
-Research Example claim scope
-Broken Links / Anchors
 ```
 
-Research case 统一标明：
+## C. Research Claim Scope
+
+重点：
+
+```text
+More Thinking
+RoTFuse / K17
+其他真实 research example
+```
+
+统一区分：
 
 ```text
 Research Example
 Current Experimental Evidence
-Not a Universal Claim
+General Methodological Principle
+Universal Claim
+```
+
+前三者可以写，第四类需要足够证据。
+
+---
+
+# 7. Final Read-through Checklist
+
+最终连续阅读时检查：
+
+```text
+章节开头是否准确定位？
+前置 / 关联章节是否真实存在？
+同一术语是否语义稳定？
+案例 ID 是否漂移？
+Master Figure 是否和正文一致？
+重复解释是否重新长回来？
+Research Example 是否越界成普遍结论？
+章节结尾是否正确衔接下一章？
+Landing Page 是否反映真实结构？
+索引是否真的能把人送到正确位置？
 ```
 
 ---
 
 # 8. Derived Editions
 
-母本最终稳定后再抽取：
+母本验证完成后再生成：
 
 ```text
 Interview Quick Reference
@@ -365,42 +306,29 @@ Project Checklist Edition
 Learning Path Edition
 ```
 
-所有衍生版本都引用母本，不形成新的事实源。
+原则：
+
+> **衍生版只压缩母本，不创造新的事实源。**
 
 ---
 
-# 9. 完成标准
+# 9. Final Completion Standard
 
-最终应能快速回答：
+最终应快速回答：
 
 ```text
 一个术语在哪里定义？
-一个概念为什么不会在多章重复定义？
-一个 failure 应该读哪几章？
-一个 Case ID 对应什么稳定世界和 failure？
-哪张 Master Figure 最适合解释这个关系？
-一个 Agent Data 项目从 Task 到 Monitoring 怎么走？
-一个历史结论对应哪套数据、Judge 和 Protocol？
-一个岗位应该走哪条阅读路线？
+一个问题应该先排查哪几层？
+一个岗位应该读什么？
+一个 Case ID 具体代表什么？
+哪张图能最快解释关系？
+一个 failure 如何变成 data experiment？
+一个结论使用了哪套 data / judge / protocol？
+一个历史标签修正后应该 re-score 还是 re-run？
+什么时候 scale？什么时候 stop？
+什么时候旧数据 / benchmark 已经 stale？
 ```
 
 最终目标：
 
-> **每个概念有唯一归属，每个章节有明确职责，每个案例有稳定 ID，每张图有单一认知任务，每个结论能找到证据，每一种读者都有清晰入口。**
-
----
-
-# 10. 编辑总原则
-
-1. **不为了简洁牺牲关键区分。**
-2. **不为了完整在每章重新讲同一套定义。**
-3. **不把 Research Example 写成未经验证的 Universal Claim。**
-4. **不把 Model / Data / Eval / Tool / Harness / Environment Failure 混成一个问题。**
-5. **不继续扩正文章节；新内容优先进入已有章、Casebook、Glossary、Figure 或 Index。**
-6. **图不承担装饰任务，只承担关系压缩任务。**
-7. **Case ID 不允许语义漂移。**
-8. **Index 负责检索，不重新创造定义。**
-
-当前一句话状态：
-
-> **“书”已经搭完，案例坐标系和视觉坐标系也已稳定；现在开始建设检索坐标系。**
+> **每个概念有唯一归属，每个章节有明确职责，每个案例有稳定 ID，每张图有单一认知任务，每个问题有检索入口，每个结论能找到证据。**
