@@ -2,11 +2,11 @@
 
 > **LLM / Agent Data Knowledge System**
 >
-> 当前状态：**Stable Mother Edition — V3.0**。25 章主体、7-Part 架构、Canonical Concepts、C1–C5、F1–F14、Retrieval Indexes、公式 / 数字口径 / 术语 / 视觉真源 / 关键链接验收与 0→25 连续通读均已完成；V3.x 在不改骨架的前提下增加 Practical Case Studies、Playbooks、Artifact Kit、Scenario Packs、Reference Layer 与 Visual Derivatives。
+> 当前状态：**Stable Mother Edition — V3.0 / V3.x Compatible Evolution**。25 章主体、7-Part 架构、Canonical Concepts、C1–C5、F1–F14、Retrieval Indexes 与 V3.0 验收均已完成；V3.x 已进一步增加 Practical Layer、Reference Layer、Visual Derivatives、Scenario Packs，并通过多轮异质场景压力测试。
 >
-> 当前版本：**V3.0（2026-10-18）**
+> 基线版本：**V3.0（2026-10-18）**
 >
-> 版本含义：核心架构、canonical definitions、Case IDs、Figure IDs 与 Retrieval Assets 已进入稳定维护阶段；后续内容默认通过现有 Chapter / Case / Figure / Index 演进，而不是继续无序扩章。
+> 当前维护模式：**Multi-scenario-tested / Use-driven Maintenance**。核心骨架不再继续扩张；新增能力默认进入已有 owner，场景特有结构使用 optional extension，只有经过跨项目压力测试的稳定 primitive 才允许 Promote Core。
 >
 > 关联文档：[`Agent_Knowledge_System.md`](./Agent_Knowledge_System.md)
 
@@ -25,7 +25,7 @@
 5. **Is it worth the cost?** 值得这个成本吗？
 6. **When should the system learn again?** 什么时候应该开始下一轮学习？
 
-完整闭环是：
+完整闭环：
 
 ```text
 真实问题 / 产品需求 / Capability Gap
@@ -136,7 +136,7 @@ Master Figure：F14。
 
 ---
 
-# 八套导航与调用资产
+# 九套导航与调用资产
 
 ## 1. Canonical Concepts
 
@@ -157,6 +157,19 @@ Master Figure：F14。
 - [Case Integration Index](./LLM_Agent_Data/00_Case_Integration_Index.md)
 - [Cases Directory](./LLM_Agent_Data/cases/README.md)
 
+固定职责：
+
+```text
+Casebook
+= Registry / Stable Invariants / Namespace
+
+cases/C*.md
+= Full Case Contract
+
+Case Integration Index
+= Chapter → Case / Variant routing
+```
+
 稳定案例：
 
 ```text
@@ -174,7 +187,7 @@ C5 Code / Execution Agent
 - [Figure Index](./LLM_Agent_Data/figures/README.md)
 - [Figure Integration Audit](./LLM_Agent_Data/00_Figure_Integration_Audit.md)
 
-14 张 Master Figure 已完成 production refinement，并明确 canonical visual ownership；Ch14 / Ch15 / Ch19 的三处竞争性总图已收敛到 F6 / F7 / F11。
+F1–F14 是 canonical visual ownership；局部图只能作为 analytical lens，不能和 Master Figure 争定义权。
 
 ## 4. Role / Problem Retrieval
 
@@ -208,62 +221,49 @@ C5 Code / Execution Agent
 - [Practical Use Map](./LLM_Agent_Data/00_Practical_Use_Map.md)
 - [Interview Pack](./LLM_Agent_Data/00_Interview_Pack.md)
 - [Project Starter Pack](./LLM_Agent_Data/00_Project_Starter_Pack.md)
+- [Practical Playbooks](./LLM_Agent_Data/00_Practical_Playbooks.md)
+- [Practical Artifact Kit](./LLM_Agent_Data/00_Practical_Artifact_Kit.md)
 - [Practical Case Studies](./LLM_Agent_Data/case_studies/README.md)
   - [C1 — End-to-End Data Learning Loop](./LLM_Agent_Data/case_studies/C1_End_to_End_Walkthrough.md)
   - [C3 — Permission / Harness Ownership](./LLM_Agent_Data/case_studies/C3_Permission_Harness_Ownership_Walkthrough.md)
   - [C4 — Reasoning Intervention](./LLM_Agent_Data/case_studies/C4_Reasoning_Intervention_Walkthrough.md)
   - [C5 — Executable Truth / Verifier Coverage](./LLM_Agent_Data/case_studies/C5_Executable_Truth_Verifier_Coverage_Walkthrough.md)
-- [Practical Playbooks](./LLM_Agent_Data/00_Practical_Playbooks.md)
-- [Practical Artifact Kit](./LLM_Agent_Data/00_Practical_Artifact_Kit.md)
 - [C1 Filled Artifact Pack](./LLM_Agent_Data/case_studies/C1_Artifact_Pack.md)
 - [Condensed Guide](./LLM_Agent_Data/00_Condensed_Guide.md)
 
-职责分别是：
+当前 Project Starter Pack 已采用五入口：
 
 ```text
-Interview Pack
-→ 怎么准备、怎么讲、怎么接追问？
-
-Project Starter Pack
-→ Day 0 到 First Week 怎么按正确顺序启动项目？
-
-Case Study
-→ 一个真实问题怎样完整走完证据、诊断、数据、实验、生产和监控？
-
-Playbook
-→ 给我一个现实输入，今天按什么步骤推进到 Decision？
-
-Artifact Kit
-→ 每一步最终应该落下什么可审计工件？
-
-Condensed Guide
-→ 怎样在 30–90 分钟建立整套 shared mental model？
+Failure-led
+Monitoring-led
+Hypothesis-led
+Evaluation-led
+Asset-led / Curation-led
 ```
 
-Scenario Pack 只负责装配现有资产，不重新定义 canonical concept。
+它们统一汇合到：
+
+```text
+Relevant Contract + Evidence
+→ Controlled Change
+→ Evaluation
+→ Decision
+→ Monitoring / Re-entry
+```
+
+固定边界：
+
+```text
+Artifact Chain
+≠ 所有项目必须 A1 → A10 顺序填写
+```
 
 ## 7. Reference Layer
 
 - [Reference & Source Policy](./LLM_Agent_Data/00_Reference_Source_Policy.md)
 - [Canonical References](./LLM_Agent_Data/00_Canonical_References.md)
 
-当前维护一组少而稳定的外部锚点，覆盖：
-
-```text
-Human Preference / RLHF
-DPO
-Process Supervision
-Synthetic Instruction
-Tool Use / ReAct
-LLM-as-a-Judge
-Benchmark Protocol
-Agent / Web Environment Evaluation
-Executable Evaluation
-Dataset Governance
-Contamination / Fresh Evaluation
-```
-
-固定边界：
+固定区分：
 
 ```text
 External Literature
@@ -281,7 +281,7 @@ External Literature
 - [Publication Visual Derivative Spec](./LLM_Agent_Data/00_Publication_Visual_Derivative_Spec.md)
 - [Figure Presentation Kit](./LLM_Agent_Data/00_Figure_Presentation_Kit.md)
 
-Level A 六张已经形成：
+Level A 六张已形成：
 
 ```text
 Canonical Master Figure
@@ -291,6 +291,49 @@ Canonical Master Figure
 ```
 
 并通过 source SHA 与 semantic acceptance 绑定。
+
+## 9. Scenario Validation & Evolution
+
+- [Stress Test — Round 1](./LLM_Agent_Data/00_Scenario_Pack_Stress_Test.md)
+- [Stress Test — Round 2](./LLM_Agent_Data/00_Scenario_Pack_Stress_Test_Round_2.md)
+- [Promotion Test](./LLM_Agent_Data/00_Scenario_Pack_Promotion_Test.md)
+- [Candidate Extensions](./LLM_Agent_Data/00_Scenario_Pack_Candidate_Extensions.md)
+- [Post-release Evolution Log](./LLM_Agent_Data/00_Post_Release_Evolution_Log.md)
+
+已经实际压力测试：
+
+```text
+Interview follow-up
+Selective reasoning / K17
+Agent production incident
+Judge / evaluator drift
+Large-scale trajectory curation
+Human Gold refresh
+Synthetic production
+```
+
+Promotion 状态：
+
+```text
+E1 Entry Router
+→ CORE
+
+E2 A10-I Production Incident
+→ OPTIONAL
+
+E3 A5-M Measurement Bridge
+→ OPTIONAL
+
+E4 A6-C Curation Contract
+→ OPTIONAL
+
+E5 A5-H Human Annotation / Gold Contract
+→ CANDIDATE
+```
+
+核心治理原则：
+
+> **Core 小而稳定，Extension 条件明确，Case 保留局部复杂度。**
 
 ---
 
@@ -302,39 +345,34 @@ Canonical Master Figure
 - [Terminology & Style Audit](./LLM_Agent_Data/00_Terminology_Style_Audit.md)
 - [Figure Integration Audit](./LLM_Agent_Data/00_Figure_Integration_Audit.md)
 - [Release Readiness](./LLM_Agent_Data/00_Release_Readiness.md)
+- [Post-release Evolution Log](./LLM_Agent_Data/00_Post_Release_Evolution_Log.md)
 
-它们分别回答：
+V3.0 核心 acceptance blocker：
 
 ```text
-公式 / 数字 / claim scope 是否安全？
-主要路径和高风险链接是否真实存在？
-0→25 连续阅读有没有章节断点？
-canonical terminology 是否稳定？
-Master Figure 与局部图是否争抢定义权？
-母本当前还剩什么 blocker？
+0
 ```
 
-审计原则与正文一致：
-
-> **验证到哪里，就只声明到哪里；部分验证不写成全量保证，没有来源的数字不因为“看起来熟悉”就标成已核验。**
-
-当前有两个明确、非阻塞的 P1：
+当前有两个明确、非阻塞 P1：
 
 ```text
 More Thinking fixed-depth research numbers
 → 等待正式 paper / arXiv 或 internal frozen result summary 作为 Source Anchor
 
 Exhaustive rendered heading-anchor proof
-→ 当前 canonical file targets / high-risk paths 已通过；未来工具允许时可补全量 DOM-level deep-anchor checker
+→ canonical file targets / high-risk paths 已通过；未来工具允许时可补 DOM-level deep-anchor checker
 ```
 
-它们不影响 V3.0 的方法论架构与母本稳定性。
+固定审计原则：
+
+> **验证到哪里，就只声明到哪里；历史 release snapshot 不因后续演进被静默回写。**
 
 ---
 
-# 编辑基础设施
+# 编辑与治理入口
 
 - [全书精修施工图](./LLM_Agent_Data/00_Book_Refinement_Blueprint.md)
+- [Post-release Evolution Log](./LLM_Agent_Data/00_Post_Release_Evolution_Log.md)
 - [Canonical Glossary & Notation](./LLM_Agent_Data/00_Glossary_and_Notation.md)
 - [Canonical Casebook](./LLM_Agent_Data/00_Canonical_Casebook.md)
 - [Case Integration Index](./LLM_Agent_Data/00_Case_Integration_Index.md)
@@ -342,56 +380,12 @@ Exhaustive rendered heading-anchor proof
 - [Reference & Source Policy](./LLM_Agent_Data/00_Reference_Source_Policy.md)
 - [Canonical References](./LLM_Agent_Data/00_Canonical_References.md)
 - [Visual Release Manifest](./LLM_Agent_Data/00_Visual_Release_Manifest.md)
-- [Verification Log](./LLM_Agent_Data/00_Verification_Log.md)
-- [Link Audit](./LLM_Agent_Data/00_Link_Audit.md)
-- [Final Read-through Log](./LLM_Agent_Data/00_Final_Readthrough_Log.md)
-- [Terminology & Style Audit](./LLM_Agent_Data/00_Terminology_Style_Audit.md)
-- [Figure Integration Audit](./LLM_Agent_Data/00_Figure_Integration_Audit.md)
+- [Scenario Candidate Extensions](./LLM_Agent_Data/00_Scenario_Pack_Candidate_Extensions.md)
 - [Release Readiness](./LLM_Agent_Data/00_Release_Readiness.md)
-
-V3.0 acceptance：
-
-```text
-Structure / Concept Ownership
-✓
-
-Canonical Cases C1–C5
-✓
-
-Master Figures F1–F14
-✓
-
-Retrieval Indexes
-✓
-
-Header / Main Path Audit
-✓
-
-Formula / Metric Audit
-✓
-
-Research Number / Denominator Scope Audit
-✓
-
-Terminology / Style Audit
-✓
-
-Visual Canonicalization
-✓
-
-Final Case / Figure Link Spot-check
-✓
-
-Continuous Read-through Ch0–25
-✓
-
-Core Acceptance Blockers
-0
-```
 
 ---
 
-# 推荐阅读路线
+# 推荐阅读 / 使用路线
 
 ## 从零建立完整体系
 
@@ -416,80 +410,93 @@ Interview Pack
 → C1 / C3 / C4 / C5 Practical Studies
 ```
 
-## Agent Data / Agent Evaluation
-
-```text
-1 → 5
-→ 10 → 11 → 12 → 13 → 14
-→ 15 → 16
-→ 17 → 22 → 23
-→ 25
-```
-
 ## Reasoning / Test-time / Selector Research
 
 ```text
-1 → 4
-→ 8 → 9
-→ 13
-→ 15 → 16
-→ 21
+Project Starter Pack / Hypothesis-led
+→ Ch4 → Ch8 → Ch9 → Ch13 → Ch16 → Ch21
+→ A2-S Decision-state Contract
+→ A7 Population / Information / Cost Ledger
 → C4 Practical Walkthrough
 ```
 
-## Data Platform / DataOps
+## Agent Production Incident
 
 ```text
-1 → 12
-→ 19 → 20
-→ 22 → 23 → 24
-→ C3 Practical Walkthrough
+Project Starter Pack / Monitoring-led
+→ A10 first
+→ A10-I if needed
+→ Last-known-good / Change Ledger
+→ F13 / Ch23
+→ new A1 only if needed
 ```
 
-## Eval / Verifier / Code Agent
+## Eval / Judge / Human Gold
 
 ```text
-15 → 16 → 19 → 21 → 23
-→ C5 Practical Walkthrough
+Project Starter Pack / Evaluation-led
+→ A5
+→ A5-M if evaluator / rubric / guideline changes
+→ Ch6 / Ch15 / Ch16 / Ch19 / Ch21
 ```
 
-## 今天就要开始做项目
+## Large-scale Trajectory / Data Curation
+
+```text
+Project Starter Pack / Asset-led
+→ A11 Source Lineage
+→ A6-C if needed
+→ Ch20
+→ Dataset View / Exposure
+→ A7 downstream validation
+```
+
+## 今天就要开始做一个真实项目
 
 ```text
 Project Starter Pack
+→ 先选 Entry
 → Practical Use Map
-→ Problem Index
-→ Practical Playbook
-→ Artifact Kit
-→ 对应 Case Study
-→ Canonical Chapter
+→ Core Artifact
+→ Conditional Extension if needed
+→ Playbook / Case Study
+→ A7 / A8
 ```
 
 ---
 
-# V3.0 以后怎样维护？
+# V3.x 以后怎样维护？
 
-V3.0 不是“以后不再改”，而是：
+现在默认不再问：
 
-> **骨架进入稳定期，新增知识优先进入已有 canonical owner，而不是静默改变概念或继续无边界扩章。**
+```text
+“还能增加什么章节 / Figure / Pack / Card？”
+```
 
-兼容变化：
+而问：
+
+```text
+真实使用哪里卡？
+这是 content bug、retrieval bug、evidence gap 还是 scenario-specific need？
+已有 canonical owner 能不能解释？
+是否只需要 optional extension？
+是否跨异质项目重复出现到足以 Promote Core？
+```
+
+允许兼容演进：
 
 ```text
 补 Case variant
 补 Practical Case Study
-补 Playbook / Artifact Template
-补 Scenario Pack
-补局部解释
-更新 bibliography / Source Anchor
-补 external evidence
+补 Source Anchor
 扩 Retrieval Index
-优化 Master / derivative figure
-新增 checklist item
-修 broken link / typo
+更新 bibliography
+修 typo / broken link
+新增 optional extension
+补 stress-test finding
 ```
 
-需要重新做 version review 的变化：
+需要 version review：
 
 ```text
 改变 canonical concept definition
@@ -498,11 +505,12 @@ V3.0 不是“以后不再改”，而是：
 改变 F1–F14 canonical relation
 改变 Task / Case / Episode / Trajectory object model
 改变 Tool / Harness / Environment boundary
+改变 Outcome / Reward / Credit 等核心边界
 ```
 
 原则：
 
-> **内容可以继续成长，但骨架不能静默漂移。**
+> **内容可以继续成长，但骨架不能静默漂移；Release Snapshot 保留历史，Evolution Log 记录成长。**
 
 ---
 
@@ -513,23 +521,23 @@ V3.0 不是“以后不再改”，而是：
 ```text
 看到真实问题
 ↓
-定位层级
+先判正确 Entry
 ↓
-寻找证据
+定义 Identity / Population / State / Claim
 ↓
-判断 Root Cause / Owner
+寻找 Evidence
 ↓
-选择 Data / Model / Tool / Harness / Product Intervention
+判断 Mechanism / Root Cause / Owner / Asset Quality
 ↓
-设计 Learning Signal
+选择 Data / Model / Policy / Tool / Harness / Evaluator / Product Intervention
 ↓
 Controlled Validation
 ↓
-Scale / Stop
+Scale / Revise / Stop / Rollback
 ↓
 Deploy / Monitor
 ↓
 Learn Again
 ```
 
-> **成熟的大模型数据能力，不是“拥有很多数据”，而是拥有一套能够持续把真实问题转化为可验证学习信号的 Learning System。**
+> **成熟的大模型数据能力，不是“拥有很多数据”，而是拥有一套能够把不同来源的真实问题稳定转成可验证 Evidence、受控 Intervention 与可审计 Decision 的 Learning System。**
