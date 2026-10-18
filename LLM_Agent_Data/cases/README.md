@@ -27,10 +27,34 @@ case_studies/
 | Case | 核心问题 | 关键 ID | Practical Study |
 |---|---|---|---|
 | [C1 Order / Refund Agent](./C1_Order_Refund_Agent.md) | 条件约束、状态读取、write、verification、side effect | `C1-VA`, `C1-VB`, `C1-F1...F5`, `C1-SC` | [End-to-End Walkthrough](../case_studies/C1_End_to_End_Walkthrough.md) |
-| [C2 Calendar / Meeting Agent](./C2_Calendar_Meeting_Agent.md) | entity resolution、negative constraint、partial completion、notification | `C2-F1...F6`, `C2-CF1...CF3` | planned |
-| [C3 File / Repository Agent](./C3_File_Repository_Agent.md) | permission、protected resource、irreversibility、idempotency、Harness | `C3-F1...F6` | planned |
-| [C4 Reasoning Continue / Repair](./C4_Reasoning_Continue_Repair.md) | correctness / risk / recoverability / selectability、same-prefix | `C4-SC`, `C4-CS`, `C4-BR`, `C4-P1...P4` | planned |
-| [C5 Code / Execution Agent](./C5_Code_Execution_Agent.md) | executable verifier、hidden eval、runtime、repair | `C5-POOL`, `C5-F1...F6`, `C5-R1/R2` | planned |
+| [C2 Calendar / Meeting Agent](./C2_Calendar_Meeting_Agent.md) | entity resolution、negative constraint、partial completion、notification | `C2-F1...F6`, `C2-CF1...CF3` | optional future study |
+| [C3 File / Repository Agent](./C3_File_Repository_Agent.md) | permission、protected resource、irreversibility、idempotency、Harness | `C3-F1...F6` | [Permission / Harness Ownership Walkthrough](../case_studies/C3_Permission_Harness_Ownership_Walkthrough.md) |
+| [C4 Reasoning Continue / Repair](./C4_Reasoning_Continue_Repair.md) | correctness / risk / recoverability / selectability、same-prefix | `C4-SC`, `C4-CS`, `C4-BR`, `C4-P1...P4` | [Reasoning Intervention Walkthrough](../case_studies/C4_Reasoning_Intervention_Walkthrough.md) |
+| [C5 Code / Execution Agent](./C5_Code_Execution_Agent.md) | executable verifier、hidden eval、runtime、repair | `C5-POOL`, `C5-F1...F6`, `C5-R1/R2` | optional future study |
+
+---
+
+## Three-study Coverage
+
+当前最核心的三篇 Practical Study 已覆盖三类不可互相替代的问题：
+
+```text
+C1
+External Agent Decision
+→ failure 怎样进入完整 data learning loop
+
+C3
+Permission / Runtime / Side Effect
+→ failure layer 与 failure owner 为什么不同
+
+C4
+Explicit Reasoning Intervention
+→ trigger / oracle / selector / cost 怎样拆开
+```
+
+因此不追求“每个 canonical case 都机械写一篇 walkthrough”。
+
+后续只有在 C2 / C5 能提供新的不可替代结构时再扩展。
 
 ---
 
