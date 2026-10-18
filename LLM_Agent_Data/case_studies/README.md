@@ -2,6 +2,13 @@
 
 本目录负责把 `Canonical Cases` 从“稳定案例定义”推进成“完整工作流演练”。
 
+实践入口：
+
+- [`Practical Use Map`](../00_Practical_Use_Map.md)
+- [`Practical Playbooks`](../00_Practical_Playbooks.md)
+- [`Practical Artifact Kit`](../00_Practical_Artifact_Kit.md)
+- [`C1 Filled Artifact Pack`](./C1_Artifact_Pack.md)
+
 两层必须分开：
 
 ```text
@@ -45,6 +52,7 @@ canonical failure variant meaning
 ## C1 — Order / Refund Agent
 
 - [`C1_End_to_End_Walkthrough.md`](./C1_End_to_End_Walkthrough.md)
+- [`C1_Artifact_Pack.md`](./C1_Artifact_Pack.md)
 
 主链：
 
@@ -66,6 +74,8 @@ Task / Case
 核心教学任务：
 
 > **一条真实 Agent failure 怎样变成一个完整 Data Learning Loop。**
+
+`C1_Artifact_Pack.md` 进一步把同一案例填成 A1–A10 的可审计项目工件，作为后续项目直接复制的参考样板。
 
 ---
 
