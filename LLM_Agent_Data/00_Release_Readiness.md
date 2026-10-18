@@ -1,16 +1,16 @@
 # LLM / Agent Data Knowledge System：Release Readiness
 
-> 状态：Final Acceptance / Release Candidate Preparation
+> 状态：**Stable Mother Edition — V3.0 / RELEASED**
 >
-> 目的：把前面的 Architecture Audit、Refinement Blueprint、Verification Log、Figure Integration Audit、Terminology Audit 与 Continuous Read-through 汇总成一张最终交付清单。
+> 发布日期：2026-10-18
 >
-> 这份文件不再产生新知识；它只回答：**这本书现在离“可以作为稳定母本长期维护”还差什么。**
+> 目的：汇总 Architecture Audit、Refinement、Verification、Figure Integration、Terminology、Link Spot-check 与 Continuous Read-through 的最终验收状态，并定义 V3.0 以后什么可以继续演进、什么变化需要重新做版本审查。
 
 ---
 
-# 0. 当前结论
+# 0. Release Conclusion
 
-截至 2026-10-18：
+当前状态：
 
 ```text
 Content Expansion
@@ -34,89 +34,147 @@ Master Figures F1–F14
 Retrieval Indexes
 ✓ complete
 
-Formula / Metric Audit Round 1
+Formula / Metric Audit
 ✓ complete
 
-Research Number / Denominator Audit Round 1
+Research Number / Denominator Scope Audit
 ✓ complete
 
 Terminology / Style Audit
 ✓ complete
 
+Visual Canonicalization
+✓ complete
+
+Final Case / Figure Link Spot-check
+✓ complete
+
 Continuous Read-through Ch0–25
 ✓ complete
+
+Landing Page V3.0
+✓ released
 ```
 
 因此：
 
-> **当前剩余工作已经不是“把书写完”，而是 release cleanup。**
+> **当前母本已经满足 Stable Mother Edition — V3.0 的定义。核心 release blocker 为 0。**
 
 ---
 
-# 1. Release Blocker 分级
+# 1. P0 Release Blockers
 
-## P0 — 应在母本宣布稳定前完成
+状态：`0 OPEN`
 
-### R0-1 Ch18 → Ch19 Bridge
+## R0-1 Ch18 → Ch19 Bridge
 
-状态：`OPEN`
+状态：`CLOSED`
 
-问题：
-
-Ch18 已完整回答：
+已补：
 
 ```text
-哪些 Data Investment 值得投？
-做多少？
-什么时候停？
+Data Investment
+→ SCALE / MAINTAIN
+→ long-lived Data Asset
+→ Identity / Provenance / Version / Usage / Lineage
+→ Ch19 Governance
 ```
 
-但章末没有像全书其他章节一样明确把问题交给 Ch19：
-
-```text
-既然决定长期投资这些资产
-↓
-怎么保证身份 / 来源 / 版本 / 使用历史可追溯？
-```
-
-处理：只补 1 个短过渡，不重写正文。
+只补章节交接，没有重写 Ch18 主体。
 
 ---
 
-### R0-2 Visual Canonicalization × 3
+## R0-2 Visual Canonicalization × 3
 
-状态：`OPEN`
-
-详见 `00_Figure_Integration_Audit.md`。
+状态：`CLOSED`
 
 ```text
 Ch14 §14.0 → F6
+✓ DONE
+
 Ch15 §15.0 → F7
+✓ DONE
+
 Ch19 §19.5 → F11
+✓ DONE
 ```
 
-目标不是减少图数量，而是：
+原则已经落正文：
 
-> 全局 canonical relation 只保留一个视觉真源。
+```text
+Master Figure
+= global canonical visual relation
+
+Chapter-local Figure / Textual Flow
+= analytical lens
+```
+
+详见 [`00_Figure_Integration_Audit.md`](./00_Figure_Integration_Audit.md)。
 
 ---
 
-## P1 — 不阻塞内容稳定，但阻塞“引用完全版”
+## R0-3 Final Case / Figure Link Spot-check
 
-### R1-1 More Thinking Source Anchor
+状态：`CLOSED`
 
-状态：`OPEN / EXTERNAL SOURCE NOT IDENTIFIED`
+已核对：
 
-当前处理已经安全：
+```text
+C1–C5 direct case files
+F1–F14 figure targets
+Ch14 → F6
+Ch15 → F7
+Ch19 → F11
+Ch18 → Ch19
+```
+
+均存在且接入路径正确。
+
+详见 [`00_Link_Audit.md`](./00_Link_Audit.md)。
+
+---
+
+## R0-4 Landing Page Release State
+
+状态：`CLOSED`
+
+[`LLM_Agent_Data_Knowledge_System.md`](../LLM_Agent_Data_Knowledge_System.md) 已更新为：
+
+```text
+Stable Mother Edition — V3.0
+2026-10-18
+```
+
+并写明：
+
+```text
+核心架构
+canonical definitions
+Case IDs
+Figure IDs
+Retrieval Assets
+```
+
+进入稳定维护阶段。
+
+---
+
+# 2. Non-blocking P1
+
+这些项目保留为明确的后续维护项，但**不阻塞 V3.0 稳定母本**。
+
+## R1-1 More Thinking Source Anchor
+
+状态：`OPEN / NON-BLOCKING`
+
+当前安全处理：
 
 ```text
 More Thinking Is Not Always Better
 → Internal Research Example
 ```
 
-正文没有使用未经确认的完整副标题，也没有把实验结果升级成 universal claim。
-
-当前保留：
+当前 Ch4 保留：
 
 ```text
 depth 1 → 69.04%
@@ -124,7 +182,16 @@ depth 2 → 74.09%
 depth 3 → 70.97%
 ```
 
-仍需要未来二选一：
+已经完成：
+
+```text
+claim-scope control
+不猜完整副标题
+不伪造 authors / arXiv / venue
+不拿相似公开论文冒充来源
+```
+
+未来只在以下任一可靠资产出现时补锚点：
 
 ```text
 正式 paper / arXiv / published artifact
@@ -133,181 +200,114 @@ depth 3 → 70.97%
 或：
 
 ```text
-internal frozen experiment summary
+internal frozen experiment summary / result table
 ```
 
-本轮已做：
+在此之前，这三个数不升级成：
 
 ```text
-public exact-title search
-exact-number + benchmark + Answerer–Auditor search
-accessible GitHub repository search
-```
-
-均未找到可以安全冒充正式来源的唯一公开记录。
-
-因此 release discipline 是：
-
-> **找不到就保持 Internal Research Example，不猜，不借相似论文填空。**
-
----
-
-### R1-2 Deep Markdown Anchor Proof
-
-状态：`PARTIAL / TOOLING LIMITED`
-
-已完成：
-
-```text
-recursive Git tree target-path truth table
-Ch0–25 header link audit
-main chapter-chain audit
-case / figure / index path existence checks
-```
-
-未完成形式化全量证明：
-
-```text
-每一个正文 heading anchor
-每一个局部 Markdown link
-```
-
-原因：
-
-```text
-GitHub code-search incomplete indexing
-+
-当前 runtime 无法通过外网 DNS 下载 repo snapshot 做本地 parser
-```
-
-因此不声称：
-
-```text
-“0 broken links mathematically proven”
-```
-
-只声称：
-
-```text
-“main navigation + checked paths pass”
+fully sourced publication fact
 ```
 
 ---
 
-# 2. 已关闭的高风险项
+## R1-2 Exhaustive Rendered Deep-anchor Proof
+
+状态：`OPEN / NON-BLOCKING / TOOLING-LIMITED`
+
+已经完成：
+
+```text
+chapter file targets
+canonical case targets
+master figure targets
+retrieval index targets
+header navigation
+next-chapter chain
+high-risk final integration spot-check
+```
+
+尚未形式化证明：
+
+```text
+每一个正文 Markdown heading anchor
+都能在 GitHub rendered DOM 中解析
+```
+
+当前工具不足以建立全仓库 rendered-heading-ID proof，因此 Release Claim 明确限定为：
+
+> **Canonical file targets 与高风险导航路径通过，不声称所有深层自动 heading anchors 已被机械化全量证明。**
+
+未来如有完整 repo materialization + Markdown link checker，可补自动化全量 pass。
+
+---
+
+# 3. 已关闭的高风险项
 
 ## A. Old TOC / Chapter-number Drift
 
-状态：`CLOSED`
+`CLOSED`
 
-旧计划目录已经退出 root landing page。
-
-当前 0–25 真实目录与 7-Part architecture 一致。
-
----
+真实目录已经稳定为 Ch0–25 + 7-Part architecture。
 
 ## B. Ch1–3 Embedded in Root
 
-状态：`CLOSED`
+`CLOSED`
 
-Ch0–3 已全部独立。
-
----
+Ch0–3 全部独立成章。
 
 ## C. Canonical Concept Duplication
 
-状态：`CLOSED AT STRUCTURAL LEVEL`
+`CLOSED AT STRUCTURAL LEVEL`
 
-当前原则：
+长期规则：
 
 ```text
 Canonical Chapter = Definition
 Dependent Chapter = Application + Link
 ```
 
-连续通读未发现严重 definition backflow。
-
----
+连续通读没有发现新的严重 definition backflow。
 
 ## D. Recoverability Formula
 
-状态：`CLOSED`
+`CLOSED`
 
-已从：
-
-```text
-single action existence
-```
-
-改成：
-
-```text
-allowed future policy / continuation existence
-```
-
-与概念语义一致。
-
----
+单步 action existence 已修成 allowed future policy / continuation existence。
 
 ## E. General Data Intervention Formula
 
-状态：`CLOSED`
+`CLOSED`
 
-已从：
-
-```text
-B + D
-```
-
-改成：
-
-```text
-I_D(B)
-```
-
-统一覆盖：
-
-```text
-Add / Remove / Replace / Reweight / Transform
-```
-
----
+`B + D` 已修成 `I_D(B)`，统一 Add / Remove / Replace / Reweight / Transform。
 
 ## F. K17 Cohort Count Leakage into General Textbook
 
-状态：`CLOSED`
+`CLOSED`
 
-`888 / 750 / 138` 不再作为通用 Ch16 的固定数字。
-
-保留的是可迁移统计纪律：
-
-```text
-Full Population
-≠ Triggered Population
-```
-
-具体 cohort 数字属于 research artifact。
-
----
+`888 / 750 / 138` 不再作为 generic Ch16 固定数字；保留的是可迁移 denominator discipline。
 
 ## G. Terminology Drift
 
-状态：`CLOSED AT ACCEPTANCE LEVEL`
+`CLOSED AT ACCEPTANCE LEVEL`
 
-建立：
+Glossary + Terminology Audit 已建立 canonical wording 与 semantic boundaries。
 
-```text
-00_Glossary_and_Notation.md
-00_Terminology_Style_Audit.md
-```
+## H. Duplicate Global Figure Definitions
 
-未发现高置信 semantic terminology conflict。
+`CLOSED`
 
-不声称做了字符级全仓库 grep proof。
+F6 / F7 / F11 已成为唯一视觉真源。
+
+## I. Ch18 → Ch19 Book Seam
+
+`CLOSED`
+
+唯一书级 bridge 已修复。
 
 ---
 
-# 3. 当前母本拥有的导航层
+# 4. Stable Mother Edition 的导航层
 
 ## Chapter Navigation
 
@@ -320,7 +320,7 @@ Landing Page
 ## Concept Navigation
 
 ```text
-Glossary
+Canonical Glossary
 Concept Index
 ```
 
@@ -362,62 +362,72 @@ Verification Log
 Link Audit
 Figure Integration Audit
 Final Read-through Log
-Terminology Style Audit
+Terminology & Style Audit
 Release Readiness
 ```
 
-这意味着母本已经不再只有：
+这意味着母本不再只有：
 
 ```text
-“从第一章读到第二十五章”
+“从第 0 章一直读到第 25 章”
 ```
 
-一种使用方式。
+一种调用方式。
 
 ---
 
-# 4. Release Definition
+# 5. V3.0 的正式含义
 
-当 P0 两项关闭后，可以把当前母本状态从：
-
-```text
-Acceptance Cleanup
-```
-
-升级为：
+`V3.0` 不表示：
 
 ```text
-Stable Mother Edition / V3.0
+以后永远不改
 ```
 
-此时 `V3.0` 的含义不是：
+而表示：
+
+> **核心架构、canonical definitions、stable Case IDs、Master Figure IDs 与 retrieval assets 已稳定；后续知识默认进入已有 owner，不再通过无序扩章或静默改定义来增长。**
+
+可以把它理解成：
 
 ```text
-“以后永远不改”
+Expansion Phase
+→ complete
+
+Structural Refinement Phase
+→ complete
+
+Acceptance Phase
+→ complete
+
+Stable Maintenance Phase
+→ active
 ```
-
-而是：
-
-> **核心架构、canonical definitions、case IDs、figure IDs、retrieval assets 已稳定；后续新增内容默认通过已有章节 / Case / Figure / Index 演进，而不是继续无序扩章。**
 
 ---
 
-# 5. V3.0 以后允许怎样变化？
+# 6. V3.0 以后允许怎样变化？
 
 ## Compatible Change
 
+可以直接在 V3.x 持续维护：
+
 ```text
-补案例 variant
+补 Case variant
 补局部解释
 更新 bibliography
-补新的 external evidence
-扩 Index
+补 Source Anchor
+增加 external evidence
+扩 Retrieval Index
 优化 local figure
 新增 checklist item
-修 bug / broken link
+修 typo / broken link
+更新 job / interview mapping
 ```
 
 ## Requires Version Review
+
+以下变化不能静默发生：
 
 ```text
 改变 canonical concept definition
@@ -426,15 +436,16 @@ Stable Mother Edition / V3.0
 改变 F1–F14 canonical relation
 改变 Task / Case / Episode / Trajectory object model
 改变 Tool / Harness / Environment boundary
+改变 Outcome / Reward / Credit 等核心语义边界
 ```
 
-也就是说：
+原则：
 
 > **内容可以继续成长，但骨架不能静默漂移。**
 
 ---
 
-# 6. Final Acceptance Checklist
+# 7. Final Acceptance Checklist
 
 ```text
 [x] 25 chapters complete
@@ -446,30 +457,56 @@ Stable Mother Edition / V3.0
 [x] C1–C5 stable cases established
 [x] F1–F14 master figures established
 [x] Concept / Role / Problem / Interview / Checklist indexes established
-[x] formula audit round 1
-[x] number / denominator audit round 1
+[x] formula audit
+[x] number / denominator scope audit
 [x] terminology audit
 [x] continuous read-through
-[x] verification / link evidence-strength boundaries documented
-
-[ ] Ch18→Ch19 bridge
-[ ] Ch14 §14.0 → F6
-[ ] Ch15 §15.0 → F7
-[ ] Ch19 §19.5 → F11
-[ ] final case / figure link spot-check after those edits
-[ ] landing page status → Stable Mother Edition / V3.0
+[x] Ch18 → Ch19 bridge
+[x] Ch14 §14.0 → F6
+[x] Ch15 §15.0 → F7
+[x] Ch19 §19.5 → F11
+[x] final case / figure link spot-check
+[x] verification / evidence-strength boundaries documented
+[x] landing page → Stable Mother Edition / V3.0
 ```
 
-Source Anchor 独立处理：
+Non-blocking maintenance：
 
 ```text
 [ ] More Thinking source anchor when reliable artifact becomes available
+[ ] exhaustive rendered deep-heading-anchor proof if tooling becomes available
 ```
-
-它不阻塞母本方法论架构稳定，但阻塞把那组三个研究数字升级成“fully sourced publication fact”。
 
 ---
 
-# 7. 当前一句话判断
+# 8. Release Decision
 
-> **这本书已经完成“写、重构、去重、案例化、图示化、索引化、公式验收和连续通读”；距离稳定母本只剩少量可枚举的 release cleanup，而不是任何开放式的大工程。**
+```text
+Core P0 blockers
+0
+
+Architecture stability
+PASS
+
+Canonical ownership
+PASS
+
+Book-level continuity
+PASS
+
+Visual ownership
+PASS
+
+Formula / metric semantics
+PASS
+
+Primary navigation / canonical targets
+PASS
+
+Release decision
+GO
+```
+
+最终判断：
+
+> **LLM / Agent Data Knowledge System 已在 2026-10-18 进入 Stable Mother Edition — V3.0。后续工作的默认模式从“继续把书写大”切换为“在稳定骨架上维护、补证据、扩案例、更新行业知识和增加检索能力”。**
