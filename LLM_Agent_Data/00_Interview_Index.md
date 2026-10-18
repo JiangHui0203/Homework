@@ -3,12 +3,24 @@
 > 角色：把常见 LLM / Agent Data、Evaluation、Post-training、Agent Data 面试题映射到知识章节和答题结构。
 >
 > 原则：**不是背标准答案，而是学会用同一套 reasoning frame 组织回答。**
+>
+> 职责边界：[`Interview Pack`](./00_Interview_Pack.md) 负责 **Direct Answer / Stop Depth / Evidence Provenance**；本 Index 负责 27 类题目的检索与深层展开。不要用本文件的展开骨架替代第一句话的直接回答。
 
 ---
 
-# 0. 通用答题骨架
+# 0. 深层展开骨架（Direct Answer 之后）
 
-面对开放题，优先使用：
+面对开放题，先按 Interview Pack：
+
+```text
+Direct Answer
+→ Boundary
+→ Mechanism / Evidence
+→ Example
+→ Broader System only if needed
+```
+
+只有当面试官继续追问、需要把问题展开成完整项目逻辑时，再使用：
 
 ```text
 Define
@@ -29,6 +41,8 @@ Define
 5. 说明 label / verifier / judge 怎么来；
 6. 说明如何做 controlled experiment；
 7. 说明上线后怎样监控和回流。
+
+这是一套 **deep-expansion map**，不是所有回答必须逐步走完的固定 chain。
 
 ---
 
@@ -746,7 +760,29 @@ F14
 
 # 26. “如果让我负责一个数据项目，我怎么推进？”
 
-## 七步框架
+## 先判断项目入口
+
+不要默认所有项目都从 bad case / A1 开始。先按 [`Project Starter Pack`](./00_Project_Starter_Pack.md) 判断：
+
+```text
+Failure-led
+Monitoring-led
+Hypothesis-led
+Evaluation-led
+Asset-led / Curation-led
+```
+
+然后汇合到：
+
+```text
+Relevant Contract + Evidence
+→ Controlled Change
+→ Evaluation
+→ Decision
+→ Monitoring / Re-entry
+```
+
+如果面试官继续追问完整推进逻辑，再用本 Index 的 deep-expansion map：
 
 ```text
 Define
@@ -758,7 +794,7 @@ Define
 → Flywheel
 ```
 
-然后补：
+并补：
 
 ```text
 Owner
@@ -767,6 +803,8 @@ Exit Criteria
 Scale / Stop Rule
 Monitoring
 ```
+
+关键不是把所有项目强行走成同一条 chain，而是：**入口可以不同，Evidence / Comparison / Decision discipline 不能降级。**
 
 ## 章节
 
