@@ -8,6 +8,8 @@
 >
 > 编辑基础设施：[`Canonical Glossary`](./00_Glossary_and_Notation.md) · [`Canonical Casebook`](./00_Canonical_Casebook.md)
 >
+> **Master Figure：** [`F7 — Evidence → Verifier / Grader / Judge`](./figures/F7_Evidence_Verifier_Grader_Judge.md)
+>
 > 本章定位：**Evidence / Evaluator / Raw Judgment / Derived Label / Final Decision，以及 Verifier / Grader / Judge 边界的 canonical chapter。**
 >
 > 本章核心问题：**评测不是“找一个模型打分”，而是先确认我们拥有什么证据、这些证据能支持什么结论、哪个 evaluator 适合读取它、证据不足时是否应该 abstain，以及 evaluator 自己又如何被校准、审计和版本化。**
@@ -30,19 +32,26 @@ Reward
 
 这些 Label 都必须来自某种证据与 evaluator。
 
-一个成熟评价系统至少分五层：
+全书关于 Evidence → Evaluator → Label 的 canonical visual relation 统一由 [`F7 — Evidence → Verifier / Grader / Judge`](./figures/F7_Evidence_Verifier_Grader_Judge.md) 维护。
 
-```mermaid
-flowchart LR
-    A[Evidence] --> B[Evaluator]
-    B --> C[Raw Judgment]
-    C --> D[Derived Label / Score]
-    D --> E[Final Decision / Metric]
+本章使用同一套五层语义：
 
-    F[Gold / Anchor Evidence] --> G[Meta-evaluation]
-    B --> G
-    C --> G
-    G --> H[Calibrate / Route / Replace]
+```text
+Evidence
+↓
+Evaluator
+↓
+Raw Judgment
+↓
+Derived Label / Score
+↓
+Final Decision / Metric
+
+Gold / Anchor Evidence
+↓
+Meta-evaluation
+↓
+Calibrate / Route / Replace
 ```
 
 因此必须长期区分：
