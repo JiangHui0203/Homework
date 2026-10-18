@@ -2,7 +2,7 @@
 
 > **LLM / Agent Data Knowledge System**
 >
-> 当前状态：**Stable Mother Edition — V3.0**。25 章主体、7-Part 架构、Canonical Concepts、C1–C5、F1–F14、Retrieval Indexes、公式 / 数字口径 / 术语 / 视觉真源 / 关键链接验收与 0→25 连续通读均已完成；V3.x 在不改骨架的前提下增加 Practical Case Studies、Playbooks、Artifact Kit、Reference Layer 与 Visual Derivatives。
+> 当前状态：**Stable Mother Edition — V3.0**。25 章主体、7-Part 架构、Canonical Concepts、C1–C5、F1–F14、Retrieval Indexes、公式 / 数字口径 / 术语 / 视觉真源 / 关键链接验收与 0→25 连续通读均已完成；V3.x 在不改骨架的前提下增加 Practical Case Studies、Playbooks、Artifact Kit、Scenario Packs、Reference Layer 与 Visual Derivatives。
 >
 > 当前版本：**V3.0（2026-10-18）**
 >
@@ -206,6 +206,8 @@ C5 Code / Execution Agent
 ## 6. Practical Use Layer
 
 - [Practical Use Map](./LLM_Agent_Data/00_Practical_Use_Map.md)
+- [Interview Pack](./LLM_Agent_Data/00_Interview_Pack.md)
+- [Project Starter Pack](./LLM_Agent_Data/00_Project_Starter_Pack.md)
 - [Practical Case Studies](./LLM_Agent_Data/case_studies/README.md)
   - [C1 — End-to-End Data Learning Loop](./LLM_Agent_Data/case_studies/C1_End_to_End_Walkthrough.md)
   - [C3 — Permission / Harness Ownership](./LLM_Agent_Data/case_studies/C3_Permission_Harness_Ownership_Walkthrough.md)
@@ -219,6 +221,12 @@ C5 Code / Execution Agent
 职责分别是：
 
 ```text
+Interview Pack
+→ 怎么准备、怎么讲、怎么接追问？
+
+Project Starter Pack
+→ Day 0 到 First Week 怎么按正确顺序启动项目？
+
 Case Study
 → 一个真实问题怎样完整走完证据、诊断、数据、实验、生产和监控？
 
@@ -231,6 +239,8 @@ Artifact Kit
 Condensed Guide
 → 怎样在 30–90 分钟建立整套 shared mental model？
 ```
+
+Scenario Pack 只负责装配现有资产，不重新定义 canonical concept。
 
 ## 7. Reference Layer
 
@@ -399,7 +409,8 @@ Core Acceptance Blockers
 ## 大模型 / Agent 数据岗位面试
 
 ```text
-Condensed Guide
+Interview Pack
+→ Condensed Guide
 → Level A Quick-reference / Presentation Kit
 → Interview Index
 → C1 / C3 / C4 / C5 Practical Studies
@@ -445,7 +456,8 @@ Condensed Guide
 ## 今天就要开始做项目
 
 ```text
-Practical Use Map
+Project Starter Pack
+→ Practical Use Map
 → Problem Index
 → Practical Playbook
 → Artifact Kit
@@ -467,6 +479,7 @@ V3.0 不是“以后不再改”，而是：
 补 Case variant
 补 Practical Case Study
 补 Playbook / Artifact Template
+补 Scenario Pack
 补局部解释
 更新 bibliography / Source Anchor
 补 external evidence
