@@ -1,21 +1,61 @@
 # LLM / Agent Data Knowledge System：Checklist Index
 
+> 状态：`Stable Mother Edition V3.x / Execution Checklist Index`
+>
 > 角色：把全书方法论压缩成可执行检查表。适合项目立项、实验设计、数据生产、评测、上线前 review 与复盘。
+>
+> 调用原则：**先判断项目从哪个 Entry 进入，再加载对应专项 Checklist；Checklist Index 不是要求所有项目按同一条线性流程逐项填写。**
+
+---
+
+# 0. Entry Router Checklist
+
+```text
+[ ] 当前项目属于哪种 origin / entry？
+
+    Failure-led
+    → 已有可复现 failure / bad case
+
+    Monitoring-led Incident
+    → 先看到 alert / online metric shift
+
+    Hypothesis-led
+    → 先有机制 / 方法假设
+
+    Evaluation-led
+    → 怀疑 evaluator / benchmark / rubric / protocol
+
+    Asset-led / Curation-led
+    → 已有 source assets / trajectories / labels，目标是形成可信 data view
+
+[ ] 这个 Entry 的第一证据对象是什么？
+[ ] 是否误把 Monitoring Alert 当成 Model Regression？
+[ ] 是否误把 Hypothesis 当成已确认 Root Cause？
+[ ] 是否误把 Existing Asset 当成 Training Dataset？
+[ ] 是否误把 Evaluation Gap 当成 Data Gap？
+[ ] 后续是否会汇合到 Controlled Change → Evaluation → Decision？
+```
+
+第一入口：[`Project Starter Pack`](./00_Project_Starter_Pack.md)
+
+按需扩展：[`Scenario Pack Candidate Extensions`](./00_Scenario_Pack_Candidate_Extensions.md)
 
 ---
 
 # 1. Problem Framing Checklist
 
 ```text
-[ ] Problem Statement 是否明确？
+[ ] Problem Statement / Scientific Question 是否明确？
+[ ] Project Origin / Entry 是否明确？
 [ ] Target Capability 是否定义？
 [ ] Target Population 是否定义？
-[ ] User / Product Value 是否明确？
+[ ] User / Product / Scientific Value 是否明确？
 [ ] Primary Metric 是否明确？
 [ ] Guardrail Metrics 是否明确？
-[ ] Failure / Gap 的当前证据是什么？
-[ ] 是否存在更便宜的 Product / Prompt / Tool / Harness 修复？
-[ ] 为什么这是 Data Problem？
+[ ] Failure / Gap / Hypothesis 的当前证据是什么？
+[ ] 当前 Intervention Owner / Type 的候选是什么？
+[ ] 是否存在更便宜的 Product / Prompt / Tool / Harness / Evaluator 修复？
+[ ] 如果主张“这是 Data Problem”，证据是什么？
 [ ] Decision Deadline / Owner 是否明确？
 ```
 
@@ -95,6 +135,8 @@ Figure：F5
 
 # 5. Failure Diagnosis Checklist
 
+> 仅在 `Failure-led` 或 incident triage 已确认存在具体 failure 时使用；Hypothesis-led / Evaluation-led 不强制伪造 Root Cause。
+
 ```text
 [ ] Outcome 是否已客观验证？
 [ ] Symptom 是什么？
@@ -135,6 +177,7 @@ Figure：F6
 [ ] Confidence / reason / evidence capture
 [ ] Privacy / access control
 [ ] Raw annotation 与 final adjudicated label 分开保存
+[ ] Guideline / Gold 换版时，旧版与新版是否有 paired bridge / anchor continuity？
 ```
 
 推荐章节：Ch6 / Ch19
@@ -212,12 +255,15 @@ Figure：F6
 [ ] Candidate diversity 是否足够？
 [ ] Oracle upper bound 多大？
 [ ] Selector 使用的 feature 是否 online-available？
+[ ] Online-observable / Offline-only / Forbidden-leakage 是否分开？
 [ ] 是否存在 future-info leakage？
 [ ] Abstention 是否允许？
 [ ] Trigger / Selector / Generator 分开评估？
 [ ] Rescue / Harmful / Net 是否统计？
-[ ] Coverage / Trigger / Intervention denominator 是否明确？
+[ ] Full / Screened / Eligible / Triggered / Intervened / Observed population ledger 是否完整？
+[ ] 每个 metric 的 denominator 是否明确？
 [ ] Candidate cost / Dynamic N 是否记录？
+[ ] Per-trigger / incremental intervention / full-pop average / worst-case cost 是否分开？
 ```
 
 推荐章节：Ch4 / Ch8 / Ch16
@@ -245,6 +291,8 @@ Figure：F3 / F8
 [ ] UNRESOLVED / ABSTAIN 支持
 [ ] Raw judgment 与 derived label 分开
 [ ] Judge drift monitoring
+[ ] Evaluator / rubric / guideline 换版时，是否建立 old↔new paired Measurement Bridge？
+[ ] 没有 bridge 时，是否避免把新旧 score 直接拼成一条 longitudinal curve？
 ```
 
 推荐章节：Ch15 / Ch23
@@ -288,6 +336,7 @@ Figure：F8
 # 13. Data Curation Checklist
 
 ```text
+[ ] Source asset identity / lineage 完整
 [ ] Structural validity
 [ ] Privacy / license
 [ ] Exact dedup
@@ -307,6 +356,8 @@ Figure：F8
 [ ] Length bias 检查
 [ ] Source dominance 检查
 [ ] Before / after distribution audit
+[ ] Dataset View 是否可由 Source IDs + Build Recipe 重建？
+[ ] Existing Asset 是否被误当作已验证 Training Dataset？
 ```
 
 推荐章节：Ch20
@@ -338,11 +389,13 @@ Figure：F8
 
 # 15. Data Experiment Checklist
 
+> 本节专门检查 Data Intervention；非 Data Intervention 使用 Starter Pack 的通用 A7 / Method Contract，不需要硬改名成 Data Experiment。
+
 ```text
 [ ] Research Question
 [ ] Baseline
 [ ] Treatment / Data Intervention
-[ ] Add / Remove / Replace / Reweight 明确
+[ ] Add / Remove / Replace / Reweight / Transform 明确
 [ ] Data manifest / version
 [ ] Base model / checkpoint 固定
 [ ] Training recipe 固定
@@ -436,6 +489,8 @@ Figure：F12
 # 18. Monitoring / Drift Checklist
 
 ```text
+[ ] Last-known-good version / time window
+[ ] Change Ledger：Model / Prompt / Tool / Harness / Environment / Judge / Traffic / Business Rule
 [ ] Stable raw facts
 [ ] Metric definition version
 [ ] Model / Prompt / Tool / Harness / Environment / Judge versions
@@ -457,11 +512,12 @@ Figure：F12
 [ ] Fresh Failure Cohort
 [ ] Frozen Core Benchmark
 [ ] Shadow / Canary
-[ ] Rollback Guardrails
+[ ] Containment / Rollback Guardrails
 [ ] Human escalation
 [ ] Drift Response Playbook
 [ ] Data freshness
 [ ] Regression growth / retirement
+[ ] Alert 只作为 sensing event，Root Cause claim 是否等待 triage evidence？
 ```
 
 推荐章节：Ch23
@@ -475,6 +531,7 @@ Figure：F13
 ```text
 [ ] Intake source
 [ ] Problem owner
+[ ] Entry / origin mode
 [ ] Data Problem Gate
 [ ] Failure routing
 [ ] RACI
@@ -500,53 +557,68 @@ Figure：F14
 
 # 20. 30-minute Quick Diagnosis Checklist
 
-## 0–5 min
+## 0–5 min — Entry + Scope
 
 ```text
-[ ] Goal
-[ ] Population
-[ ] Primary Metric
-[ ] Severity
+[ ] Entry：Failure / Monitoring / Hypothesis / Evaluation / Asset？
+[ ] Goal / Scientific Question
+[ ] Full Population
+[ ] Primary Metric / Decision Object
+[ ] Severity / Scientific Value
 ```
 
-## 5–10 min
+## 5–10 min — Contract + Evidence
 
 ```text
-[ ] Task / Case
-[ ] Trace
-[ ] Tool / Harness / Environment
-[ ] Evidence
+[ ] Task / Case / Decision State / Source Asset
+[ ] Trace / Lineage
+[ ] Tool / Harness / Environment / Evaluator versions
+[ ] Available Evidence
 ```
 
-## 10–15 min
+## 10–15 min — 按 Entry 分支
 
 ```text
-[ ] Symptom
-[ ] Root Cause candidate
-[ ] Owner candidate
+Failure-led
+[ ] Symptom / Mechanism / Root Cause candidate / Owner candidate
+
+Monitoring-led
+[ ] Last-known-good / Change Ledger / Raw vs Fixed-mix / Containment
+
+Hypothesis-led
+[ ] Observable Signal / Mechanism / Counterfactual / Oracle Headroom
+
+Evaluation-led
+[ ] Claim / Evidence / Evaluator / Coverage / Measurement Bridge need
+
+Asset-led
+[ ] Source integrity / lineage / routing / dedup / rebuildability
 ```
 
-## 15–20 min
+## 15–20 min — Intervention Gate
 
 ```text
-[ ] Data Problem?
-[ ] Coverage / Supervision / Distribution Gap?
+[ ] 最可能的 Intervention Owner / Type
+[ ] Data / Model / Inference / Tool / Harness / Evaluator / Product？
+[ ] 如果是 Data Problem：Coverage / Supervision / Distribution / Decision-boundary Gap？
 ```
 
-## 20–25 min
+## 20–25 min — Minimum Controlled Change
 
 ```text
 [ ] Minimum credible intervention
-[ ] Baseline / Treatment
-[ ] Eval
+[ ] Baseline / Treatment or old↔new bridge
+[ ] Frozen Eval / Guardrail
+[ ] Population / Information / Cost ledger if selective
 ```
 
-## 25–30 min
+## 25–30 min — Decision
 
 ```text
-[ ] Scale / Revise / Stop threshold
+[ ] Scale / Maintain / Revise / Stop / Retire threshold
 [ ] Regression guardrail
 [ ] Cost bound
+[ ] Claim scope
 ```
 
 推荐章节：Ch25
@@ -558,14 +630,16 @@ Figure：F14
 一个成熟项目至少应该能回答：
 
 ```text
-What is the capability?
-What actually happened?
+What kind of problem / entry is this?
+What is the capability / decision object?
+What actually happened or what hypothesis is being tested?
 What is the evidence?
-Where did failure begin?
-Who owns the root cause?
-Why is this a data problem?
-What learning signal is appropriate?
-How will we prove it works?
+If failure-led: where did failure begin and who owns the root cause?
+If evaluation-led: is the ruler valid and comparable across versions?
+If asset-led: can the dataset view be rebuilt from source lineage?
+Why is the chosen intervention layer the right owner?
+If this is a data problem, what learning signal is appropriate?
+How will we prove the controlled change works?
 What does it cost?
 When do we stop?
 How will we know the world changed again?
