@@ -1,6 +1,6 @@
 # LLM / Agent Data Practical Use Map
 
-> 状态：`Stable Mother Edition V3.x / Practical Entry / Scenario-tested`
+> 状态：`Stable Mother Edition V3.x / Practical Entry / Multi-scenario-tested`
 >
 > 目的：给已经稳定的知识体系提供一个**行动入口**。不再解释概念，只回答：
 >
@@ -20,8 +20,14 @@
 我今天要启动一个真实项目
 → Project Starter Pack
 
-我想看这两套 Pack 在真实追问 / protocol 下哪里会坏
-→ Scenario Pack Stress Test
+我不知道这个项目应该从 A1 / A5 / A10 / A11 哪个入口进
+→ Project Starter Pack / Entry Router
+
+我想看 Scenario Pack 在真实追问 / protocol 下哪里会坏
+→ Stress Test Round 1 / Round 2 / Promotion Test
+
+我想看只在特定项目启用的 contract
+→ Scenario Pack Candidate Extensions
 
 我想把图讲清楚
 → Figure Presentation Kit
@@ -50,6 +56,13 @@
 我想系统学习
 → 25-Chapter Mother Edition
 ```
+
+Scenario validation：
+
+- [`Stress Test — Round 1`](./00_Scenario_Pack_Stress_Test.md)
+- [`Stress Test — Round 2`](./00_Scenario_Pack_Stress_Test_Round_2.md)
+- [`Promotion Test`](./00_Scenario_Pack_Promotion_Test.md)
+- [`Candidate Extensions`](./00_Scenario_Pack_Candidate_Extensions.md)
 
 ---
 
@@ -80,25 +93,48 @@ F1
 
 ---
 
-# 2. 我刚拿到一个线上 bad case / 新项目
+# 2. 我刚拿到一个 bad case / 新研究问题 / 线上告警 / 数据资产
 
-如果是“今天刚开始，先把顺序走对”：
+第一入口统一看：
 
 - [`Project Starter Pack`](./00_Project_Starter_Pack.md)
 
-如果已经有明确 symptom，第一步：
+先选 Entry，而不是先填表：
+
+```text
+Failure-led
+→ A1 / A2 / A3 / A4
+
+Monitoring-led Incident
+→ A10
+
+Hypothesis-led
+→ A1 / A2-S / A7
+
+Evaluation-led
+→ A5
+
+Asset-led / Curation-led
+→ A11 / source lineage
+```
+
+固定原则：
+
+```text
+Artifact Chain
+≠ 所有项目都必须 A1 → A10 顺序填写
+```
+
+如果已经有明确 symptom：
 
 - [`Problem Index`](./00_Problem_Index.md)
-
-然后：
-
 - [`Practical Playbooks`](./00_Practical_Playbooks.md) → P1 / P7
 
 需要落盘：
 
 - [`Practical Artifact Kit`](./00_Practical_Artifact_Kit.md)
 
-最少产出：
+Failure-led 最常见的最小证据链：
 
 ```text
 A1 Problem Intake
@@ -131,6 +167,21 @@ Population Ledger
 Information Boundary
 Cost Ledger
 ```
+
+按需 extension：
+
+```text
+Production Incident
+→ A10-I
+
+Evaluator / Rubric / Guideline 换版
+→ A5-M Measurement Bridge
+
+Large-scale Curation
+→ A6-C Curation Contract
+```
+
+见 [`Candidate Extensions`](./00_Scenario_Pack_Candidate_Extensions.md)。
 
 ---
 
@@ -214,7 +265,22 @@ C3
 ```text
 Project Starter Pack
 → Playbook P1 / P2 / P7
-→ Artifact A1–A10
+→ Core Artifact + conditional extension
+```
+
+如果输入是：
+
+```text
+“一大批已有 trajectory，要怎么变成训练资产？”
+```
+
+优先走：
+
+```text
+A11 source lineage
+→ A6-C curation extension
+→ dataset view / exposure
+→ A7 downstream validation
 ```
 
 外部方法锚点：
@@ -280,6 +346,7 @@ Cost?
 
 ```text
 Project Starter Pack
+→ Hypothesis-led Entry
 → A2-S exact decision-state contract
 → A7 Population / Information / Cost Ledger
 ```
@@ -296,12 +363,13 @@ Same Task ≠ Same Decision State
 
 ---
 
-# 6. 我正在做 Eval / Judge / Verifier
+# 6. 我正在做 Eval / Judge / Verifier / Human Gold
 
 推荐顺序：
 
 ```text
-Ch15
+Ch6
+→ Ch15
 → Ch16
 → Ch19
 → Ch21
@@ -333,6 +401,40 @@ Claim 是什么？
 
 ```text
 “选哪个 Judge？”
+```
+
+如果：
+
+```text
+Judge / Verifier / Rubric / Guideline
+vOld → vNew
+```
+
+优先加载：
+
+```text
+A5-M Measurement Bridge
+```
+
+先做：
+
+```text
+same anchor set
+→ old evaluator
+→ new evaluator
+→ disagreement / FP / FN / decision flip
+```
+
+再决定历史曲线是否可比。
+
+固定边界：
+
+```text
+Evaluator Upgrade
+≠ Capability Improvement
+
+Re-score
+≠ Historical Decision Rewrite
 ```
 
 外部锚点：
@@ -367,12 +469,23 @@ F9
 → F11
 ```
 
-执行资产：
+一般 Data Intervention：
 
 ```text
 A6 Data Intervention Card
-A7 Experiment Card
-A8 Decision Memo
+→ A7 Experiment Card
+→ A8 Decision Memo
+```
+
+如果是已有大批 source assets 的 curation：
+
+```text
+A11 Source Lineage
+→ A6-C Curation Contract
+→ Rebuildable Dataset View
+→ Yield Funnel
+→ Exposure
+→ A7 matched-budget downstream validation
 ```
 
 必须分开：
@@ -386,7 +499,24 @@ Data Strategy
 
 Curation
 ≠ Experiment
+
+Raw Sample Count
+≠ High-value Yield
+
+Dataset Size
+≠ Training Exposure
+
+Intrinsic Data Quality
+≠ Downstream Learning Value
 ```
+
+Synthetic production 优先组合已有 contract：
+
+```text
+A6 + A9 + A11 + A7
+```
+
+不要因为领域重要就新造一个 `A12 Synthetic Card`。
 
 ---
 
@@ -418,6 +548,24 @@ A10 Monitoring Incident
 A11 Minimal Lineage Manifest
 ```
 
+如果现在面对的是线上 incident：
+
+```text
+A10 first
+→ Last-known-good
+→ Change Ledger
+→ Raw / Slice / Fixed-mix
+→ Frozen Core / Fresh Failure
+→ Containment / Rollback
+→ Attribution
+```
+
+按需使用：
+
+```text
+A10-I Production Incident Extension
+```
+
 核心边界：
 
 ```text
@@ -429,6 +577,9 @@ Infrastructure Retry
 
 Monitoring Alert
 ≠ Model Regression
+
+Rollback
+≠ Root-cause Proof
 ```
 
 外部治理锚点：
@@ -479,7 +630,7 @@ Quantitative Claim
 
 完整 finding：
 
-- [`Scenario Pack Stress Test`](./00_Scenario_Pack_Stress_Test.md)
+- [`Scenario Pack Stress Test — Round 1`](./00_Scenario_Pack_Stress_Test.md)
 
 推荐 case：
 
@@ -546,23 +697,26 @@ Citation count
 
 ```text
 0–5
-Goal / Population / Metric
+先判 Entry：
+Failure / Monitoring / Hypothesis / Evaluation / Asset?
 
 5–10
-Task / Case / Trace / Environment / Evidence
+Goal / Population / Source / Metric / Claim
 
 10–15
-Failure / Root Cause / Owner
-或 Hypothesis / Mechanism / Counterfactual
+Task / State / Trace / Environment / Evidence
+或 Last-known-good / Measurement Bridge / Source Lineage
 
 15–20
-Intervention Gate
+Failure / Root Cause / Owner
+或 Hypothesis / Mechanism / Counterfactual
+或 Curation / Measurement Gap
 
 20–25
-Minimum Intervention + Frozen Eval
+Minimum Controlled Change + Frozen Eval
 
 25–30
-Scale / Revise / Stop
+Scale / Revise / Stop / Rollback
 ```
 
 然后按结果分流：
@@ -577,8 +731,14 @@ Scale / Revise / Stop
 不知道怎么评
 → C5 + F7 / F8
 
+不知道 evaluator 换版后历史分数还能不能比
+→ A5-M Measurement Bridge
+
 不知道 selective method 的 denominator / information boundary
 → Project Starter Pack + Artifact Kit A2-S / A7
+
+不知道 50 万条 trajectory 怎么整理
+→ A11 + A6-C + Ch20
 
 不知道数据值不值得做
 → F10 + Ch18 / Ch21
@@ -587,7 +747,7 @@ Scale / Revise / Stop
 → F12 + Ch22
 
 不知道线上为什么变了
-→ F13 + Ch23
+→ A10 / A10-I + F13 + Ch23
 
 不知道外部出处
 → Canonical References
@@ -614,10 +774,16 @@ Interview Pack
 = How to Prepare / Answer / Handle Follow-ups
 
 Project Starter Pack
-= How to Start Day 0 → First Week
+= Entry Router + Day 0 → First Week
 
-Scenario Pack Stress Test
+Scenario Stress Tests
 = Where Scenario Packs break under real pressure
+
+Promotion Test
+= Which extensions deserve Mother status
+
+Candidate Extensions
+= Optional contracts for specific project types
 
 Problem Index
 = Where to Diagnose
@@ -640,4 +806,4 @@ Reference Layer
 
 最终原则：
 
-> **不要为了“资料齐全”反复复制同一知识。每个 practical asset 都只解决一种调用问题；Scenario Pack 只负责装配，而 Stress Test 负责证明这些装配在真实追问和真实 protocol 下不会轻易散架。**
+> **不要为了“资料齐全”反复复制同一知识。Core 负责跨项目稳定骨架，Extension 只在相关场景加载，Stress Test 负责不断证明两者的边界。**
