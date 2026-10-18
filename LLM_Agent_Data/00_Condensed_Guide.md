@@ -1,6 +1,6 @@
 # LLM / Agent Data Condensed Guide
 
-> 状态：`Stable Mother Edition V3.x / Condensed Edition`
+> 状态：`Stable Mother Edition V3.x / Condensed Edition / Multi-entry-aligned`
 >
 > 目标：把 25 章母本压缩成一份可以快速复习、面试组织回答、项目启动前建立 shared mental model 的精简入口。
 >
@@ -39,11 +39,12 @@ F1 → F4 → F6 → F8 → F9 → F14
 
 如果需要口头表达，再看：
 
-- [`Figure Presentation Kit`](./00_Figure_Presentation_Kit.md)
+- [`Figure Presentation Kit`](./00_Figure_Presentation_Kit.md) — 选图 / 30s / 90s talk track
+- [`D2 Presentation Storyboards`](./visual_derivatives/slides/README.md) — 真正 16:9 progressive reveal implementation
 
 ## 半天
 
-再补三篇互补 walkthrough：
+再补四篇互补 walkthrough：
 
 ```text
 C1
@@ -54,6 +55,9 @@ C3
 
 C4
 → Reasoning Intervention / Trigger / Oracle / Selector
+
+C5
+→ Executable Truth / Hidden Tests / Verifier Coverage
 ```
 
 以及：
@@ -63,6 +67,10 @@ Practical Playbooks P1–P7
 ```
 
 ## 准备面试
+
+第一入口：
+
+- [`Interview Pack`](./00_Interview_Pack.md)
 
 优先形成三种表达：
 
@@ -75,13 +83,14 @@ Practical Playbooks P1–P7
 推荐组合：
 
 ```text
-Condensed Guide
-→ Figure Presentation Kit
-→ C1 / C3 / C4 Walkthrough
+Interview Pack
+→ Condensed Guide
+→ Figure Presentation Kit / Quick-reference
+→ C1 / C3 / C4 / C5 Walkthrough
 → Interview Index
 ```
 
-不要只背术语定义。
+不要只背术语定义，也不要为了展示框架而跳过问题本身的 Direct Answer。
 
 ---
 
@@ -472,6 +481,8 @@ UNRESOLVED / ABSTAIN
 ```
 
 总图：[`F7 — Evidence → Verifier → Grader → Judge`](./figures/F7_Evidence_Verifier_Grader_Judge.md)
+
+Executable Evaluation 实战：[`C5 Executable Truth / Verifier Coverage Walkthrough`](./case_studies/C5_Executable_Truth_Verifier_Coverage_Walkthrough.md)
 
 ---
 
@@ -879,13 +890,14 @@ C5 Code / Execution
 
 案例入口：[`Canonical Cases`](./cases/README.md)
 
-当前三篇 Practical Study：
+当前四篇 Practical Study：
 
 - [`C1 — End-to-End Data Learning Loop`](./case_studies/C1_End_to_End_Walkthrough.md)
 - [`C3 — Permission / Harness Ownership`](./case_studies/C3_Permission_Harness_Ownership_Walkthrough.md)
 - [`C4 — Reasoning Intervention`](./case_studies/C4_Reasoning_Intervention_Walkthrough.md)
+- [`C5 — Executable Truth / Verifier Coverage`](./case_studies/C5_Executable_Truth_Verifier_Coverage_Walkthrough.md)
 
-三篇分别回答：
+四篇分别回答：
 
 ```text
 C1
@@ -896,61 +908,99 @@ C3
 
 C4
 → intervention headroom 能转化成 online value 吗？
+
+C5
+→ 什么 evidence 足以支持 executable correctness，verifier coverage 又怎样影响结论？
 ```
 
 ---
 
 # 13. 30-minute Diagnosis
 
-## 0–5 min
+这不是固定的 failure-analysis 流水线；先选择 Entry，再在 30 分钟内形成最小可决策结构。
+
+## 0–5 min — Entry + Scope
 
 ```text
-Goal
-Population
-Metric
-Severity
+Entry
+Goal / Scientific Question
+Full Population
+Primary Metric
+Severity / Scientific Value
 ```
 
-## 5–10 min
+Entry 至少区分：
 
 ```text
-Task / Case
-Trace
-Tool / Harness / Environment
-Evidence
+Failure-led
+Monitoring-led
+Hypothesis-led
+Evaluation-led
+Asset-led / Curation-led
 ```
 
-## 10–15 min
+## 5–10 min — Contract + Evidence
 
 ```text
-Outcome
-First Error
-First Harmful
-Root Cause candidate
-Owner candidate
+Relevant Task / Case / Decision State / Asset
+Runtime / Evaluator / Source Version
+Raw Evidence
+Information Boundary if selective
 ```
 
-## 15–20 min
+## 10–15 min — 按 Entry 分支
 
 ```text
-Is this really a Data Problem?
+Failure-led
+→ Symptom / First Harmful / Root Cause candidate / Owner
+
+Monitoring-led
+→ Last-known-good / Change Ledger / Containment / raw-vs-fixed-mix
+
+Hypothesis-led
+→ Mechanism / Counterfactual / Oracle / Online Decision Question
+
+Evaluation-led
+→ Claim / Evidence / Evaluator Coverage / Measurement Bridge
+
+Asset-led
+→ Source Lineage / Integrity / Routing / Dataset View
 ```
 
-## 20–25 min
+## 15–20 min — Intervention Gate
+
+```text
+Data?
+Model / Training?
+Inference Policy?
+Tool / Harness / Environment?
+Evaluator?
+Product / Task Contract?
+```
+
+不要预设一定是 Data。
+
+## 20–25 min — Minimum Controlled Change
 
 ```text
 Minimum credible intervention
-Baseline / Treatment
+Baseline / Treatment or Old / New bridge
 Target / Transfer / Regression Eval
+Population / Information / Cost Ledger when relevant
 ```
 
-## 25–30 min
+## 25–30 min — Decision
 
 ```text
-Scale / Revise / Stop Rule
+Scale / Maintain / Revise / Stop / Retire
 Cost Bound
-Monitoring / Regression Asset
+Claim Scope
+Monitoring / Regression / Re-entry Asset
 ```
+
+第一入口：[`Project Starter Pack`](./00_Project_Starter_Pack.md)
+
+执行检查：[`Checklist Index`](./00_Checklist_Index.md)
 
 总图：[`F14 — Operating Model + Capability Map`](./figures/F14_Operating_Model_and_Capability_Map.md)
 
@@ -971,46 +1021,67 @@ SFT
 评测
 ```
 
-可以回答：
+先直接回答问题，再按需要展开：
+
+```text
+Direct Answer
+→ Boundary
+→ Mechanism / Evidence
+→ Example
+→ Broader System only if needed
+```
+
+如果进入完整项目设计，可以展开为：
 
 ```text
 1. 先定义 Target Capability 与 Task Contract
 2. 确认 Environment / Tool / Harness 与 Evidence
-3. 从 Trajectory 做 Failure / Credit Analysis
-4. 判断是否真的是 Data Gap
-5. 选择 Human / Synthetic / Rollout / Mining acquisition
+3. 如果是 failure-led，再从 Trajectory 做 Failure / Credit Analysis
+4. 判断正确 Intervention Owner，而不是预设 Data
+5. 需要 Data 时再选择 Human / Synthetic / Rollout / Mining acquisition
 6. 设计合适 Learning Signal
 7. 做 Curation / Mixture
-8. 用 matched-budget Data Experiment 验证
+8. 用 matched-budget / matched-protocol Experiment 验证
 9. 有效后才 Productionize
 10. 上线后用 Frozen Core + Fresh Frontier 监控
 ```
 
 如果面试官继续追问任何一层，再下钻到对应章节。
 
+面试总入口：[`Interview Pack`](./00_Interview_Pack.md)
+
 口头讲图：[`Figure Presentation Kit`](./00_Figure_Presentation_Kit.md)
 
 ---
 
-# 15. 三套最实用的调用入口
+# 15. 最实用的调用入口
 
-## 我遇到一个真实问题
+## 我遇到一个真实症状，不知道先查哪
 
 → [`Problem Index`](./00_Problem_Index.md)
 
-## 我要开始做项目
+## 我刚拿到一个新项目 / 告警 / 研究问题 / 数据资产
 
-→ [`Checklist Index`](./00_Checklist_Index.md)
+→ [`Project Starter Pack`](./00_Project_Starter_Pack.md)
 
 ## 我想按步骤把问题推进到 Decision
 
 → [`Practical Playbooks`](./00_Practical_Playbooks.md)
+
+## 我需要把过程落成可审计工件
+
+→ [`Practical Artifact Kit`](./00_Practical_Artifact_Kit.md)
+
+## 我已经在执行某一阶段，怕漏项
+
+→ [`Checklist Index`](./00_Checklist_Index.md)
 
 案例演练：
 
 - [`C1 — End-to-End Data Learning Loop`](./case_studies/C1_End_to_End_Walkthrough.md)
 - [`C3 — Permission / Harness Ownership`](./case_studies/C3_Permission_Harness_Ownership_Walkthrough.md)
 - [`C4 — Reasoning Intervention`](./case_studies/C4_Reasoning_Intervention_Walkthrough.md)
+- [`C5 — Executable Truth / Verifier Coverage`](./case_studies/C5_Executable_Truth_Verifier_Coverage_Walkthrough.md)
 
 ---
 
@@ -1019,21 +1090,19 @@ SFT
 整套知识可以最后压成：
 
 ```text
-Problem
+Problem / Opportunity / Signal / Asset
 ↓
-Task / Case / Environment
+Correct Entry
 ↓
-Experience / Trajectory
+Relevant Contract + Evidence
 ↓
-Evidence
+Diagnosis / Mechanism / Asset Validation
 ↓
-Credit / Failure / Capability Gap
-↓
-Learning Signal / Data Intervention
+Correct Intervention Owner
 ↓
 Controlled Validation
 ↓
-Scale / Stop
+Scale / Maintain / Revise / Stop / Retire
 ↓
 Production / Governance
 ↓
@@ -1050,4 +1119,4 @@ Learn Again
 
 而是：
 
-> **我能把一个真实模型 / Agent 问题，转换成可验证的 Evidence、可归因的 Failure、可学习的 Signal、可控的 Experiment，以及最终可运营的 Learning Loop。**
+> **我能把一个真实模型 / Agent 问题、研究假设、评测缺口、线上信号或数据资产，从正确入口转化成可验证 Evidence、可审计 Artifact、可控 Intervention，以及最终可运营的 Learning Loop。**
