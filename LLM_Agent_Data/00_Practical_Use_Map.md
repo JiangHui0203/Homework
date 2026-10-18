@@ -1,0 +1,491 @@
+# LLM / Agent Data Practical Use Map
+
+> 状态：`Stable Mother Edition V3.x / Practical Entry`
+>
+> 目的：给已经稳定的知识体系提供一个**行动入口**。不再解释概念，只回答：
+>
+> **“我现在要做什么，第一步该打开哪个资产？”**
+
+---
+
+# 0. 一张最短地图
+
+```text
+我想快速建立框架
+→ Condensed Guide
+
+我想把图讲清楚
+→ Figure Presentation Kit
+
+我遇到一个真实症状
+→ Problem Index
+
+我需要按顺序推进问题
+→ Practical Playbooks
+
+我需要填写可审计项目工件
+→ Practical Artifact Kit
+
+我想看一个完整项目怎么走
+→ Practical Case Studies
+
+我怕项目某阶段漏项
+→ Checklist Index
+
+我想查一个术语归谁定义
+→ Concept Index / Glossary
+
+我想系统学习
+→ 25-Chapter Mother Edition
+```
+
+---
+
+# 1. 我只有 30–90 分钟
+
+打开：
+
+- [`Condensed Guide`](./00_Condensed_Guide.md)
+
+配合 Level A Figures：
+
+```text
+F1
+→ F4
+→ F6
+→ F8
+→ F9
+→ F14
+```
+
+如果要准备口头表达：
+
+- [`Figure Presentation Kit`](./00_Figure_Presentation_Kit.md)
+
+---
+
+# 2. 我刚拿到一个线上 bad case
+
+第一步：
+
+- [`Problem Index`](./00_Problem_Index.md)
+
+然后：
+
+- [`Practical Playbooks`](./00_Practical_Playbooks.md) → P1 / P7
+
+需要落盘：
+
+- [`Practical Artifact Kit`](./00_Practical_Artifact_Kit.md)
+
+最少产出：
+
+```text
+A1 Problem Intake
+A2 Task / Case Contract
+A3 Trajectory / Evidence Bundle
+A4 Failure Record
+A5 Evaluator Contract
+```
+
+如果确认是 Data Gap，再继续：
+
+```text
+A6 Data Intervention
+A7 Experiment Card
+A8 Decision Memo
+```
+
+---
+
+# 3. 我想看“真实项目到底怎么走完”
+
+打开：
+
+- [`Practical Case Studies`](./case_studies/README.md)
+
+当前四篇分别解决：
+
+```text
+C1
+External Agent Decision
+→ failure 怎样进入完整 Learning Loop
+
+C3
+Permission / Runtime / Side Effect
+→ Model 到底是不是正确的 Failure Owner
+
+C4
+Reasoning Intervention
+→ Oracle Headroom 是否真的转成 online value
+
+C5
+Executable Task / Verifier
+→ 什么 Evidence 足以叫“正确”
+```
+
+如果想看“模板实际填成什么样”：
+
+- [`C1 Filled Artifact Pack`](./case_studies/C1_Artifact_Pack.md)
+
+---
+
+# 4. 我正在做 Agent Data / Trajectory 项目
+
+推荐顺序：
+
+```text
+Ch1
+→ Ch5
+→ Ch10
+→ Ch11
+→ Ch12
+→ Ch13
+→ Ch14
+→ Ch15
+→ Ch16
+→ Ch17
+→ Ch21
+→ Ch22
+→ Ch23
+```
+
+快速图链：
+
+```text
+F4
+→ F5
+→ F6
+→ F7
+→ F8
+→ F9
+→ F12
+→ F13
+```
+
+实战案例：
+
+```text
+C1
+→ 普通 state-grounded Agent decision
+
+C3
+→ permission / side effect / Harness
+```
+
+执行资产：
+
+```text
+Playbook P1 / P2 / P7
++
+Artifact A1–A10
+```
+
+---
+
+# 5. 我正在做 Reasoning / Test-time / Selector
+
+推荐顺序：
+
+```text
+Ch4
+→ Ch8
+→ Ch9
+→ Ch13
+→ Ch16
+→ Ch18
+→ Ch21
+→ Ch23
+```
+
+核心图：
+
+```text
+F3
+→ F8
+→ F10
+→ F13
+```
+
+实战：
+
+- [`C4 Reasoning Intervention Walkthrough`](./case_studies/C4_Reasoning_Intervention_Walkthrough.md)
+
+第一组必须回答的问题：
+
+```text
+Risk?
+Recoverable?
+Repairable?
+Selectable?
+```
+
+第二组：
+
+```text
+Trigger Coverage?
+Oracle Headroom?
+Selector Rescue?
+Harmful?
+Net?
+Cost?
+```
+
+---
+
+# 6. 我正在做 Eval / Judge / Verifier
+
+推荐顺序：
+
+```text
+Ch15
+→ Ch16
+→ Ch19
+→ Ch21
+→ Ch23
+```
+
+核心图：
+
+```text
+F7
+→ F8
+→ F11
+→ F13
+```
+
+实战：
+
+- [`C5 Executable Truth / Verifier Coverage Walkthrough`](./case_studies/C5_Executable_Truth_Verifier_Coverage_Walkthrough.md)
+
+先问：
+
+```text
+Claim 是什么？
+最直接 Evidence 是什么？
+为什么这个 Evaluator 对这个 Claim 有效？
+```
+
+不要先问：
+
+```text
+“选哪个 Judge？”
+```
+
+---
+
+# 7. 我正在做 Data Strategy / Curation / Experiment
+
+推荐顺序：
+
+```text
+Ch17
+→ Ch18
+→ Ch19
+→ Ch20
+→ Ch21
+```
+
+核心图：
+
+```text
+F9
+→ F10
+→ F11
+```
+
+执行资产：
+
+```text
+A6 Data Intervention Card
+A7 Experiment Card
+A8 Decision Memo
+```
+
+必须分开：
+
+```text
+Data Quality
+≠ Data Value
+
+Data Strategy
+≠ Curation
+
+Curation
+≠ Experiment
+```
+
+---
+
+# 8. 我正在做生产 / DataOps / Monitoring
+
+推荐顺序：
+
+```text
+Ch19
+→ Ch22
+→ Ch23
+→ Ch24
+```
+
+核心图：
+
+```text
+F11
+→ F12
+→ F13
+→ F14
+```
+
+执行资产：
+
+```text
+A9 Production Handoff
+A10 Monitoring Incident
+A11 Minimal Lineage Manifest
+```
+
+核心边界：
+
+```text
+Research Success
+≠ Production Readiness
+
+Infrastructure Retry
+≠ Agent Recovery
+
+Monitoring Alert
+≠ Model Regression
+```
+
+---
+
+# 9. 我要准备面试 / 答辩 / 分享
+
+30–60 分钟准备：
+
+```text
+Condensed Guide
+↓
+Figure Presentation Kit
+↓
+挑一篇 Practical Case Study
+```
+
+推荐 case：
+
+```text
+Agent Data 岗
+→ C1 / C3
+
+Reasoning / Test-time
+→ C4
+
+Eval / Verifier / Code Agent
+→ C5
+```
+
+回答结构：
+
+```text
+Problem
+→ Object / State
+→ Evidence
+→ Diagnosis
+→ Intervention
+→ Evaluation
+→ Decision
+```
+
+比：
+
+```text
+“我知道 SFT / DPO / Judge / Synthetic Data”
+```
+
+更能体现系统能力。
+
+---
+
+# 10. 我不知道自己到底缺哪一块
+
+先跑 30-minute diagnosis：
+
+```text
+0–5
+Goal / Population / Metric
+
+5–10
+Task / Case / Trace / Environment / Evidence
+
+10–15
+Failure / Root Cause / Owner
+
+15–20
+Data Problem Gate
+
+20–25
+Minimum Intervention + Eval
+
+25–30
+Scale / Revise / Stop
+```
+
+然后按结果分流：
+
+```text
+概念不清
+→ Glossary / Concept Index
+
+不知道为什么失败
+→ C1 / C3 + F6
+
+不知道怎么评
+→ C5 + F7 / F8
+
+不知道数据值不值得做
+→ F10 + Ch18 / Ch21
+
+不知道怎么规模化
+→ F12 + Ch22
+
+不知道线上为什么变了
+→ F13 + Ch23
+```
+
+---
+
+# 11. Practical Layer 的最终结构
+
+```text
+Mother Edition
+= Why / What / Canonical Definition
+
+Condensed Guide
+= Fast Mental Model
+
+Master Figures
+= Visual System Model
+
+Presentation Kit
+= How to Explain
+
+Problem Index
+= Where to Diagnose
+
+Playbooks
+= How to Act
+
+Artifact Kit
+= What to Produce
+
+Case Studies
+= How the Pieces Connect in Practice
+
+Checklist Index
+= What Not to Miss
+```
+
+最终原则：
+
+> **不要为了“资料齐全”反复复制同一知识。每个 practical asset 都只解决一种调用问题。**
