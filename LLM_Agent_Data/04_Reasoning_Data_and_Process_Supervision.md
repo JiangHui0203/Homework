@@ -6,7 +6,7 @@
 >
 > 关联章节：[`第 8 章 Rollout、Rejection Sampling 与 Candidate Selection`](./08_Rollout_Rejection_Sampling_and_Candidate_Selection.md)、[`第 9 章 Hard Case Mining 与 Curriculum`](./09_Hard_Case_Mining_and_Curriculum.md)、[`第 13 章 Task Success 与 Credit Assignment`](./13_Task_Success_and_Credit_Assignment.md)、[`第 15 章 Grader、Verifier 与 LLM-as-a-Judge`](./15_Grader_Verifier_and_LLM_as_a_Judge.md)、[`第 16 章 Benchmark Design 与 Evaluation Protocol`](./16_Benchmark_Design_and_Evaluation_Protocol.md)
 >
-> 编辑基础设施：[`Canonical Glossary`](./00_Glossary_and_Notation.md) · [`Case C4 — Reasoning Continue / Repair`](./00_Canonical_Casebook.md#c4--reasoning-continue--repair)
+> 编辑基础设施：[`Canonical Glossary`](./00_Glossary_and_Notation.md) · [`Case C4 — Reasoning Continue / Repair`](./cases/C4_Reasoning_Continue_Repair.md)
 >
 > 本章定位：**Reasoning state supervision 的 canonical chapter。** 后续章节使用 `Correctness / Risk / Recoverability / Repairability / Selectability`、same-state counterfactual、`Rescue / Harmful`、Continue / Stop、Branch / Repair 等概念时，应以本章定义为准。
 >
@@ -387,11 +387,13 @@ Recoverability 问：
 
 则该 state 具有 recoverability。
 
-概念上可以写成：
+概念上更严谨地写成：
 
 \[
-\exists a \in \mathcal{A}:\; V(s_t,a) > V(s_t,a_{base})
+\exists \pi \in \Pi_{allowed}:\; V(s_t;\pi) > V(s_t;\pi_{base})
 \]
+
+其中 \(\pi\) 表示从当前 state 开始的一段允许的 future policy / continuation，而不局限于单步 action。
 
 这里关心的是：
 
