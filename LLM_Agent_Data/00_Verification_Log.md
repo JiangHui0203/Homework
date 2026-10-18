@@ -24,6 +24,7 @@ E. Final Continuous Read-through
 PASS
 FIXED
 NEEDS REFINE
+NEEDS SOURCE ANCHOR
 NEEDS VERIFY
 OUT OF SCOPE
 ```
@@ -166,8 +167,6 @@ More Thinking Is Not Always Better
 2026-10-18 公开 Web 检索没有建立“此前那个完整副标题”与该项目的一一对应公开记录，因此当前做法是：
 
 > **不猜副标题；只使用已经确定的主标题 / 项目名。**
-
-这比写入一个未经确认的正式题名更安全。
 
 待后续核验：
 
@@ -443,8 +442,6 @@ I_D
 Add / Remove / Replace / Reweight / Transform
 ```
 
-并避免正文前面用 Additive notation、后面又声称它是所有 treatment 的总公式。
-
 ---
 
 ## 4.6 Ch23 — Raw vs Fixed-mix Metric
@@ -492,7 +489,153 @@ Ch23 Fixed-mix metric      PASS
 
 ---
 
-# 5. Pending Verification Queue
+# 5. Research Number / Denominator Audit
+
+## 5.1 More Thinking — fixed-depth accuracy
+
+状态：`NEEDS SOURCE ANCHOR — claim scope currently safe`
+
+当前 Ch4 保留：
+
+```text
+depth 1 → 69.04%
+depth 2 → 74.09%
+depth 3 → 70.97%
+```
+
+并明确将它们放在：
+
+```text
+ProofWriter
+PrOntoQA
+ProverQA
+FOLIO
+```
+
+等逻辑推理任务的具体研究实例中。
+
+当前文本的优点：
+
+1. 没有把三组数写成“LLM 普遍规律”。
+2. 紧接着用 `Wrong→Right / Right→Wrong` 解释为什么 average accuracy 不够，而不是只用三组数字做结论。
+3. 已标记为 Research Example。
+
+当前缺口：
+
+> 书内尚未给这三个数字一个可点击的内部 experiment artifact / paper source anchor。
+
+因此 final publication 前需要二选一：
+
+```text
+A. 链接正式 paper / arXiv / published artifact
+```
+
+或：
+
+```text
+B. 链接内部项目中的 frozen experiment summary / result table
+```
+
+在 Source Anchor 建立之前，不把这三个数标记成“外部 bibliographic fact 已核验”。
+
+---
+
+## 5.2 More Thinking — 5,001 / Gap-Audit / token numbers
+
+状态：`NOT PRESENT IN CURRENT BOOK BODY`
+
+早期研究材料中曾使用：
+
+```text
+5,001 samples
+69.04 / 74.09 / 70.97
+Gap-Audit 76.03% / 2,988 tokens
+fixed2 74.09% / 4,678 tokens
+```
+
+但当前结构性精修后的 Ch4 正文只保留 fixed-depth 三个 accuracy 数字；`5,001`、`76.03`、`2,988`、`4,678` 目前没有写入本章。
+
+因此当前书稿不需要为“已经被删掉的数字”制造新的引用负担。
+
+若未来重新加入，必须和 frozen protocol / dataset / model / token accounting 一起加入，而不是只加漂亮结果数字。
+
+---
+
+## 5.3 RoTFuse / K17 — 888 / 750 / 138
+
+状态：`NOT PRESENT IN CURRENT Ch16 BODY — denominator principle retained`
+
+早期研究上下文里有：
+
+```text
+888 full population
+750 triggered / intervention-path cases
+138 screened but non-triggered cases
+```
+
+当前精修后的 Ch16 已不再把这些具体 cohort 数字写入通用 Evaluation Protocol 章节。
+
+保留下来的是通用纪律：
+
+```text
+Full Population
+↓
+Screening
+↓
+Triggered / Non-triggered
+↓
+Candidate Generation
+↓
+Selection
+↓
+Final Outcome
+```
+
+并显式写明：
+
+> `Non-triggered Cases 仍属于 Full Population。`
+
+以及：
+
+> routing 方法的 E2E 结论不能只统计 intervention subset。
+
+判断：这是更好的书稿设计。
+
+```text
+Specific cohort count
+→ 应留在具体 Research Artifact / Experiment Report
+
+Denominator discipline
+→ 留在通用方法论章节
+```
+
+因此 888 / 750 / 138 不需要在 Ch16 里重新加回。
+
+---
+
+## 5.4 Number Audit Principle
+
+```text
+Illustrative Number
+→ 明确是 example / hypothetical
+
+Internal Research Number
+→ 需要 source artifact + protocol + denominator
+
+External Published Number
+→ 需要 bibliographic citation
+
+Canonical Definition
+→ 尽量不要依赖某次实验数字
+```
+
+这能避免：
+
+> 某次研究 cohort 的数字逐渐被写成整本书的固定常识。
+
+---
+
+# 6. Pending Verification Queue
 
 ## P0 — Navigation
 
@@ -506,7 +649,7 @@ Ch23 Fixed-mix metric      PASS
 ## P1 — Bibliography
 
 ```text
-[ ] More Thinking formal metadata
+[ ] More Thinking formal metadata / internal source anchor
 [ ] 文中其他显式 paper / method citation
 [ ] arXiv / venue / author spelling
 ```
@@ -514,9 +657,18 @@ Ch23 Fixed-mix metric      PASS
 ## P1 — Numbers
 
 ```text
-[ ] More Thinking research example metrics / sample totals / token costs
-[ ] RoTFuse / K17 benchmark counts / triggered denominators
-[ ] 其他 research example percentages / cohort counts
+[ ] More Thinking fixed-depth source anchor
+[ ] 其他仍保留在正文中的 research example percentages / cohort counts
+```
+
+已关闭：
+
+```text
+5,001 / Gap-Audit token numbers
+→ 当前书稿未使用
+
+K17 888 / 750 / 138
+→ 当前通用 Ch16 未使用具体数字，只保留 denominator principle
 ```
 
 ## P1 — Formula / Metric
@@ -539,7 +691,7 @@ Ch23 Fixed-mix metric      PASS
 
 ---
 
-# 6. Verification Discipline
+# 7. Verification Discipline
 
 1. **没核验就写 NEEDS VERIFY，不靠记忆补 bibliographic detail。**
 2. **Internal research result 可以保留，但必须绑定 protocol / version / denominator。**
@@ -548,10 +700,11 @@ Ch23 Fixed-mix metric      PASS
 5. **Web fact 和 repository/internal fact 分开记录来源。**
 6. **部分审计不写成全量保证。**
 7. **Heuristic 不伪装成定律；canonical formula 的 notation 必须匹配语义。**
+8. **具体研究 cohort 数字优先留在 research artifact；通用章节保留可迁移的方法论。**
 
 ---
 
-# 7. Current Status
+# 8. Current Status
 
 ```text
 Architecture
@@ -575,11 +728,14 @@ Header / Navigation Audit Round 1
 Formula / Metric Audit Round 1
 ✓ with two planned refinements
 
+Research Number / Denominator Audit Round 1
+✓ More Thinking / K17
+
 Deep Link Audit
 → pending
 
-Research Number / Bibliographic Audit
-→ active next
+Bibliographic Source Anchor Audit
+→ active
 
 Final Continuous Read-through
 → final stage
