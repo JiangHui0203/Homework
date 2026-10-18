@@ -1,12 +1,14 @@
 # LLM / Agent Data Project Starter Pack
 
-> 状态：`Stable Mother Edition V3.x / Scenario Assembly / Stress-tested`
+> 状态：`Stable Mother Edition V3.x / Scenario Assembly / Stress-tested / Entry Router Promoted`
 >
 > 目标：当一个真实问题刚到手时，给出 **Day 0 / Day 1 / First Week** 的最小可信推进路径，让项目尽快从“大家有感觉”进入“有 Evidence、有 Owner、有 Hypothesis、有 Decision Gate”。
 >
 > 本文件不替代 [`Practical Playbooks`](./00_Practical_Playbooks.md) 或 [`Practical Artifact Kit`](./00_Practical_Artifact_Kit.md)，而是把它们装配成启动顺序。
 >
-> 压力测试：[`Scenario Pack Stress Test`](./00_Scenario_Pack_Stress_Test.md)
+> 压力测试：[`Round 1`](./00_Scenario_Pack_Stress_Test.md) · [`Round 2`](./00_Scenario_Pack_Stress_Test_Round_2.md) · [`Promotion Test`](./00_Scenario_Pack_Promotion_Test.md)
+>
+> 按需扩展：[`Scenario Pack Candidate Extensions`](./00_Scenario_Pack_Candidate_Extensions.md)
 
 ---
 
@@ -21,54 +23,78 @@
 → 最后才想 population、evaluator、budget 和 claim
 ```
 
-推荐顺序：
+推荐顺序不是一条死链，而是：
 
 ```text
-Problem / Question
-→ Contract
-→ Evidence
-→ Diagnosis / Mechanism
+正确入口
+→ Contract / Evidence
+→ Diagnosis / Mechanism / Asset Validation
 → Intervention Gate
-→ Minimal Intervention
+→ Minimal Controlled Change
 → Frozen Evaluation
 → Decision
+→ Monitoring / Re-entry
 ```
 
 核心原则：
 
-> **先证明问题是什么，再证明解决方案值得做。**
+> **先从正确的问题入口进入，再证明问题是什么，最后证明解决方案值得做。**
 
 ---
 
-# 0.1 先判断项目从哪里开始
+# 0.1 Entry Router：先判断项目从哪里进入
 
-压力测试后，Starter Pack 不再假设所有项目都来自一个 production bad case。
+三轮压力测试后，Starter Pack 不再假设所有项目都来自一个 production bad case，也不要求所有项目机械从 `A1 → A10` 顺序填写。
 
-至少区分三种 origin：
+至少区分五种常见 origin：
 
 ```text
 Failure-led
 → 已经观察到真实 failure / regression
-→ 重点是 Evidence / Root Cause / Owner
+→ 常见入口：A1 / A2 / A3 / A4
+→ 重点：Evidence / Root Cause / Owner
+
+Monitoring-led Incident
+→ 先看到 alert / online metric shift
+→ 常见入口：A10
+→ 重点：Last-known-good / Change Ledger / Containment / Triage
+→ 确认新问题后再进入 A1 / A3 / A4 / A5
 
 Hypothesis-led
 → 先提出一个机制或方法假设
-→ 重点是 state / intervention / counterfactual / protocol
+→ 常见入口：A1 + A2 / A2-S + A7
+→ 重点：state / intervention / counterfactual / protocol
 
 Evaluation-led
-→ 怀疑 evaluator / benchmark / protocol 不足
-→ 重点是 Claim / Evidence / Coverage / Construct Validity
+→ 怀疑 evaluator / benchmark / protocol / guideline 不足
+→ 常见入口：A5
+→ 重点：Claim / Evidence / Coverage / Construct Validity
+→ evaluator 换版时按需使用 Measurement Bridge
+
+Asset-led / Curation-led
+→ 已经拥有一批 source assets / trajectories / labels
+→ 常见入口：A11 source lineage + curation contract
+→ 重点：source integrity / routing / dedup / dataset view / downstream validation
 ```
 
 它们后面会合流到：
 
 ```text
-Frozen Contract
-→ Controlled Comparison
+Relevant Contract + Evidence
+→ Controlled Change
+→ Evaluation
 → Decision
 ```
 
-但前面的诊断工件可以不同。
+固定边界：
+
+```text
+不同 Entry
+≠ 不同严谨标准
+
+Artifact Chain
+≠ 所有项目必须顺序填满 A1–A10
+```
 
 不要把：
 
@@ -82,11 +108,58 @@ Hypothesis-led research
 “某个 Root Cause 已被发现”
 ```
 
-也不要把 evaluation gap 强行解释成 Data Gap。
+也不要把：
+
+```text
+Monitoring Alert
+```
+
+硬写成：
+
+```text
+“模型退化”
+```
+
+更不要把：
+
+```text
+Existing Data Asset
+```
+
+直接当成：
+
+```text
+Training Dataset
+```
+
+---
+
+# 0.2 哪些扩展保持按需，而不塞进主模板
+
+第二轮异质压力测试后，以下结构已验证有用，但仍保持 optional：
+
+```text
+A10-I Production Incident Extension
+→ last-known-good / change ledger / fixed-mix / rollback
+
+A5-M Evaluator Measurement Bridge
+→ old↔new evaluator / rubric / guideline paired bridge
+
+A6-C Curation Contract
+→ source asset → routed / deduped / rebuildable dataset view
+```
+
+原因不是它们不重要，而是：
+
+> **Core 应该小而稳定；只有相关项目才加载对应 extension。**
+
+Human Annotation / Gold Contract 目前仍是 candidate，不进入母本强制项。
 
 ---
 
 # 1. Day 0 — Intake：先把问题收窄
+
+本节适用于需要创建 A1 的项目；Monitoring-led Incident 可以先从 A10 进入，Asset-led 可以先从 A11 / source asset contract 进入。
 
 目标：当天结束前，不要求知道答案，但必须知道“我们到底在讨论什么”。
 
@@ -288,6 +361,41 @@ Last Recoverable State
 Point of No Return
 ```
 
+## Monitoring-led
+
+先保留：
+
+```text
+Last-known-good
+Change Ledger
+Raw / Slice / Fixed-mix Metric
+Frozen Core
+Fresh Failure / Frontier
+Containment / Rollback Decision
+```
+
+然后再判断进入：
+
+```text
+traffic / product / evaluator / infrastructure fix
+```
+
+还是：
+
+```text
+A1 / A3 / A4 / A5
+```
+
+固定边界：
+
+```text
+Alert
+≠ Diagnosis
+
+Rollback Decision
+≠ Root-cause Proof
+```
+
 ## Hypothesis-led
 
 不强制写单一 Root Cause。
@@ -332,6 +440,49 @@ Version / Drift
 “换哪个 Judge？”
 ```
 
+若 evaluator / verifier / rubric / guideline 换版，必须先判断是否需要：
+
+```text
+Old↔New Measurement Bridge
+```
+
+否则跨版本 score 不应直接画成一条连续趋势。
+
+## Asset-led / Curation-led
+
+先检查：
+
+```text
+Source Identity
+Episode / Case Identity
+Runtime / Environment Version
+Final-state Evidence
+Evaluator / Label Version
+Family / Seed Lineage
+Privacy / Rights
+```
+
+再进入：
+
+```text
+Validity
+→ Routing
+→ Dedup / Family Grouping
+→ Dataset View
+→ Exposure
+→ Downstream Validation
+```
+
+固定边界：
+
+```text
+Source Asset
+≠ Dataset View
+
+Raw Sample Count
+≠ Effective Information Size
+```
+
 ---
 
 # 3.1 Intervention Gate：不要预设一定是 Data
@@ -346,6 +497,7 @@ Tool Intervention
 Harness / Environment Intervention
 Evaluator Intervention
 Product / Task Contract Intervention
+Curation / Dataset-view Intervention
 ```
 
 如果 root cause 属于：
@@ -358,6 +510,8 @@ Tool / Harness / Environment / Evaluator / Product Spec
 
 如果是 Hypothesis-led inference-time research，也可以直接进入 method-specific intervention contract，而不经过 `A6 Data Intervention Card`。
 
+如果是 Asset-led curation，则可以使用按需 `A6-C Curation Contract`，但不要假装它是新的 canonical artifact number。
+
 只有在：
 
 ```text
@@ -369,10 +523,12 @@ Coverage / Supervision / Distribution / Decision-boundary Gap
 Day 1 退出条件：
 
 ```text
-[ ] Outcome / research object 有 Evidence
+[ ] Outcome / research object / source asset 有 Evidence
 [ ] Failure-led: Root Cause 至少 suspected + evidence-backed
+[ ] Monitoring-led: Last-known-good / change ledger 已建立
 [ ] Hypothesis-led: mechanism variables 与 counterfactual 已定义
 [ ] Evaluation-led: claim / evidence / evaluator 已对齐
+[ ] Asset-led: source identity / lineage / target dataset view 已定义
 [ ] Intervention Owner / Type 有候选
 [ ] Data Problem Gate 已过或明确未过
 ```
@@ -431,6 +587,28 @@ Expected Failure Mode
 ```
 
 不要为了 Artifact Chain 整齐，把 inference-time / tool / evaluator intervention 改名成 Data Intervention。
+
+## 如果是 Curation / Dataset-view Change
+
+冻结：
+
+```text
+Source Assets
+Validity Checks
+Routing Policy
+Dedup Unit
+Family Grouping
+Evaluator Version
+Mixture / Exposure
+Build Recipe
+```
+
+并明确：
+
+```text
+Intrinsic Data Quality
+≠ Downstream Learning Value
+```
 
 最小 intervention 原则：
 
@@ -527,6 +705,38 @@ Worst-case / Budget-cap Cost
 
 不要把不同 denominator 下的 cost 放在同一列比较。
 
+## Evaluator Version Boundary
+
+如果 Baseline / Treatment 或 longitudinal comparison 使用了不同 evaluator / rubric / verifier version：
+
+```text
+先建立 Measurement Bridge
+```
+
+或者明确：
+
+```text
+historical curve not directly comparable
+```
+
+不要把换尺子的 score delta 写成 capability delta。
+
+## Curation Validation Boundary
+
+如果比较的是 curation / filter / mixture policy：
+
+```text
+Curation KPI ↑
+```
+
+不能直接推出：
+
+```text
+Model Learning Value ↑
+```
+
+仍应使用 matched-budget downstream evaluation。
+
 核心问题：
 
 ```text
@@ -587,6 +797,16 @@ information-boundary audit
 small verified data batch
 ```
 
+如果是 Asset-led / Curation 项目，再加：
+
+```text
+source→dataset-view lineage
++
+yield funnel
++
+exposure summary
+```
+
 第一周必须产出：
 
 ```text
@@ -640,6 +860,12 @@ Production contract feasible?
 Monitoring plan exists?
 ```
 
+如果 evaluator / curation policy 发生过版本切换，再加：
+
+```text
+Measurement / build lineage bridge complete?
+```
+
 只有通过后才进入：
 
 ```text
@@ -683,6 +909,23 @@ Monitoring Alert
 ≠ Model Regression
 ```
 
+如果是重大 production incident，优先按需加载：
+
+```text
+A10-I Production Incident Extension
+```
+
+先保存：
+
+```text
+Last-known-good
+Change Ledger
+Raw / Slice / Fixed-mix
+Containment / Rollback Decision
+```
+
+再做 attribution。
+
 如果确认出现新能力缺口：
 
 ```text
@@ -695,42 +938,62 @@ A10
 
 ---
 
-# 9. Day 0 → First Week 最短工件链
+# 9. Entry Router → First Week 最短工件链
 
 ## Failure-led Data Project
 
 ```text
-Day 0
 A1 Problem Intake
-↓
-Day 1
-A2 Task / Case Contract
-A3 Trajectory / Evidence
-A4 Failure Record
-A5 Evaluator Contract
-↓
-Day 2–3
-A6 Data Intervention
-↓
-Day 2–4
-A7 Experiment Card
-↓
-First Week
-Pilot
-↓
-A8 Decision Memo
+→ A2 Task / Case Contract
+→ A3 Trajectory / Evidence
+→ A4 Failure Record
+→ A5 Evaluator Contract
+→ A6 Data Intervention
+→ A7 Experiment Card
+→ A8 Decision Memo
+```
+
+## Monitoring-led Incident
+
+```text
+A10 Monitoring Incident
+→ Last-known-good / Change Ledger / Containment
+→ Triage
+├─ System / Evaluator / Product / Traffic Fix
+└─ confirmed new problem → A1 / A3 / A4 / A5 → A7 / A8
 ```
 
 ## Hypothesis-led / Non-data Research
 
 ```text
 Question
+→ A1 Scope
 → A2-style Method / State Contract
 → Evidence / Lineage
 → Mechanism Decomposition
 → Method-specific Intervention Contract
 → A7 Experiment Card
 → A8 Decision Memo
+```
+
+## Evaluation-led
+
+```text
+A5 Evaluator Contract
+→ Claim / Evidence / Coverage
+→ A5-M Measurement Bridge if version changes
+→ A7 Comparison
+→ A8 Decision
+```
+
+## Asset-led / Curation-led
+
+```text
+A11 Source Lineage
+→ A6-C Curation Contract if needed
+→ Rebuildable Dataset View
+→ A7 Downstream Validation
+→ A8 Decision
 ```
 
 如果：
@@ -749,7 +1012,7 @@ A1 → A2 → A3 → A4 → System Fix
 
 ---
 
-# 10. 三类典型启动路径
+# 10. 五类典型启动路径
 
 ## Path A — Production Agent Failure
 
@@ -787,58 +1050,99 @@ Candidate Exists
 ≠ Candidate Selectable
 ```
 
-## Path C — Eval / Verifier Project
+## Path C — Eval / Verifier / Human Gold
 
 ```text
-C5
+C5 / Ch6 / Ch15
 → Claim
 → Strongest Evidence
 → Evaluator Contract
-→ Verifier Coverage Audit
+→ Verifier / Guideline Coverage Audit
+→ Measurement Bridge if version changes
 → Hidden / Runtime / Regression Protocol
 → A7
 ```
 
+## Path D — Production Incident / Drift
+
+```text
+A10
+→ Last-known-good
+→ Change Ledger
+→ Raw / Fixed-mix / Frozen-core comparison
+→ Containment
+→ Correct Owner
+→ new A1 only if needed
+```
+
+## Path E — Large-scale Trajectory / Synthetic Curation
+
+```text
+A11 Source Lineage
+→ Source Integrity
+→ Routing / Dedup / Family Grouping
+→ Dataset View / Exposure
+→ A7 matched-budget downstream validation
+→ A8
+```
+
 ---
 
-# 11. 一个项目第一周最容易犯的十四个错误
+# 11. 一个项目第一周最容易犯的十八个错误
 
 ```text
 1. Problem statement 已经写成 solution。
-2. Failure-led / Hypothesis-led / Evaluation-led 没分清。
-3. Task / Case / Episode / Decision State 混在一起。
-4. 没有保留 authoritative prefix / intervention point。
-5. 没有保留 final world-state / final outcome evidence。
-6. Tool / Harness / Environment 不分。
-7. Symptom 直接写成 Root Cause。
-8. Agent failure 自动归 Model。
-9. Failure 自动变成 Training Example。
-10. 非 Data Intervention 被硬塞成 Data Intervention。
-11. 训练 / generation 跑完才想 Eval。
-12. Treatment 和 Baseline budget / runtime 不匹配。
-13. Triggered-only / observed-only 结果冒充 Full-pop E2E。
-14. Online selector 偷看 offline-only label / future outcome，或没有预先定义 Scale / Stop Rule。
+2. Failure-led / Monitoring-led / Hypothesis-led / Evaluation-led / Asset-led 没分清。
+3. 把 Artifact Chain 当成所有项目必须顺序填满的直线。
+4. Task / Case / Episode / Decision State 混在一起。
+5. 没有保留 authoritative prefix / intervention point。
+6. 没有保留 final world-state / final outcome evidence。
+7. Tool / Harness / Environment 不分。
+8. Monitoring Alert 直接写成 Model Regression。
+9. Symptom 直接写成 Root Cause。
+10. Agent failure 自动归 Model。
+11. Failure 自动变成 Training Example。
+12. 非 Data Intervention 被硬塞成 Data Intervention。
+13. Source Asset 直接当 Training Dataset。
+14. 换 Judge / Verifier / Guideline 后直接续画历史 score 曲线。
+15. Re-score 静默覆盖 Historical Judgment / Decision。
+16. 训练 / generation 跑完才想 Eval。
+17. Treatment 和 Baseline budget / runtime 不匹配，或 Triggered-only / observed-only 结果冒充 Full-pop E2E。
+18. Online selector 偷看 offline-only label / future outcome，或没有预先定义 Scale / Stop Rule。
 ```
 
 ---
 
 # 12. 最小团队评审节奏
 
-## Intake Review
+## Entry / Intake Review
 
-看：
+根据 origin 看：
 
 ```text
-A1 / A2
+Failure-led
+→ A1 / A2
+
+Monitoring-led
+→ A10
+
+Hypothesis-led
+→ A1 / A2-S
+
+Evaluation-led
+→ A5
+
+Asset-led
+→ A11 / source contract
 ```
 
 问题：
 
 ```text
-问题定义对吗？
-Project Origin Mode 对吗？
-Full Population 对吗？
-Task / Decision State Contract 对吗？
+Entry 对吗？
+问题 / Claim / Asset 定义对吗？
+Full Population / Source Population 对吗？
+Task / Decision State / Measurement Contract 对吗？
 ```
 
 ## Diagnosis / Mechanism Review
@@ -848,6 +1152,8 @@ Task / Decision State Contract 对吗？
 ```text
 A3 / A4 / A5
 或 hypothesis-led mechanism record
+或 A10 incident evidence
+或 asset integrity / lineage
 ```
 
 问题：
@@ -856,6 +1162,8 @@ A3 / A4 / A5
 Evidence 足吗？
 Owner / Mechanism 假设对吗？
 Online / Offline information boundary 清楚吗？
+Evaluator version 可比吗？
+Source asset lineage 完整吗？
 真的是 Data Problem 吗？
 ```
 
@@ -864,7 +1172,7 @@ Online / Offline information boundary 清楚吗？
 看：
 
 ```text
-A6 / method contract / A7
+A6 / method contract / curation contract / A7
 ```
 
 问题：
@@ -875,6 +1183,8 @@ Population Ledger 完整吗？
 Budget 公平吗？
 Cost denominator 对吗？
 有没有 future leakage？
+Measurement Bridge 是否需要？
+Dataset View 是否可重建？
 Decision Rule 预注册了吗？
 ```
 
@@ -892,6 +1202,7 @@ A8
 Full-pop effect 是什么？
 Slice / mechanism effect 是什么？
 Claim scope 到哪里？
+Historical meaning 有没有被覆盖？
 Scale / Revise / Stop？
 ```
 
@@ -901,13 +1212,16 @@ Scale / Revise / Stop？
 
 ```text
 Project Starter Pack
-= 什么时候做什么
+= 从哪个入口开始、什么时候做什么
 
 Practical Playbook
 = 某类问题具体怎么走
 
 Artifact Kit
 = 每一步写成什么
+
+Candidate Extensions
+= 某类项目按需加载什么额外 contract
 
 Case Study
 = 一个完整项目长什么样
@@ -919,14 +1233,16 @@ Scenario Stress Test
 = 这些资产在真实追问 / protocol 下哪里会坏
 ```
 
-因此不要复制粘贴六套文档。
+因此不要复制粘贴多套文档。
 
 推荐使用顺序：
 
 ```text
 Starter Pack
+→ 选择正确 Entry
 → 选择 Playbook / Research Path
-→ 填 Artifact / Method Contract
+→ 填 Core Artifact
+→ 按需加载 Extension
 → 对照 Case
 → 用 Checklist review
 → 用 Stress Test 检查高风险边界
@@ -937,8 +1253,11 @@ Starter Pack
 # 14. 最终启动原则
 
 ```text
-先定义 Full Population
-后看 Slice
+先选正确 Entry
+后套流程
+
+先定义 Full Population / Source Asset
+后看 Slice / Dataset View
 
 先 Evidence
 后 Attribution / Mechanism
@@ -949,6 +1268,9 @@ Starter Pack
 先 Information Boundary
 后 Selector / Router
 
+先 Measurement Bridge
+后跨版本比较
+
 先 Evaluation Contract
 后大规模运行
 
@@ -956,4 +1278,4 @@ Starter Pack
 后看结果
 ```
 
-> **一个成熟项目的第一周，不是尽快生产很多数据或跑很多实验，而是尽快获得足以做正确决策、且 denominator 与信息边界都站得住的最小证据。**
+> **一个成熟项目的第一周，不是把 A1–A10 填满，也不是尽快生产很多数据或跑很多实验，而是从正确入口进入，并尽快获得足以做正确决策、且 denominator、信息边界、measurement 与 lineage 都站得住的最小证据。**
