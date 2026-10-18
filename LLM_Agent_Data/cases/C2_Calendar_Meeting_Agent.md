@@ -5,6 +5,8 @@
 > 角色：全书 multi-constraint / entity resolution / partial completion 主案例。
 >
 > 注册表：[`Canonical Casebook`](../00_Canonical_Casebook.md)
+>
+> 时间语义：`frozen synthetic case`。所有相对时间都必须相对于下述 case clock 解释，不能使用实际运行当天日期。
 
 ---
 
@@ -13,6 +15,19 @@
 用户请求：
 
 > “把明天下午三点和产品组的会议改到周五下午三点，但周会不要动，并通知所有参会人。”
+
+冻结解释：
+
+```text
+Case clock
+= 2026-10-19 09:00 Asia/Shanghai（Monday）
+
+“明天下午三点”
+= 2026-10-20 15:00 Asia/Shanghai（Tuesday）
+
+“周五下午三点”
+= 2026-10-23 15:00 Asia/Shanghai（Friday）
+```
 
 这个 case 适合讨论：
 
@@ -32,19 +47,19 @@ partial completion
 # C2.1 Stable Environment
 
 ```text
-Current day: Monday
-Timezone: Asia/Shanghai
+Current time = 2026-10-19 09:00 Asia/Shanghai
+Timezone = Asia/Shanghai
 
 Event A
 id = event_product_1
 name = 产品组会议
-start = Tuesday 15:00
+start = 2026-10-20 15:00 Asia/Shanghai
 attendees = Alice, Bob
 
 Event B
 id = event_weekly_1
 name = 产品组周会
-start = Tuesday 16:00
+start = 2026-10-20 16:00 Asia/Shanghai
 attendees = Alice, Bob, Carol
 ```
 
@@ -62,10 +77,20 @@ Stable constraints：
 ```text
 只修改 Event A
 Event B 必须保持不变
-Event A 改到 Friday 15:00
+Event A 改到 2026-10-23 15:00 Asia/Shanghai
 Event A 所有参会人必须收到一次通知
 不得重复通知
 不得修改无关事件
+```
+
+固定时间边界：
+
+```text
+Natural-language Relative Time
+≠ Runtime Current Date
+
+Relative Time
+→ resolve against frozen Case Clock
 ```
 
 ---
@@ -74,7 +99,7 @@ Event A 所有参会人必须收到一次通知
 
 ```text
 Required:
-Event A.start == Friday 15:00
+Event A.start == 2026-10-23 15:00 Asia/Shanghai
 Alice notified exactly once
 Bob notified exactly once
 
@@ -97,9 +122,9 @@ Event B content unchanged
 ## `C2-F1` — Entity Resolution Failure
 
 ```text
-search_calendar
+calendar.search
 → 同时看到 Event A / Event B
-→ update Event B
+→ calendar.update(event_weekly_1, ...)
 ```
 
 ---
@@ -157,7 +182,7 @@ calendar.update
 
 ```text
 notification.send timeout
-→ blind retry
+→ blind retry with ineffective / missing idempotency protection
 → Alice receives two notices
 ```
 
@@ -178,12 +203,14 @@ side-effect accounting
 ```text
 真实 calendar event values
 notification delivery ledger
+case clock / timezone
 ```
 
 ## Agent-visible State
 
 ```text
 user request
+case-visible current time / timezone
 search results
 update response
 notification response
@@ -244,16 +271,27 @@ Base：
 Counterfactual：
 
 ```text
-把两个会议都改到周五下午三点
+把两个会议都改到 2026-10-23 15:00 Asia/Shanghai
 ```
 
 用于测试 negative-constraint sensitivity。
 
 ## `C2-CF2` — Only change timezone
 
+保持：
+
+```text
+local case clock = 2026-10-19 09:00
+relative-day structure unchanged
+```
+
+只改变：
+
 ```text
 Asia/Shanghai → America/Los_Angeles
 ```
+
+并相应以新 timezone 解析全部时间字段。
 
 用于测试 time normalization，而不改变其他任务结构。
 
@@ -312,6 +350,6 @@ C2-F1 ... C2-F6
 C2-CF1 ... C2-CF3
 ```
 
-不要为了每章方便而把“产品组会议 / 周会 / 通知”规则改成不同版本。
+不要为了每章方便而把“产品组会议 / 周会 / 通知 / case clock”规则改成不同版本。
 
-> **C2 的教学价值在于：一个最终失败可以由多项子能力共同决定，而“完成一部分”不等于“任务完成”。**
+> **C2 的教学价值在于：一个最终失败可以由多项子能力共同决定，而“完成一部分”不等于“任务完成”；相对时间也必须绑定到稳定、可重放的 case clock。**
