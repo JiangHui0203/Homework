@@ -223,6 +223,30 @@ Agent：
 → 新经验
 ```
 
-最终要形成的能力不是“会做数据集”，而是：
+最终要形成的能力不是“会做数据集”，也不是默认所有项目都先从 failure 开始。
 
-> **懂模型为什么错 → 能把错误变成数据 → 能证明数据有用 → 能把这个过程规模化，并知道什么时候应该停止或重新学习。**
+当前 practical model 至少允许五种入口：
+
+```text
+Failure-led
+Monitoring-led
+Hypothesis-led
+Evaluation-led
+Asset-led / Curation-led
+```
+
+它们共享的不是一条强制流程，而是同一套纪律：
+
+```text
+Relevant Contract + Evidence
+→ Correct Intervention Owner
+→ Controlled Evaluation
+→ Decision
+→ Monitoring / Re-entry
+```
+
+项目入口统一见：[`Project Starter Pack`](./00_Project_Starter_Pack.md)。
+
+最终要形成的是：
+
+> **能从正确入口理解问题或机会 → 找到足够 Evidence → 判断真正的 Intervention Owner → 证明干预是否有效 → 把有效结果规模化，并知道什么时候停止、回滚或重新学习。**
