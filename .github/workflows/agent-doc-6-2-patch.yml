@@ -1,0 +1,48 @@
+name: Patch Agent Knowledge 6.2
+
+on:
+  push:
+    branches:
+      - agent-doc-6-2-orchestration-patterns
+    paths:
+      - '.tmp/agent-6-2-trigger.txt'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent-doc-6-2-orchestration-patterns
+      - name: Patch document
+        run: python .tmp/patch_agent_6_2.py
+      - name: Verify patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path('Agent_Knowledge_System.md')
+          s = p.read_text(encoding='utf-8')
+          assert '#### 6.2.1 Orchestration 到底是什么' in s
+          assert '#### 6.2.169 参考资料' in s
+          assert re.search(r'^\| II \| 6\.[^|]+\| 进行中：6\.1–6\.2 已完成 \|$', s, re.M)
+          assert re.search(r'^下一步：继续 .*6\.3', s, re.M)
+          assert '### 6.3 Subagents' in s
+          print('VERIFY_OK')
+          PY
+      - name: Remove temporary patch files
+        run: |
+          rm -f .tmp/agent-6-2-orchestration-patterns-section.md
+          rm -f .tmp/patch_agent_6_2.py
+          rm -f .tmp/agent-6-2-trigger.txt
+          rm -f .github/workflows/agent-doc-6-2-patch.yml
+      - name: Commit result
+        run: |
+          git config user.name 'A_Jiang'
+          git config user.email '79295145+JiangHui0203@users.noreply.github.com'
+          git add Agent_Knowledge_System.md .tmp .github/workflows/agent-doc-6-2-patch.yml || true
+          git commit -m 'docs: complete 6.2 Orchestration Patterns'
+          git push origin HEAD:agent-doc-6-2-orchestration-patterns
