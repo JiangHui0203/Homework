@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">F1 — Learning System Overview</title>
+  <desc id="desc">Publication derivative of the canonical F1 Learning System Overview. Semantic source: figures/F1_Learning_System_Overview.md, blob 32a88e3fa6efa31acc8ed1d396008bcf1210fc70.</desc>
+  <!--
+    figure_id: F1
+    semantic_source: LLM_Agent_Data/figures/F1_Learning_System_Overview.md
+    semantic_source_sha: 32a88e3fa6efa31acc8ed1d396008bcf1210fc70
+    export_type: publication_svg
+    export_version: v1
+    created_at: 2026-10-18
+  -->
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#222"/>
+    </marker>
+    <marker id="arrowThin" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L8,3 z" fill="#666"/>
+    </marker>
+    <style>
+      .title { font: 700 38px Arial, Helvetica, sans-serif; fill: #111; }
+      .subtitle { font: 400 20px Arial, Helvetica, sans-serif; fill: #444; }
+      .node { fill: #fff; stroke: #222; stroke-width: 2.4; rx: 16; ry: 16; }
+      .nodeText { font: 700 20px Arial, Helvetica, sans-serif; fill: #111; text-anchor: middle; }
+      .nodeSub { font: 400 15px Arial, Helvetica, sans-serif; fill: #555; text-anchor: middle; }
+      .edge { fill: none; stroke: #222; stroke-width: 2.6; marker-end: url(#arrow); }
+      .feedback { fill: none; stroke: #666; stroke-width: 2.2; stroke-dasharray: 8 7; marker-end: url(#arrowThin); }
+      .band { fill: #f7f7f7; stroke: #c9c9c9; stroke-width: 1.4; rx: 14; ry: 14; }
+      .bandTitle { font: 700 15px Arial, Helvetica, sans-serif; fill: #333; }
+      .bandText { font: 400 14px Arial, Helvetica, sans-serif; fill: #444; }
+      .boundary { fill: #fafafa; stroke: #222; stroke-width: 1.8; rx: 14; ry: 14; }
+      .boundaryTitle { font: 700 16px Arial, Helvetica, sans-serif; fill: #111; }
+      .boundaryText { font: 700 17px Arial, Helvetica, sans-serif; fill: #111; }
+      .caseBox { fill: #fff; stroke: #777; stroke-width: 1.6; stroke-dasharray: 5 5; rx: 14; ry: 14; }
+      .caseTitle { font: 700 15px Arial, Helvetica, sans-serif; fill: #333; }
+      .caseText { font: 400 14px Arial, Helvetica, sans-serif; fill: #444; }
+      .caption { font: 400 15px Arial, Helvetica, sans-serif; fill: #555; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1600" height="900" fill="#fff"/>
+
+  <text x="80" y="70" class="title">F1 — Learning System Overview</text>
+  <text x="80" y="105" class="subtitle">LLM / Agent Data 的对象不是“训练集”，而是从真实目标到经验、证据、学习信号、训练、部署再回到现实的闭环。</text>
+
+  <!-- Main spine: top row -->
+  <rect class="node" x="80" y="180" width="230" height="95"/>
+  <text class="nodeText" x="195" y="220">Real World</text>
+  <text class="nodeSub" x="195" y="247">Users / Product / Domain</text>
+
+  <rect class="node" x="355" y="180" width="230" height="95"/>
+  <text class="nodeText" x="470" y="215">Capability / Task</text>
+  <text class="nodeSub" x="470" y="243">What should be learned?</text>
+
+  <rect class="node" x="630" y="180" width="230" height="95"/>
+  <text class="nodeText" x="745" y="215">Experience</text>
+  <text class="nodeSub" x="745" y="243">Acquire &amp; record interactions</text>
+
+  <rect class="node" x="905" y="180" width="230" height="95"/>
+  <text class="nodeText" x="1020" y="215">Evidence</text>
+  <text class="nodeSub" x="1020" y="243">What actually happened?</text>
+
+  <rect class="node" x="1180" y="180" width="230" height="95"/>
+  <text class="nodeText" x="1295" y="215">Learning Signal</text>
+  <text class="nodeSub" x="1295" y="243">How should behavior change?</text>
+
+  <path class="edge" d="M310 228 L355 228"/>
+  <path class="edge" d="M585 228 L630 228"/>
+  <path class="edge" d="M860 228 L905 228"/>
+  <path class="edge" d="M1135 228 L1180 228"/>
+
+  <!-- Main spine: bottom row -->
+  <rect class="node" x="1180" y="440" width="230" height="95"/>
+  <text class="nodeText" x="1295" y="475">Training / Optimization</text>
+  <text class="nodeSub" x="1295" y="503">Update model / policy</text>
+
+  <rect class="node" x="905" y="440" width="230" height="95"/>
+  <text class="nodeText" x="1020" y="475">New Model / Policy</text>
+  <text class="nodeSub" x="1020" y="503">Changed behavior distribution</text>
+
+  <rect class="node" x="630" y="440" width="230" height="95"/>
+  <text class="nodeText" x="745" y="475">Deployment</text>
+  <text class="nodeSub" x="745" y="503">Rollout into real use</text>
+
+  <rect class="node" x="355" y="440" width="230" height="95"/>
+  <text class="nodeText" x="470" y="475">Outcome / Failure / Drift</text>
+  <text class="nodeSub" x="470" y="503">Fresh evidence from reality</text>
+
+  <path class="edge" d="M1295 275 L1295 440"/>
+  <path class="edge" d="M1180 488 L1135 488"/>
+  <path class="edge" d="M905 488 L860 488"/>
+  <path class="edge" d="M630 488 L585 488"/>
+  <path class="feedback" d="M355 488 C250 488, 190 430, 190 305 L190 275"/>
+
+  <!-- Annotation bands -->
+  <rect class="band" x="620" y="300" width="250" height="110"/>
+  <text class="bandTitle" x="640" y="328">Experience sources</text>
+  <text class="bandText" x="640" y="355">Human · Synthetic</text>
+  <text class="bandText" x="640" y="379">Production Mining · Rollout</text>
+
+  <rect class="band" x="895" y="300" width="250" height="110"/>
+  <text class="bandTitle" x="915" y="328">Evidence readers</text>
+  <text class="bandText" x="915" y="355">Environment Truth · Verifier</text>
+  <text class="bandText" x="915" y="379">Grader / Judge · Human Gold</text>
+
+  <rect class="band" x="1170" y="300" width="250" height="110"/>
+  <text class="bandTitle" x="1190" y="328">Signal forms</text>
+  <text class="bandText" x="1190" y="355">SFT · Preference · Reward</text>
+  <text class="bandText" x="1190" y="379">Process / Recovery Signal</text>
+
+  <!-- Boundary and case callouts -->
+  <rect class="boundary" x="80" y="610" width="640" height="145"/>
+  <text class="boundaryTitle" x="105" y="642">Critical boundaries</text>
+  <text class="boundaryText" x="105" y="682">Experience ≠ Learning Signal</text>
+  <text class="boundaryText" x="105" y="716">Evidence ≠ Label</text>
+  <text class="boundaryText" x="390" y="682">Training Data ≠ Raw Production Log</text>
+  <text class="boundaryText" x="390" y="716">Failure ≠ automatically a Data Problem</text>
+
+  <rect class="caseBox" x="760" y="610" width="650" height="145"/>
+  <text class="caseTitle" x="785" y="642">C1 case lens</text>
+  <text class="caseText" x="785" y="675">production failure → environment evidence → failure diagnosis → data intervention</text>
+  <text class="caseText" x="785" y="705">→ controlled experiment → deploy → monitor</text>
+  <text class="caseText" x="785" y="735">Case demonstrates how one real failure traverses the full learning system.</text>
+
+  <line x1="80" y1="815" x2="1410" y2="815" stroke="#d0d0d0" stroke-width="1"/>
+  <text x="80" y="846" class="caption">Semantic source: figures/F1_Learning_System_Overview.md · source blob: 32a88e3fa6efa31acc8ed1d396008bcf1210fc70 · publication derivative v1</text>
+</svg>
