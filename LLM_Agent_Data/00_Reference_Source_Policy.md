@@ -86,6 +86,7 @@ Internal Research Example
 
 ```text
 C1 Order / Refund
+C2 Calendar / Meeting
 C3 File / Repository
 C4 Reasoning Continue / Repair
 C5 Code / Execution
@@ -117,14 +118,25 @@ artifact workflow
 例如：
 
 ```text
-A1–A11 Artifact Chain
+A1–A11 Artifact Catalog / stable Artifact IDs
 C1–C5 Case IDs
 F1–F14 Figure IDs
 stable owner / canonical term
 Research-to-Production Gate
+Entry Router / optional extension rule
 ```
 
 这些属于本书的工作方法与信息架构，不需要伪装成“论文提出”。
+
+其中：
+
+```text
+A1–A11
+= composable artifact catalog
+≠ 所有项目必须顺序执行的 canonical chain
+```
+
+不同项目可以从不同 Artifact Entry 进入；这种 orchestration 规则由 Starter Pack / Playbook 负责，而不是由外部论文承担定义权。
 
 可以参考外部实践，但：
 
