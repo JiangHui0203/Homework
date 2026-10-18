@@ -1,6 +1,8 @@
 # LLM / Agent Data Knowledge System：Role Index
 
 > 角色：按岗位 / 职能检索知识体系。回答“做这个角色，最应该先掌握什么、重点读哪些章、应该形成什么判断能力？”
+>
+> 路由边界：本文件给的是 **role-specific learning compression**，不是项目执行顺序，也不重新定义 canonical owner。真实项目从哪里进入，统一先看 [`Project Starter Pack`](./00_Project_Starter_Pack.md) 的 Entry Router：`Failure-led / Monitoring-led / Hypothesis-led / Evaluation-led / Asset-led / Curation-led`。同一个角色可以从不同 Entry 启动项目。
 
 ---
 
@@ -80,6 +82,11 @@ Task
 
 C1 / C2 / C3
 
+## Practical Studies
+
+- [`C1 End-to-End Learning Loop`](./case_studies/C1_End_to_End_Walkthrough.md)
+- [`C3 Permission / Harness Ownership`](./case_studies/C3_Permission_Harness_Ownership_Walkthrough.md)
+
 ## Figures
 
 F4 / F5 / F6 / F7 / F8 / F13
@@ -122,6 +129,11 @@ Capability Definition
 - cluster-aware uncertainty；
 - stable ruler + moving frontier；
 - claim scope。
+
+## Case / Practical Study
+
+- C5
+- [`C5 Executable Truth / Verifier Coverage`](./case_studies/C5_Executable_Truth_Verifier_Coverage_Walkthrough.md)
 
 ## Figures
 
@@ -204,6 +216,10 @@ Reasoning State
 ## Case
 
 C4
+
+## Practical Study
+
+- [`C4 Reasoning Intervention`](./case_studies/C4_Reasoning_Intervention_Walkthrough.md)
 
 ## Figures
 
