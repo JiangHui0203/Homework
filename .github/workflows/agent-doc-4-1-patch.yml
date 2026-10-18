@@ -34,7 +34,7 @@ jobs:
           )
           section_matches = section_pattern.findall(text)
           assert len(section_matches) == 1, f"expected one 4.1 section, got {len(section_matches)}"
-          text = section_pattern.sub(new_section.rstrip("\n"), text, count=1)
+          text = section_pattern.sub(lambda _m: new_section.rstrip("\n"), text, count=1)
 
           progress_pattern = re.compile(
               r'^\|\s*II\s*\|\s*4\. Context, Memory & Retrieval\s*\|.*\|$',
@@ -67,19 +67,7 @@ jobs:
           PY
 
       - name: Patch document
-        run: |
-          set +e
-          python scripts/tmp_patch_agent_4_1.py > scripts/tmp_patch_agent_4_1_error.log 2>&1
-          status=$?
-          cat scripts/tmp_patch_agent_4_1_error.log
-          if [ "$status" -ne 0 ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add scripts/tmp_patch_agent_4_1_error.log
-            git commit -m "chore: capture 4.1 patch failure"
-            git push origin HEAD:agent-doc-4-1-context-engineering
-            exit "$status"
-          fi
+        run: python scripts/tmp_patch_agent_4_1.py
 
       - name: Commit patched document
         run: |
