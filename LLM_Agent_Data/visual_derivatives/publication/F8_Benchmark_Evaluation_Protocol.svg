@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="950" viewBox="0 0 1600 950" role="img" aria-labelledby="title desc">
+  <title id="title">F8 — Benchmark / Evaluation Protocol</title>
+  <desc id="desc">Publication derivative of canonical F8. Semantic source: figures/F8_Benchmark_Evaluation_Protocol.md, blob 07b82f944e80f5d1ed004251cdd2f0a3a7ea0886.</desc>
+  <!--
+    figure_id: F8
+    semantic_source: LLM_Agent_Data/figures/F8_Benchmark_Evaluation_Protocol.md
+    semantic_source_sha: 07b82f944e80f5d1ed004251cdd2f0a3a7ea0886
+    export_type: publication_svg
+    export_version: v1
+    created_at: 2026-10-18
+  -->
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#222"/></marker>
+    <style>
+      .title { font:700 36px Arial,Helvetica,sans-serif; fill:#111; }
+      .subtitle { font:400 19px Arial,Helvetica,sans-serif; fill:#444; }
+      .node { fill:#fff; stroke:#222; stroke-width:2.2; rx:14; ry:14; }
+      .nodeText { font:700 16px Arial,Helvetica,sans-serif; fill:#111; text-anchor:middle; }
+      .nodeSub { font:400 13px Arial,Helvetica,sans-serif; fill:#555; text-anchor:middle; }
+      .edge { fill:none; stroke:#222; stroke-width:2.4; marker-end:url(#arrow); }
+      .panel { fill:#fafafa; stroke:#bbb; stroke-width:1.3; rx:16; ry:16; }
+      .panelTitle { font:700 15px Arial,Helvetica,sans-serif; fill:#333; }
+      .panelText { font:400 13px Arial,Helvetica,sans-serif; fill:#555; }
+      .boundary { fill:#fff; stroke:#666; stroke-width:1.5; rx:14; ry:14; }
+      .boundaryTitle { font:700 15px Arial,Helvetica,sans-serif; fill:#333; }
+      .boundaryText { font:700 16px Arial,Helvetica,sans-serif; fill:#111; }
+      .caption { font:400 14px Arial,Helvetica,sans-serif; fill:#555; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="950" fill="#fff"/>
+  <text x="70" y="65" class="title">F8 — Benchmark / Evaluation Protocol</text>
+  <text x="70" y="98" class="subtitle">“方法更好”只有在 Population、Protocol、Budget、Evaluator、Statistics 与 Claim Scope 都被固定和报告以后才成立。</text>
+
+  <!-- Main funnel -->
+  <rect class="node" x="90" y="160" width="220" height="78"/>
+  <text class="nodeText" x="200" y="193">Question</text>
+  <text class="nodeSub" x="200" y="217">Scientific / Product</text>
+
+  <rect class="node" x="355" y="160" width="220" height="78"/>
+  <text class="nodeText" x="465" y="193">Capability Definition</text>
+  <text class="nodeSub" x="465" y="217">What is being measured?</text>
+
+  <rect class="node" x="620" y="160" width="220" height="78"/>
+  <text class="nodeText" x="730" y="193">Benchmark Object</text>
+  <text class="nodeSub" x="730" y="217">Cases / tasks / population</text>
+
+  <rect class="node" x="885" y="160" width="240" height="78"/>
+  <text class="nodeText" x="1005" y="193">Frozen Evaluation Protocol</text>
+  <text class="nodeSub" x="1005" y="217">Runtime · Budget · Evaluator · Seeds</text>
+
+  <path class="edge" d="M310 199 L355 199"/>
+  <path class="edge" d="M575 199 L620 199"/>
+  <path class="edge" d="M840 199 L885 199"/>
+
+  <!-- Matched runs -->
+  <rect class="node" x="760" y="325" width="230" height="75"/>
+  <text class="nodeText" x="875" y="368">Baseline Run</text>
+
+  <rect class="node" x="1040" y="325" width="230" height="75"/>
+  <text class="nodeText" x="1155" y="368">Treatment Run</text>
+
+  <path class="edge" d="M965 238 C930 275, 895 295, 875 325"/>
+  <path class="edge" d="M1045 238 C1090 275, 1125 295, 1155 325"/>
+
+  <rect class="node" x="900" y="455" width="230" height="75"/>
+  <text class="nodeText" x="1015" y="486">Paired / Matched</text>
+  <text class="nodeSub" x="1015" y="510">same cases / matched budget</text>
+
+  <path class="edge" d="M875 400 C900 430, 950 440, 985 455"/>
+  <path class="edge" d="M1155 400 C1130 430, 1080 440, 1045 455"/>
+
+  <rect class="node" x="900" y="585" width="230" height="75"/>
+  <text class="nodeText" x="1015" y="616">Metrics + Cost</text>
+  <text class="nodeSub" x="1015" y="640">Success · Net · Coverage · Tokens</text>
+  <path class="edge" d="M1015 530 L1015 585"/>
+
+  <rect class="node" x="900" y="705" width="230" height="75"/>
+  <text class="nodeText" x="1015" y="736">Uncertainty</text>
+  <text class="nodeSub" x="1015" y="760">Statistics / repeated cases</text>
+  <path class="edge" d="M1015 660 L1015 705"/>
+
+  <rect class="node" x="900" y="825" width="230" height="75"/>
+  <text class="nodeText" x="1015" y="856">Claim Scope</text>
+  <text class="nodeSub" x="1015" y="880">How far the evidence supports the claim</text>
+  <path class="edge" d="M1015 780 L1015 825"/>
+
+  <!-- Protocol panel -->
+  <rect class="panel" x="1180" y="145" width="330" height="210"/>
+  <text class="panelTitle" x="1205" y="175">Frozen protocol must include</text>
+  <text class="panelText" x="1205" y="205">• Population / eligibility</text>
+  <text class="panelText" x="1205" y="232">• Model / Prompt / Tool / Harness / Environment</text>
+  <text class="panelText" x="1205" y="259">• Budget / stop conditions</text>
+  <text class="panelText" x="1205" y="286">• Evaluator / label version</text>
+  <text class="panelText" x="1205" y="313">• Seeds / repetitions</text>
+
+  <!-- Population accounting -->
+  <rect class="panel" x="90" y="325" width="520" height="300"/>
+  <text class="panelTitle" x="115" y="355">Population accounting for selective systems</text>
+  <text class="panelText" x="115" y="393">Full Population</text>
+  <text class="panelText" x="150" y="428">↓ Eligible</text>
+  <text class="panelText" x="185" y="463">↓ Triggered</text>
+  <text class="panelText" x="220" y="498">↓ Intervened</text>
+  <text class="panelText" x="255" y="533">↓ Observed Outcome</text>
+  <text class="panelText" x="115" y="580">Every score must name its denominator.</text>
+
+  <!-- Boundary box -->
+  <rect class="boundary" x="90" y="665" width="700" height="160"/>
+  <text class="boundaryTitle" x="115" y="695">Critical boundaries</text>
+  <text class="boundaryText" x="115" y="735">Benchmark Object ≠ Protocol ≠ Run ≠ Report</text>
+  <text class="boundaryText" x="115" y="772">Full Population ≠ Triggered Population</text>
+  <text class="boundaryText" x="115" y="809">Higher Score ≠ Better Method if Budget Differs</text>
+
+  <text x="90" y="925" class="caption">Semantic source: figures/F8_Benchmark_Evaluation_Protocol.md · source blob: 07b82f944e80f5d1ed004251cdd2f0a3a7ea0886 · publication derivative v1</text>
+</svg>
