@@ -1,6 +1,6 @@
 # LLM / Agent Data Practical Use Map
 
-> 状态：`Stable Mother Edition V3.x / Practical Entry`
+> 状态：`Stable Mother Edition V3.x / Practical Entry / Scenario-tested`
 >
 > 目的：给已经稳定的知识体系提供一个**行动入口**。不再解释概念，只回答：
 >
@@ -19,6 +19,9 @@
 
 我今天要启动一个真实项目
 → Project Starter Pack
+
+我想看这两套 Pack 在真实追问 / protocol 下哪里会坏
+→ Scenario Pack Stress Test
 
 我想把图讲清楚
 → Figure Presentation Kit
@@ -99,9 +102,9 @@ F1
 
 ```text
 A1 Problem Intake
-A2 Task / Case Contract
+A2 Task / Case / Decision-state Contract
 A3 Trajectory / Evidence Bundle
-A4 Failure Record
+A4 Failure / Mechanism Record
 A5 Evaluator Contract
 ```
 
@@ -111,6 +114,22 @@ A5 Evaluator Contract
 A6 Data Intervention
 A7 Experiment Card
 A8 Decision Memo
+```
+
+如果是 inference-time / tool / harness / evaluator intervention：
+
+```text
+不要硬填 A6
+→ 保存对应 Method / System Contract
+→ 直接进入 A7
+```
+
+selective / routing 项目在 A7 必须额外保留：
+
+```text
+Population Ledger
+Information Boundary
+Cost Ledger
 ```
 
 ---
@@ -255,6 +274,22 @@ Selector Rescue?
 Harmful?
 Net?
 Cost?
+```
+
+真正启动项目时：
+
+```text
+Project Starter Pack
+→ A2-S exact decision-state contract
+→ A7 Population / Information / Cost Ledger
+```
+
+固定边界：
+
+```text
+Full Population ≠ Triggered Cohort
+Offline Label ≠ Online Feature
+Same Task ≠ Same Decision State
 ```
 
 外部 anchor 只负责相关公开方法背景；C4 的 `Risk / Recoverability / Selectability` operating decomposition 仍以本书 canonical definition 为准。
@@ -424,6 +459,28 @@ C1 / C3 / C4 / C5
 
 装配成 30 分钟 / 90 分钟准备路径、题型路由和追问树。
 
+压力测试后尤其记住：
+
+```text
+Direct Answer First
+Framework Second
+
+Alternative Hypothesis
+≠ Confirmed Root Cause
+
+Public Literature
+≠ My Project
+≠ Teaching Case
+≠ Hypothetical Design
+
+Quantitative Claim
+→ denominator + protocol + budget + claim scope
+```
+
+完整 finding：
+
+- [`Scenario Pack Stress Test`](./00_Scenario_Pack_Stress_Test.md)
+
 推荐 case：
 
 ```text
@@ -436,31 +493,6 @@ Reasoning / Test-time
 Eval / Verifier / Code Agent
 → C5
 ```
-
-回答结构：
-
-```text
-Problem
-→ Object / State
-→ Evidence
-→ Diagnosis
-→ Intervention
-→ Evaluation
-→ Decision
-```
-
-比：
-
-```text
-“我知道 SFT / DPO / Judge / Synthetic Data”
-```
-
-更能体现系统能力。
-
-如果需要回答“这个方法从哪里来”：
-
-- [`Canonical References`](./00_Canonical_References.md)
-- [`Reference & Source Policy`](./00_Reference_Source_Policy.md)
 
 ---
 
@@ -521,12 +553,13 @@ Task / Case / Trace / Environment / Evidence
 
 10–15
 Failure / Root Cause / Owner
+或 Hypothesis / Mechanism / Counterfactual
 
 15–20
-Data Problem Gate
+Intervention Gate
 
 20–25
-Minimum Intervention + Eval
+Minimum Intervention + Frozen Eval
 
 25–30
 Scale / Revise / Stop
@@ -543,6 +576,9 @@ Scale / Revise / Stop
 
 不知道怎么评
 → C5 + F7 / F8
+
+不知道 selective method 的 denominator / information boundary
+→ Project Starter Pack + Artifact Kit A2-S / A7
 
 不知道数据值不值得做
 → F10 + Ch18 / Ch21
@@ -580,6 +616,9 @@ Interview Pack
 Project Starter Pack
 = How to Start Day 0 → First Week
 
+Scenario Pack Stress Test
+= Where Scenario Packs break under real pressure
+
 Problem Index
 = Where to Diagnose
 
@@ -601,4 +640,4 @@ Reference Layer
 
 最终原则：
 
-> **不要为了“资料齐全”反复复制同一知识。每个 practical asset 都只解决一种调用问题；Scenario Pack 只负责装配，不重新定义知识。**
+> **不要为了“资料齐全”反复复制同一知识。每个 practical asset 都只解决一种调用问题；Scenario Pack 只负责装配，而 Stress Test 负责证明这些装配在真实追问和真实 protocol 下不会轻易散架。**
