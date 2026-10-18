@@ -276,36 +276,36 @@ P(y_w\succ y_l\mid x)
 
 ## 4.2 Ch4 — Recoverability Notation
 
-状态：`NEEDS REFINE — semantics correct, notation too narrow`
+状态：`FIXED`
 
-当前概念式：
+已从单步 action 形式：
 
 \[
 \exists a \in \mathcal{A}:\; V(s_t,a) > V(s_t,a_{base})
 \]
 
-语义目标是：
-
-> 从当前 state 是否存在某个允许的未来 continuation / intervention，使最终 outcome 优于 baseline future。
-
-问题：
-
-- 单个 `a` 容易被理解成单步 action；
-- Recoverability 在本章定义上允许 multi-step continuation / policy / branch。
-
-最终公式统一 pass 建议改成：
+修正为 future policy / continuation 形式：
 
 \[
 \exists \pi \in \Pi_{allowed}:\; V(s_t;\pi) > V(s_t;\pi_{base})
 \]
 
-或等价地：
+并在正文中显式解释：
 
-\[
-\max_{\pi\in\Pi_{allowed}} V(s_t;\pi) > V(s_t;\pi_{base})
-\]
+```text
+π
+= 从当前 state 开始的一段允许 future policy / continuation
+```
 
-这样更贴合“存在更好的未来”，并自然与 Repairability / Selectability 区分。
+这样与 Recoverability 的真实语义一致：
+
+> **问“是否存在更好的未来”，而不是“是否存在一个更好的单步动作”。**
+
+同时 Ch4 顶部的 C4 链接已从 heading anchor 改为稳定独立 case file：
+
+```text
+./cases/C4_Reasoning_Continue_Repair.md
+```
 
 ---
 
@@ -393,9 +393,9 @@ p_i\propto n_i^\alpha
 
 ## 4.5 Ch21 — General Data Intervention Formula
 
-状态：`NEEDS REFINE — current form is additive-specific`
+状态：`FIXED`
 
-当前：
+原先总公式使用 additive-specific 的：
 
 \[
 \Delta(D;M_0,T,E)
@@ -405,21 +405,7 @@ Metric(Train(M_0,B+D,T),E)
 Metric(Train(M_0,B,T),E)
 \]
 
-对于 `Add Data` 实验是合理的。
-
-但本章随后统一覆盖：
-
-```text
-Add
-Remove
-Replace
-Reweight
-Transform
-```
-
-所以作为“总 Data Experiment 因果对象”时，`B+D` 略窄。
-
-最终公式统一 pass 建议写成 intervention operator：
+现已改成通用 Data Intervention operator：
 
 \[
 \Delta(I_D;M_0,T,E)
@@ -433,14 +419,20 @@ Metric(Train(M_0,B,T),E)
 
 ```text
 I_D
-= 对 baseline mixture B 施加的 Data Intervention
+= 对 baseline mixture B 施加的数据 intervention
 ```
 
-这样可以统一表示：
+可以统一覆盖：
 
 ```text
-Add / Remove / Replace / Reweight / Transform
+Add
+Remove
+Replace
+Reweight
+Transform
 ```
+
+因此公式与整章实际 action space 已一致。
 
 ---
 
@@ -476,10 +468,10 @@ S_{fixed}=\sum_k p_{ref}(k)S_k
 
 ```text
 Ch3  Pairwise logistic      PASS
-Ch4  Recoverability        NEEDS REFINE: action → future policy / continuation
+Ch4  Recoverability        FIXED
 Ch18 ROI / MU / heuristics PASS
 Ch20 Mixture / temperature PASS
-Ch21 Data intervention     NEEDS REFINE: B + D → general intervention operator
+Ch21 Data intervention     FIXED
 Ch23 Fixed-mix metric      PASS
 ```
 
@@ -674,8 +666,8 @@ K17 888 / 750 / 138
 ## P1 — Formula / Metric
 
 ```text
-[ ] Ch4 Recoverability notation final patch
-[ ] Ch21 general Data Intervention notation final patch
+[x] Ch4 Recoverability notation final patch
+[x] Ch21 general Data Intervention notation final patch
 [ ] paired / coverage metric notation spot-check
 [ ] remaining chapter-local equations spot-check
 ```
@@ -726,7 +718,7 @@ Header / Navigation Audit Round 1
 ✓
 
 Formula / Metric Audit Round 1
-✓ with two planned refinements
+✓ all identified canonical-notation issues fixed
 
 Research Number / Denominator Audit Round 1
 ✓ More Thinking / K17
