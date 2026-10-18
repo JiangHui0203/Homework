@@ -1,6 +1,6 @@
 # LLM / Agent Data Knowledge System：全书精修施工图
 
-> 状态：**Structural Editing Complete / Case Integration Complete / Visual Refinement Active**
+> 状态：**Structure / Cases / Master Figures Complete — Retrieval Indexes Active**
 >
 > 适用范围：`LLM_Agent_Data_Knowledge_System.md` + `LLM_Agent_Data/00_...` 至 `25_...` + `cases/` + `figures/`
 >
@@ -54,21 +54,23 @@ Canonical Case Infrastructure
 ✓ Cases README
 
 Master Figure System
-✓ Visual grammar / registry
-✓ Batch 1: F1 / F4 / F6 / F8 / F9 / F14
-→ Batch 2: F2 / F3 / F5 / F7 / F10 / F11 / F12 / F13
+✓ F1–F14 全部完成
+✓ Figure Index
+✓ Visual Grammar
+
+Current
+→ Retrieval Indexes
 
 Next
 → Cross-reference / broken-link audit
-→ Master Figure Batch 2
-→ Concept / Role / Problem / Interview / Checklist / Figure Indexes
 → Fact / paper / number / formula verification
+→ Figure integration audit for old local diagrams
 → Final continuous read-through
 ```
 
 当前阶段一句话：
 
-> **正文骨架已经稳定；案例系统已经可调用；现在把复杂关系压缩成稳定视觉模型，并进一步建设检索入口。**
+> **正文、案例和视觉骨架已经稳定；现在要让整套知识从“可以阅读”升级为“可以按问题、角色和任务快速检索”。**
 
 ---
 
@@ -171,7 +173,7 @@ C4 Reasoning Continue / Repair
 C5 Code / Execution Agent
 ```
 
-现在已经进一步稳定到 variant / failure ID，例如：
+稳定 variant 示例：
 
 ```text
 C1-VB = shipped / no refund allowed
@@ -196,51 +198,51 @@ cases/C1...C5.md
 
 ---
 
-# 4. Master Figure System
+# 4. Master Figure System — COMPLETE
 
-## Batch 1 — DONE
+14 张图已全部完成：
 
 ```text
 F1  Learning System Overview
+F2  Data Object & Learning Signal Evolution
+F3  Reasoning State Decision Stack
 F4  Agent Task–Environment–Trajectory
+F5  Trajectory Anatomy
 F6  Credit → Failure Causal Map
+F7  Evidence → Verifier → Grader → Judge
 F8  Benchmark / Evaluation Protocol
 F9  Data Flywheel
-F14 Operating Model + Capability Map
-```
-
-它们覆盖六个 book-level mental model：
-
-```text
-全书 Learning System
-Agent 世界对象关系
-Failure 因果诊断
-科学评测协议
-数据持续学习闭环
-组织 + 个人 Operating System
-```
-
-## Batch 2 — NEXT
-
-```text
-F2  Data Object / Learning Signal Evolution
-F3  Reasoning State Decision Stack
-F5  Trajectory Anatomy
-F7  Evidence → Verifier → Grader → Judge
 F10 Data Strategy / Portfolio / ROI
 F11 Governance / Lineage DAG
 F12 Data Production System
 F13 Monitoring / Drift Diagnostic Tree
+F14 Operating Model + Capability Map
+```
+
+视觉层形成的主链：
+
+```text
+F1 Learning System
+↓
+F2/F3 Learning + Reasoning
+↓
+F4/F5/F6 Agent World + Diagnosis
+↓
+F7/F8 Measurement
+↓
+F9/F10/F11 Lifecycle + Strategy + Governance
+↓
+F12/F13/F14 Production + Monitoring + Operating Model
 ```
 
 规则：
 
 ```text
-Master Figure = stable system model
-Chapter = analytical lens
+Master Figure = stable relationship model
+Chapter-local Figure = local lens
 ```
 
-视觉规范见：`00_Master_Figure_System.md`。
+下一阶段只做 Figure Integration Audit，不再无限新增总图。
 
 ---
 
@@ -294,21 +296,29 @@ Ch22 Produce
 
 ---
 
-# 6. Retrieval / Index Plan
+# 6. Retrieval / Index Plan — CURRENT
 
-后续新增的是导航资产，不是新知识章节：
+需要构建：
 
 ```text
 Concept Index
-Case Index
 Role Index
 Problem Index
 Interview Index
 Checklist Index
-Figure Index
 ```
 
-最终要支持：
+Figure Index 与 Case Index 已由：
+
+```text
+figures/README.md
+cases/README.md
+00_Case_Integration_Index.md
+```
+
+承担。
+
+目标：
 
 ```text
 “Recoverability 在哪定义？”
@@ -322,7 +332,7 @@ Figure Index
 
 # 7. Verification Plan
 
-结构与视觉资产稳定后，再做事实与引用审计：
+Retrieval Index 稳定后，再做事实与引用审计：
 
 ```text
 论文正式题名 / 副标题
@@ -389,7 +399,8 @@ Learning Path Edition
 5. **不继续扩正文章节；新内容优先进入已有章、Casebook、Glossary、Figure 或 Index。**
 6. **图不承担装饰任务，只承担关系压缩任务。**
 7. **Case ID 不允许语义漂移。**
+8. **Index 负责检索，不重新创造定义。**
 
 当前一句话状态：
 
-> **“书”已经搭完，“案例坐标系”已经稳定，现在正在把整套系统压缩成可视、可检索、可调用的知识网络。**
+> **“书”已经搭完，案例坐标系和视觉坐标系也已稳定；现在开始建设检索坐标系。**
