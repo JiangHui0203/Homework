@@ -3,6 +3,8 @@
 > 角色：按真实问题 / 症状检索。回答“我现在遇到这个现象，先查什么、再读哪章、最后可能落到哪类 intervention？”
 >
 > 原则：**Symptom ≠ Root Cause。Problem Index 给的是排查路径，不是直接结论。**
+>
+> 路由边界：本 Index 是 **symptom-first retrieval**，因此天然更常服务于 `Failure-led / Monitoring-led`。如果项目起点本来就是 research hypothesis、evaluator / protocol 问题或 existing data asset，不要为了套 Problem Index 人造 symptom；直接进入 [`Project Starter Pack`](./00_Project_Starter_Pack.md) 的 `Hypothesis-led / Evaluation-led / Asset-led / Curation-led` Entry。
 
 ---
 
@@ -170,6 +172,15 @@ Ch15 → Ch21 → Ch23
 ## Figure
 
 F7 / F13
+
+## Practical Route
+
+```text
+Evaluation-led
+→ A5 Evaluator Contract
+→ 如 evaluator / rubric / guideline 换版，按需加载 A5-M Measurement Bridge
+→ same anchor set 做 old↔new paired bridge
+```
 
 ## 可能原因
 
@@ -424,6 +435,23 @@ Ch23
 
 F13
 
+## Practical Route
+
+```text
+Monitoring-led Incident
+→ A10 Monitoring Incident / Drift Record
+→ Last-known-good + Change Ledger + containment
+→ 需要更完整 incident contract 时按需加载 A10-I
+→ attribution 之后再决定是否进入 A1 / A3 / A4 / A5
+```
+
+固定边界：
+
+```text
+Monitoring Alert
+≠ Model Regression
+```
+
 ---
 
 # 15. “固定 threshold 以前好用，现在 trigger 爆炸了”
@@ -530,12 +558,22 @@ reuse raw artifact
 
 ## 重点章节
 
-Ch19 / Ch22
+Ch15 / Ch19 / Ch22 / Ch23
+
+## Practical Route
+
+```text
+Evaluation-led
+→ A5-M Measurement Bridge
+→ same anchor set 比较 old↔new evaluator
+→ 确认 measurement change 后再决定历史结果如何 re-score / bridge
+```
 
 ## 关键区别
 
 ```text
 Re-score ≠ Re-run ≠ Replay
+Evaluator Upgrade ≠ Capability Improvement
 ```
 
 ---
@@ -775,11 +813,35 @@ High-value Yield
 
 ## 重点章节
 
-Ch22
+Ch19 / Ch20 / Ch22
 
 ## Figure
 
-F12
+F11 / F12
+
+## Practical Route
+
+如果输入本质上是“已有 source assets / trajectories 如何变成可用数据资产”，优先按：
+
+```text
+Asset-led / Curation-led
+→ A11 source lineage
+→ A6-C Curation Contract
+→ Rebuildable Dataset View / Yield Funnel / Exposure
+→ A7 downstream validation
+```
+
+不要把：
+
+```text
+Source Asset
+```
+
+直接当成：
+
+```text
+Dataset View / Training Data
+```
 
 ## 分解 funnel
 
