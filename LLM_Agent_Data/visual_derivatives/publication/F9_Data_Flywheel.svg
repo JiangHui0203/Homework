@@ -27,6 +27,7 @@
       .route { fill:#fff; stroke:#999; stroke-width:1.3; stroke-dasharray:5 5; rx:14; ry:14; }
       .routeTitle { font:700 14px Arial,Helvetica,sans-serif; fill:#333; }
       .routeText { font:400 13px Arial,Helvetica,sans-serif; fill:#555; }
+      .edgeLabel { font:700 12px Arial,Helvetica,sans-serif; fill:#444; }
       .caption { font:400 14px Arial,Helvetica,sans-serif; fill:#555; }
     </style>
   </defs>
@@ -100,9 +101,11 @@
   <!-- Deploy gate -->
   <polygon class="decision" points="155,570 215,620 155,670 95,620"/>
   <text class="nodeText" x="155" y="616">Deploy?</text>
-  <text class="nodeSub" x="155" y="640">Scale / Revise / Stop</text>
+  <text class="nodeSub" x="155" y="640">Scale / Revise</text>
   <path class="edge" d="M155 505 L155 570"/>
+  <text x="65" y="605" class="edgeLabel">Yes</text>
   <path class="feedback" d="M95 620 C50 620, 45 275, 65 213"/>
+  <text x="455" y="665" class="edgeLabel">No / Revise</text>
   <path class="feedback" d="M215 620 C420 660, 900 650, 1015 250"/>
 
   <!-- Monitoring route -->
@@ -110,6 +113,7 @@
   <text class="routeTitle" x="305" y="598">Monitoring / Fresh Frontier</text>
   <text class="routeText" x="305" y="628">Frozen Core protects old capability; fresh failures expose new gaps.</text>
   <path class="feedback" d="M155 250 C180 320, 300 330, 370 570"/>
+  <path class="feedback" d="M370 570 C370 430, 370 330, 370 250"/>
 
   <!-- Non-data routing -->
   <rect class="route" x="750" y="570" width="570" height="100"/>
