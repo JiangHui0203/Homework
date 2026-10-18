@@ -1,12 +1,14 @@
 # LLM / Agent Data Practical Artifact Kit
 
-> 状态：`Stable Mother Edition V3.x / Execution Artifacts / Stress-tested`
+> 状态：`Stable Mother Edition V3.x / Execution Artifacts / Multi-scenario-tested`
 >
 > 目标：把全书方法论进一步压成一组**可以直接复制、填写、评审和版本化**的项目工件。
 >
-> 场景压力测试：[`Scenario Pack Stress Test`](./00_Scenario_Pack_Stress_Test.md)
+> 场景压力测试：[`Round 1`](./00_Scenario_Pack_Stress_Test.md) · [`Round 2`](./00_Scenario_Pack_Stress_Test_Round_2.md) · [`Promotion Test`](./00_Scenario_Pack_Promotion_Test.md)
 >
-> 原则：**没有 Artifact 的流程很难复盘；没有 Version / Evidence / Decision 的 Artifact 很难审计。**
+> 按需扩展：[`Scenario Pack Candidate Extensions`](./00_Scenario_Pack_Candidate_Extensions.md)
+>
+> 原则：**没有 Artifact 的流程很难复盘；没有 Version / Evidence / Decision 的 Artifact 很难审计。Artifact Kit 是工件目录，不是要求所有项目 A1→A11 线性填满的流水线。**
 
 ---
 
@@ -25,44 +27,63 @@ Practical Playbook
 = 按什么顺序做
 
 Project Starter Pack
-= Day 0 / Day 1 / First Week 什么时候做什么
+= 先从哪个 Entry 进入，Day 0 / Day 1 / First Week 什么时候做什么
 
 Practical Artifact Kit
 = 每一步最终应该产出什么可审计对象
 ```
 
-一个典型项目至少形成：
+A1–A11 是**可组合的工件集合**：
 
 ```text
-A1 Problem Intake
-↓
-A2 Task / Case / Decision-state Contract
-↓
-A3 Trajectory / Evidence Bundle
-↓
-A4 Failure / Mechanism Record
-↓
-A5 Evaluator Contract
-↓
-A6 Data Intervention Card          （仅 Data Intervention）
-↓
-A7 Experiment Card
-↓
-A8 Decision Memo
-↓
-A9 Production Handoff
-↓
+A1  Problem Intake
+A2  Task / Case / Decision-state Contract
+A3  Trajectory / Evidence Bundle
+A4  Failure / Mechanism Record
+A5  Evaluator Contract
+A6  Data Intervention Card          （仅 Data Intervention）
+A7  Experiment Card
+A8  Decision Memo
+A9  Production Handoff
 A10 Monitoring Incident / Drift Record
-↺
+A11 Minimal Lineage Manifest         （贯穿全程）
+```
 
-A11 Minimal Lineage Manifest
-= 贯穿全程
+不同项目从不同入口进入：
+
+```text
+Failure-led
+→ 常见起点 A1 / A2 / A3 / A4
+
+Monitoring-led Incident
+→ 常见起点 A10
+→ triage 后再进入 A1 / A3 / A4 / A5
+
+Hypothesis-led
+→ 常见起点 A1 + A2 / A2-S + A7
+
+Evaluation-led
+→ 常见起点 A5
+
+Asset-led / Curation-led
+→ 常见起点 A11 source lineage + curation contract
+```
+
+它们最终汇合到：
+
+```text
+Relevant Contract + Evidence
+→ Controlled Change
+→ A7 Evaluation
+→ A8 Decision
+→ Production / Monitoring / Re-entry if needed
 ```
 
 注意：
 
 ```text
 A6 不是所有项目必经。
+A1 也不是所有项目的强制第一张表。
 ```
 
 如果项目最终是：
@@ -81,14 +102,14 @@ Product / Task Contract
 
 # A1 — Problem Intake Card
 
-适用：项目立项、线上 bad case、benchmark regression、研究 hypothesis、evaluation gap、数据策略需求。
+适用：需要正式定义问题 / scientific question 的 failure-led、hypothesis-led、evaluation-led、strategy-led 项目；Monitoring-led 可以先从 A10 进入，Asset-led 可以先从 A11 / source asset contract 进入。
 
 ```yaml
 problem_id: PI-YYYYMMDD-001
 owner: <person/team>
 created_at: <timestamp>
 
-project_origin: <failure_led|hypothesis_led|evaluation_led|strategy_led>
+project_origin: <failure_led|monitoring_led|hypothesis_led|evaluation_led|asset_led|strategy_led>
 
 problem_statement: >
   用一句话描述真实问题 / scientific question，而不是预设解决方案。
@@ -127,6 +148,9 @@ suspected_layers:
   - inference_policy
   - unknown
 
+candidate_intervention_owner_or_type: >
+  当前最可能属于哪一层？未确认时写 UNKNOWN。
+
 why_this_might_be_a_data_problem: >
   当前证据是什么？如果没有证据，写 UNKNOWN / NOT YET ESTABLISHED。
 
@@ -142,8 +166,14 @@ decision_deadline_or_milestone: <date>
 Problem Statement
 ≠ Proposed Solution
 
+Monitoring Alert
+≠ Model Regression
+
 Triggered Population
 ≠ Full Population
+
+Existing Asset
+≠ Validated Training Dataset
 ```
 
 不要把：
@@ -500,6 +530,7 @@ known_limitations:
   - <coverage / bias / unsupported slice>
 
 gold_or_anchor_set: <id|null>
+measurement_bridge_ref: <old-new paired bridge id|null>
 
 validation:
   false_positive_rate: <value|unknown>
@@ -526,6 +557,13 @@ What is the evidence?
 Why is this evaluator valid for that claim?
 ```
 
+Evaluator / rubric / guideline 换版时，还要回答：
+
+```text
+旧尺子与新尺子之间有没有 paired bridge？
+没有 bridge 时，新旧 score 是否被错误拼成一条 longitudinal curve？
+```
+
 固定边界：
 
 ```text
@@ -534,6 +572,9 @@ Evaluator Output
 
 Offline Evaluation Evidence
 ≠ Online Policy Feature
+
+New Evaluator Score
+≠ Historically Comparable Score by default
 ```
 
 ---
@@ -622,6 +663,8 @@ Product / Task Contract Change
 ```
 
 并在 A7 的 `intervention.ref` 指向它。
+
+Asset-led / Curation-led 项目如果只是在把既有 source assets 构造成可信 Dataset View，可以按需使用 `A6-C Curation Contract`，不必伪装成“新增训练数据 intervention”。
 
 ---
 
@@ -848,15 +891,27 @@ Research Success
 
 对应：Ch23 / F13。
 
+Monitoring-led project 可以直接从 A10 开始，不需要先人为制造一张 A1。
+
 ```yaml
 incident_id: <id>
 detected_at: <timestamp>
+
+last_known_good:
+  timestamp_or_window: <time/window>
+  release_or_model_version: <id|null>
+  metric_definition_version: <id|null>
 
 signal:
   metric: <name>
   previous: <value>
   current: <value>
   population_or_slice: <population>
+
+comparison_view:
+  raw_overall: <value/change|null>
+  fixed_mix: <value/change|null>
+  slice_results: []
 
 changed_since_last_good:
   model: <version change|null>
@@ -888,11 +943,15 @@ suspected_drift:
 root_cause_status: <confirmed|suspected|unresolved>
 owner: <team|null>
 
+containment:
+  action: <none|rollback|disable_route|freeze_write|other>
+  status: <planned|active|complete|not_needed>
+
 immediate_action: >
 rollback_condition: >
 
 follow_up_artifacts:
-  - <new case / regression / data intervention / tool fix / recalibration>
+  - <new A1 / case / regression / evaluator bridge / data intervention / tool fix / recalibration>
 ```
 
 固定原则：
@@ -900,6 +959,9 @@ follow_up_artifacts:
 ```text
 Monitoring Alert
 ≠ Model Regression
+
+Raw Overall Drift
+≠ Fixed-mix Capability Drift
 
 Trigger-rate Drift
 ≠ Capability Drift by definition
@@ -913,7 +975,7 @@ Trigger-rate Drift
 
 ```yaml
 artifact_id: <stable id>
-artifact_type: <trajectory|dataset|label|model|report|verifier|case|method_contract|experiment>
+artifact_type: <source_asset|trajectory|dataset|dataset_view|label|model|report|verifier|case|method_contract|experiment>
 version: <version>
 created_at: <timestamp>
 
@@ -937,6 +999,7 @@ producer:
 
 population_ref: <ledger/artifact id|null>
 information_boundary_ref: <contract id|null>
+build_recipe_ref: <id|null>
 
 notes: >
 ```
@@ -946,6 +1009,8 @@ notes: >
 最低目标是：
 
 > **能从结论追回输入，也能从输入追到受影响结论。**
+
+Asset-led / Curation-led 项目可以直接从 A11 建立 source truth，再进入 routing / curation / validation。
 
 ---
 
@@ -982,16 +1047,18 @@ A1
 → A8
 ```
 
-## P2 — 几十万条 Agent Trajectory
+## P2 — 几十万条 Agent Trajectory / Existing Data Asset
 
 ```text
-A1 / provenance gate
-→ A3 batch view
-→ A4 batch mechanism view
-→ A6 if Data Gap
-→ A7
+A11 source asset / lineage gate
+→ A3 batch evidence view
+→ A6-C curation contract if needed
+→ A5 verifier / judge contract if scoring is used
+→ A7 downstream validation
 → A8
 ```
+
+如果 batch 里先发现明确 failure mechanism，再按需进入 A4；不要为了流程整齐给所有 trajectory 强制生成 Root Cause。
 
 ## P3 — Synthetic Data
 
@@ -1007,6 +1074,7 @@ A2
 
 ```text
 A5
+→ A5-M Measurement Bridge if evaluator version changed
 → A7
 → A8
 → A10 if production
@@ -1034,7 +1102,8 @@ A7
 
 ```text
 A10
-→ A3 / A4
+→ last-known-good / change ledger / raw-vs-fixed-mix triage
+→ A3 / A4 only when failure evidence is available
 → correct owner
 → A6 only if true Data Gap
 ```
@@ -1045,7 +1114,7 @@ A10
 A1 scientific question
 → A2-S authoritative state / intervention contract
 → A3 branch lineage / evidence
-→ A4 mechanism record
+→ A4 opportunity / mechanism record
 → A5 evaluator + information boundary
 → method-specific intervention contract
 → A7 population / information / cost ledger
@@ -1056,25 +1125,36 @@ A1 scientific question
 
 # 3. 一个成熟项目的最短“证据包”
 
-如果项目时间非常紧，至少保留：
+最短证据包也应按 Entry 选择，不是机械复制固定八件套。
+
+共同最小核：
 
 ```text
-Problem / Scientific Question
-Task / Case / Decision-state Contract
-Raw Trajectory / Evidence
-Failure / Mechanism Record
-Frozen Evaluator / Protocol
-Intervention Contract
-Experiment Card
+Problem / Scientific Question / Incident / Asset Identity
+Relevant Contract
+Raw Evidence / Lineage
+Frozen Evaluator / Protocol when measurement is involved
+Controlled Change or Comparison Contract
 Decision Memo
 ```
 
-selective / adaptive 项目再额外确保：
+按需增加：
 
 ```text
-Population Ledger
-Information Boundary
-Cost Ledger
+Failure-led
+→ Failure / Mechanism Record
+
+Selective / Adaptive
+→ Population Ledger + Information Boundary + Cost Ledger
+
+Evaluator Change
+→ Measurement Bridge
+
+Monitoring Incident
+→ Last-known-good + Change Ledger + Containment
+
+Asset-led / Curation-led
+→ Source Lineage + Build Recipe / Dataset View
 ```
 
 如果这些都没有，就很容易出现：
@@ -1087,6 +1167,8 @@ Cost Ledger
 不知道为什么改
 不知道谁判的
 不知道到底花了多少成本
+不知道新旧 evaluator 是否可比
+不知道 dataset view 从哪些 source build 出来
 不知道为什么决定继续做
 ```
 
@@ -1095,6 +1177,9 @@ Cost Ledger
 # 4. 最终原则
 
 ```text
+Entry Router
+决定从哪个工件开始
+
 Playbook
 告诉你怎么走
 
@@ -1106,6 +1191,9 @@ Population Ledger
 
 Information Boundary
 证明 online decision 没偷看未来
+
+Measurement Bridge
+证明换尺子后哪些历史比较仍成立
 
 Lineage
 证明你走的是哪一条路
@@ -1124,13 +1212,14 @@ Analysis
 而应该是：
 
 ```text
-Evidence
+Correct Entry
+→ Evidence
 → Contract
 → Artifact
 → Controlled Comparison
 → Decision
 → Lineage
-→ Reuse
+→ Reuse / Re-entry
 ```
 
-> **知识体系真正进入执行阶段的标志，不是知道更多术语，而是每个重要判断都有一个可以被别人重新检查的项目工件；每个数字都知道自己的 denominator，每个 online decision 都知道自己当时允许看见什么。**
+> **知识体系真正进入执行阶段的标志，不是知道更多术语，而是每个重要判断都有一个可以被别人重新检查的项目工件；每个数字都知道自己的 denominator，每个 online decision 都知道自己当时允许看见什么，每次换尺子也知道历史比较还能不能成立。**
