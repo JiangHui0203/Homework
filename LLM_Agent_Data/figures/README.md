@@ -8,26 +8,34 @@
 Mermaid Master Figure
 = semantic source of truth
 
-SVG / PNG / PPT / PDF redraw
-= presentation derivative
+D1 Publication / D2 Presentation / D3 Quick-reference
+= presentation derivatives
 ```
 
-目标：
+当前状态：
 
 ```text
-可读
-可 diff
-可版本化
-GitHub 直接渲染
-可单独截图讲解
-后续可统一重绘成出版级 SVG
+F1–F14 semantic Master Figures
+✓ complete
+
+Level A
+F1 / F4 / F6 / F8 / F9 / F14
+→ D1 / D2 / D3 complete
+
+Level B
+F2 / F3 / F5 / F7 / F10 / F11 / F12 / F13
+→ semantic / production-refined Master Figure complete
 ```
+
+Level B derivative 不为了“数量对齐”机械生成；有真实出版 / 演示 / quick-reference 需求时再派生。
 
 视觉体系入口：
 
 - [`Master Figure System`](../00_Master_Figure_System.md)
 - [`Figure Design Contract`](../00_Figure_Design_Contract.md)
 - [`Figure Presentation Kit`](../00_Figure_Presentation_Kit.md)
+- [`Visual Release Manifest`](../00_Visual_Release_Manifest.md)
+- [`Visual Derivatives`](../visual_derivatives/README.md)
 - [`Figure Integration Audit`](../00_Figure_Integration_Audit.md)
 
 ---
@@ -91,19 +99,15 @@ Learning System
 → Operating Model
 ```
 
-如果要把这六张直接用于面试、组会或答辩，继续看：
+如果要把这六张直接用于面试、组会或答辩：
 
-- [`Figure Presentation Kit`](../00_Figure_Presentation_Kit.md)
+- [`Figure Presentation Kit`](../00_Figure_Presentation_Kit.md) → 选图、30s / 90s talk track、误讲点
+- [`D2 Presentation Storyboards`](../visual_derivatives/slides/README.md) → 真正 16:9 progressive reveal implementation
+- [`D3 Quick-reference Cards`](../visual_derivatives/quick_reference/Level_A_Quick_Reference_Cards.md) → 快速复习
 
-其中已经提供：
+如果用于书稿 / PDF：
 
-```text
-30-second Track
-90-second Track
-Progressive Reveal
-Common Misread
-Best Use Cases
-```
+- [`D1 Publication SVG`](../visual_derivatives/publication/)
 
 ## 2. 想把每一层补完整
 
@@ -181,31 +185,52 @@ Level A Production Refinement
 Level B Production Refinement
 ✓ complete
 
-Presentation Talk Track
-✓ Level A complete
+Level A D1 Publication
+✓ complete
+
+Level A D2 16:9 Storyboard
+✓ complete
+
+Level A D3 Quick-reference
+✓ complete
 ```
 
-下一阶段若继续视觉升级，重点应放在：
+后续视觉工作默认是：
 
 ```text
-publication SVG redraw
-slide progressive reveal implementation
-share-card derivative
+source freshness maintenance
+semantic acceptance
+按真实需求派生 Level B
 ```
 
-而不是再次修改 canonical relation。
+而不是再次修改 canonical relation，也不是为了“14 张都必须有三套 derivative”制造无需求资产。
 
 ---
 
-# Future Derivatives
+# Derivative Responsibilities
 
-同一个 Mermaid semantic source 未来可以派生：
+同一个 Mermaid semantic source 可以派生：
 
 ```text
-Book / PDF Figure
-Slides / Progressive Reveal
-Interview Quick Reference
-Social / Share Card
+D1 Book / PDF Figure
+→ static semantic hierarchy
+
+D2 Slides / Progressive Reveal
+→ temporal information order
+
+D3 Interview / Quick Reference
+→ minimal recall surface
 ```
+
+`Figure Presentation Kit` 负责：
+
+```text
+讲哪张
+怎么讲
+讲多深
+哪些地方容易讲错
+```
+
+真正的 slide frame / reveal 顺序以 D2 storyboard 为准。
 
 如果 presentation redraw 需要改变概念关系，必须先回写 Master Figure source。
