@@ -25,7 +25,7 @@ jobs:
       - name: Verify patch
         run: |
           grep -Fq '#### 5.1.88 参考资料' Agent_Knowledge_System.md
-          grep -Fq '| II | 5. Capability Extension | 进行中：5.1 已完成 |' Agent_Knowledge_System.md
+          grep -Fq '| II | 5. Capability Extension & Protocols | 进行中：5.1 已完成 |' Agent_Knowledge_System.md
           grep -Fq '下一步：继续 **II. Capabilities & Interoperability → 5. Capability Extension → 5.2 Skills**。' Agent_Knowledge_System.md
       - name: Remove temporary patch files
         run: |
