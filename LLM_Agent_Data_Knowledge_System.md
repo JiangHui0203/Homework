@@ -2,7 +2,7 @@
 
 > **LLM / Agent Data Knowledge System**
 >
-> 当前状态：**Stable Mother Edition — V3.0**。25 章主体、7-Part 架构、Canonical Concepts、C1–C5、F1–F14、Retrieval Indexes、公式 / 数字口径 / 术语 / 视觉真源 / 关键链接验收与 0→25 连续通读均已完成。
+> 当前状态：**Stable Mother Edition — V3.0**。25 章主体、7-Part 架构、Canonical Concepts、C1–C5、F1–F14、Retrieval Indexes、公式 / 数字口径 / 术语 / 视觉真源 / 关键链接验收与 0→25 连续通读均已完成；V3.x 开始在不改骨架的前提下增加 Practical Case Studies、Playbooks 与 Condensed Guide。
 >
 > 当前版本：**V3.0（2026-10-18）**
 >
@@ -136,7 +136,7 @@ Master Figure：F14。
 
 ---
 
-# 五套导航资产
+# 六套导航与调用资产
 
 ## 1. Canonical Concepts
 
@@ -170,10 +170,11 @@ C5 Code / Execution Agent
 ## 3. Master Figures
 
 - [Master Figure System](./LLM_Agent_Data/00_Master_Figure_System.md)
+- [Figure Design Contract](./LLM_Agent_Data/00_Figure_Design_Contract.md)
 - [Figure Index](./LLM_Agent_Data/figures/README.md)
 - [Figure Integration Audit](./LLM_Agent_Data/00_Figure_Integration_Audit.md)
 
-14 张 Master Figure 已完成并明确 canonical visual ownership；Ch14 / Ch15 / Ch19 的三处竞争性总图已收敛到 F6 / F7 / F11。
+14 张 Master Figure 已完成 production refinement，并明确 canonical visual ownership；Ch14 / Ch15 / Ch19 的三处竞争性总图已收敛到 F6 / F7 / F11。
 
 ## 4. Role / Problem Retrieval
 
@@ -200,6 +201,28 @@ C5 Code / Execution Agent
 项目立项 / review
 数据生产 / 评测 / 上线前检查
 30-minute quick diagnosis
+```
+
+## 6. Practical Use Layer
+
+- [Practical Case Studies](./LLM_Agent_Data/case_studies/README.md)
+  - [C1 — End-to-End Data Learning Loop](./LLM_Agent_Data/case_studies/C1_End_to_End_Walkthrough.md)
+  - [C3 — Permission / Harness Ownership](./LLM_Agent_Data/case_studies/C3_Permission_Harness_Ownership_Walkthrough.md)
+  - [C4 — Reasoning Intervention](./LLM_Agent_Data/case_studies/C4_Reasoning_Intervention_Walkthrough.md)
+- [Practical Playbooks](./LLM_Agent_Data/00_Practical_Playbooks.md)
+- [Condensed Guide](./LLM_Agent_Data/00_Condensed_Guide.md)
+
+三层分别回答：
+
+```text
+Case Study
+→ 一个真实问题怎样完整走完证据、诊断、数据、实验、生产和监控？
+
+Playbook
+→ 给我一个现实输入，今天按什么步骤推进到 Decision？
+
+Condensed Guide
+→ 怎样在 30–90 分钟建立整套 shared mental model？
 ```
 
 ---
@@ -316,11 +339,10 @@ Core Acceptance Blockers
 ## 大模型 / Agent 数据岗位面试
 
 ```text
-1 → 2 → 3
-→ 6 → 7 → 9
-→ 15 → 16
-→ 18 → 20 → 21
-→ 25
+Condensed Guide
+→ F1 / F4 / F6 / F8 / F14
+→ Interview Index
+→ C1 / C3 / C4 Practical Studies
 ```
 
 ## Agent Data / Agent Evaluation
@@ -341,7 +363,7 @@ Core Acceptance Blockers
 → 13
 → 15 → 16
 → 21
-→ 25
+→ C4 Practical Walkthrough
 ```
 
 ## Data Platform / DataOps
@@ -350,6 +372,17 @@ Core Acceptance Blockers
 1 → 12
 → 19 → 20
 → 22 → 23 → 24
+→ C3 Practical Walkthrough
+```
+
+## 今天就要开始做项目
+
+```text
+Problem Index
+→ Practical Playbook
+→ 对应 Checklist
+→ 对应 Case Study
+→ Canonical Chapter
 ```
 
 ---
@@ -364,11 +397,13 @@ V3.0 不是“以后不再改”，而是：
 
 ```text
 补 Case variant
+补 Practical Case Study
+补 Playbook
 补局部解释
 更新 bibliography / Source Anchor
 补 external evidence
 扩 Retrieval Index
-优化 local figure
+优化 Master / local figure
 新增 checklist item
 修 broken link / typo
 ```
