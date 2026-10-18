@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="950" viewBox="0 0 1600 950" role="img" aria-labelledby="title desc">
+  <title id="title">F6 — Credit → Failure Causal Map</title>
+  <desc id="desc">Publication derivative of canonical F6. Semantic source: figures/F6_Credit_to_Failure_Causal_Map.md, blob a343e95aaf74cd98fda331d4ef4987a240cc7c02.</desc>
+  <!--
+    figure_id: F6
+    semantic_source: LLM_Agent_Data/figures/F6_Credit_to_Failure_Causal_Map.md
+    semantic_source_sha: a343e95aaf74cd98fda331d4ef4987a240cc7c02
+    export_type: publication_svg
+    export_version: v1
+    created_at: 2026-10-18
+  -->
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#222"/></marker>
+    <marker id="arrowThin" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L8,3 z" fill="#666"/></marker>
+    <style>
+      .title { font:700 36px Arial,Helvetica,sans-serif; fill:#111; }
+      .subtitle { font:400 19px Arial,Helvetica,sans-serif; fill:#444; }
+      .node { fill:#fff; stroke:#222; stroke-width:2.2; rx:15; ry:15; }
+      .nodeText { font:700 16px Arial,Helvetica,sans-serif; fill:#111; text-anchor:middle; }
+      .nodeSub { font:400 13px Arial,Helvetica,sans-serif; fill:#555; text-anchor:middle; }
+      .edge { fill:none; stroke:#222; stroke-width:2.4; marker-end:url(#arrow); }
+      .aux { fill:none; stroke:#666; stroke-width:2; stroke-dasharray:7 6; marker-end:url(#arrowThin); }
+      .branchBox { fill:#fafafa; stroke:#aaa; stroke-width:1.4; rx:14; ry:14; }
+      .branchTitle { font:700 14px Arial,Helvetica,sans-serif; fill:#333; }
+      .branchText { font:400 13px Arial,Helvetica,sans-serif; fill:#555; }
+      .boundary { fill:#fff; stroke:#666; stroke-width:1.5; rx:14; ry:14; }
+      .boundaryTitle { font:700 15px Arial,Helvetica,sans-serif; fill:#333; }
+      .boundaryText { font:700 16px Arial,Helvetica,sans-serif; fill:#111; }
+      .caseBox { fill:#fff; stroke:#777; stroke-width:1.5; stroke-dasharray:5 5; rx:14; ry:14; }
+      .caseTitle { font:700 14px Arial,Helvetica,sans-serif; fill:#333; }
+      .caseText { font:400 13px Arial,Helvetica,sans-serif; fill:#555; }
+      .caption { font:400 14px Arial,Helvetica,sans-serif; fill:#555; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="950" fill="#fff"/>
+  <text x="70" y="65" class="title">F6 — Credit → Failure Causal Map</text>
+  <text x="70" y="98" class="subtitle">从 Outcome 到 Root Cause / Owner 不能跳步；Credit Assignment 与 Failure Diagnosis 相连，但不是同一个问题。</text>
+
+  <!-- Main causal spine row 1 -->
+  <rect class="node" x="70" y="180" width="220" height="80"/>
+  <text class="nodeText" x="180" y="214">Observed Outcome</text>
+  <text class="nodeSub" x="180" y="239">Success / Failure / Partial</text>
+
+  <rect class="node" x="330" y="180" width="220" height="80"/>
+  <text class="nodeText" x="440" y="225">First Error</text>
+
+  <rect class="node" x="590" y="180" width="220" height="80"/>
+  <text class="nodeText" x="700" y="214">First Harmful Action</text>
+  <text class="nodeSub" x="700" y="239">First action that lowers reachable value</text>
+
+  <rect class="node" x="850" y="180" width="220" height="80"/>
+  <text class="nodeText" x="960" y="214">Last Recoverable State</text>
+  <text class="nodeSub" x="960" y="239">Better future still reachable</text>
+
+  <rect class="node" x="1110" y="180" width="220" height="80"/>
+  <text class="nodeText" x="1220" y="214">Point of No Return</text>
+  <text class="nodeSub" x="1220" y="239">Unacceptable state becomes committed</text>
+
+  <path class="edge" d="M290 220 L330 220"/>
+  <path class="edge" d="M550 220 L590 220"/>
+  <path class="edge" d="M810 220 L850 220"/>
+  <path class="edge" d="M1070 220 L1110 220"/>
+
+  <!-- Main causal spine row 2 -->
+  <rect class="node" x="1110" y="405" width="220" height="80"/>
+  <text class="nodeText" x="1220" y="450">Failure Symptom</text>
+
+  <rect class="node" x="850" y="405" width="220" height="80"/>
+  <text class="nodeText" x="960" y="439">Immediate Mechanism</text>
+  <text class="nodeSub" x="960" y="464">How the failure happened</text>
+
+  <rect class="node" x="590" y="405" width="220" height="80"/>
+  <text class="nodeText" x="700" y="450">Root Cause</text>
+
+  <rect class="node" x="330" y="405" width="220" height="80"/>
+  <text class="nodeText" x="440" y="439">Failure Owner</text>
+  <text class="nodeSub" x="440" y="464">Who should fix first?</text>
+
+  <rect class="node" x="70" y="405" width="220" height="80"/>
+  <text class="nodeText" x="180" y="439">Intervention Routing</text>
+  <text class="nodeSub" x="180" y="464">Data · Model · Tool · Harness · Eval</text>
+
+  <path class="edge" d="M1220 260 L1220 405"/>
+  <path class="edge" d="M1110 445 L1070 445"/>
+  <path class="edge" d="M850 445 L810 445"/>
+  <path class="edge" d="M590 445 L550 445"/>
+  <path class="edge" d="M330 445 L290 445"/>
+
+  <!-- Auxiliary branch: recoverability -->
+  <rect class="branchBox" x="850" y="285" width="220" height="90"/>
+  <text class="branchTitle" x="875" y="313">Recovery lens</text>
+  <text class="branchText" x="875" y="340">Recoverability</text>
+  <text class="branchText" x="875" y="361">→ Repairability</text>
+  <path class="aux" d="M960 260 L960 285"/>
+
+  <!-- Auxiliary branch: counterfactual credit -->
+  <rect class="branchBox" x="590" y="285" width="220" height="90"/>
+  <text class="branchTitle" x="615" y="313">Credit lens</text>
+  <text class="branchText" x="615" y="340">Counterfactual Credit</text>
+  <text class="branchText" x="615" y="361">→ Learning Signal</text>
+  <path class="aux" d="M700 260 L700 285"/>
+
+  <!-- Critical boundaries -->
+  <rect class="boundary" x="70" y="555" width="1460" height="100"/>
+  <text class="boundaryTitle" x="95" y="585">Critical boundaries</text>
+  <text class="boundaryText" x="95" y="620">First Error ≠ First Harmful Action ≠ Root Cause</text>
+  <text class="boundaryText" x="610" y="620">Failure Layer ≠ Failure Owner</text>
+  <text class="boundaryText" x="975" y="620">Recoverability ≠ Repairability</text>
+
+  <!-- Case callouts -->
+  <rect class="caseBox" x="70" y="690" width="700" height="135"/>
+  <text class="caseTitle" x="95" y="720">C1-F1 — Model / Policy-owned failure</text>
+  <text class="caseText" x="95" y="751">shipped observed → stop condition missed → refund_order(1847) → forbidden side effect</text>
+  <text class="caseText" x="95" y="779">Root Cause candidate: observation grounding / conditional policy; Owner: Model / Policy</text>
+
+  <rect class="caseBox" x="830" y="690" width="700" height="135"/>
+  <text class="caseTitle" x="855" y="720">C3-F5 — Harness-owned failure</text>
+  <text class="caseText" x="855" y="751">tool backend failed → harness exposed success → agent received false observation → reported success</text>
+  <text class="caseText" x="855" y="779">Symptom appears in Agent output, but Root Cause / Owner is Harness</text>
+
+  <text x="70" y="905" class="caption">Semantic source: figures/F6_Credit_to_Failure_Causal_Map.md · source blob: a343e95aaf74cd98fda331d4ef4987a240cc7c02 · publication derivative v1</text>
+</svg>
