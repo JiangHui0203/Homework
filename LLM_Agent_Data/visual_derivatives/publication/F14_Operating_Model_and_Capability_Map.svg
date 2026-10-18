@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1050" viewBox="0 0 1600 1050" role="img" aria-labelledby="title desc">
+  <title id="title">F14 — Operating Model + Capability Map</title>
+  <desc id="desc">Publication derivative of canonical F14. Semantic source: figures/F14_Operating_Model_and_Capability_Map.md, blob 65a3c9acb498c06c74a870d5a3dd09b50e654ef2.</desc>
+  <!--
+    figure_id: F14
+    semantic_source: LLM_Agent_Data/figures/F14_Operating_Model_and_Capability_Map.md
+    semantic_source_sha: 65a3c9acb498c06c74a870d5a3dd09b50e654ef2
+    export_type: publication_svg
+    export_version: v1
+    created_at: 2026-10-18
+  -->
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#222"/></marker>
+    <marker id="arrowThin" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L8,3 z" fill="#666"/></marker>
+    <style>
+      .title { font:700 36px Arial,Helvetica,sans-serif; fill:#111; }
+      .subtitle { font:400 19px Arial,Helvetica,sans-serif; fill:#444; }
+      .panel { fill:#fafafa; stroke:#bbb; stroke-width:1.4; rx:18; ry:18; }
+      .panelTitle { font:700 18px Arial,Helvetica,sans-serif; fill:#222; }
+      .node { fill:#fff; stroke:#222; stroke-width:2.1; rx:14; ry:14; }
+      .nodeText { font:700 15px Arial,Helvetica,sans-serif; fill:#111; text-anchor:middle; }
+      .nodeSub { font:400 12px Arial,Helvetica,sans-serif; fill:#555; text-anchor:middle; }
+      .edge { fill:none; stroke:#222; stroke-width:2.3; marker-end:url(#arrow); }
+      .feedback { fill:none; stroke:#666; stroke-width:2; stroke-dasharray:7 6; marker-end:url(#arrowThin); }
+      .decision { fill:#fff; stroke:#222; stroke-width:2.1; }
+      .boundary { fill:#fff; stroke:#666; stroke-width:1.5; rx:14; ry:14; }
+      .boundaryTitle { font:700 15px Arial,Helvetica,sans-serif; fill:#333; }
+      .boundaryText { font:700 16px Arial,Helvetica,sans-serif; fill:#111; }
+      .caption { font:400 14px Arial,Helvetica,sans-serif; fill:#555; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="1050" fill="#fff"/>
+  <text x="70" y="65" class="title">F14 — Operating Model + Capability Map</text>
+  <text x="70" y="98" class="subtitle">团队负责把问题路由给正确 Owner；个人负责调用正确能力。两者共同围绕 Evidence Gate 与 Decision Gate 运转。</text>
+
+  <!-- Organization panel -->
+  <rect class="panel" x="60" y="135" width="1480" height="430"/>
+  <text x="85" y="170" class="panelTitle">A. Organization Operating Model</text>
+
+  <rect class="node" x="95" y="220" width="230" height="75"/>
+  <text class="nodeText" x="210" y="250">Problem / Requirement</text>
+  <text class="nodeSub" x="210" y="273">Failure / Opportunity</text>
+
+  <rect class="node" x="370" y="220" width="210" height="75"/>
+  <text class="nodeText" x="475" y="250">Diagnosis Gate</text>
+  <text class="nodeSub" x="475" y="273">What actually needs fixing?</text>
+
+  <polygon class="decision" points="685,220 765,258 685,296 605,258"/>
+  <text class="nodeText" x="685" y="255">Primary Root Cause?</text>
+
+  <path class="edge" d="M325 258 L370 258"/>
+  <path class="edge" d="M580 258 L605 258"/>
+
+  <!-- owner routing -->
+  <rect class="node" x="820" y="190" width="150" height="60"/><text class="nodeText" x="895" y="226">Product</text>
+  <rect class="node" x="990" y="190" width="150" height="60"/><text class="nodeText" x="1065" y="226">Agent / Infra</text>
+  <rect class="node" x="1160" y="190" width="150" height="60"/><text class="nodeText" x="1235" y="226">Evaluation</text>
+  <rect class="node" x="820" y="285" width="150" height="60"/><text class="nodeText" x="895" y="321">Research / Train</text>
+  <rect class="node" x="990" y="285" width="150" height="60"/><text class="nodeText" x="1065" y="321">Data Research</text>
+
+  <path class="edge" d="M765 248 C790 230, 800 220, 820 220"/>
+  <path class="edge" d="M765 252 C850 210, 930 210, 990 220"/>
+  <path class="edge" d="M765 258 C920 245, 1080 225, 1160 220"/>
+  <path class="edge" d="M765 266 C800 292, 800 310, 820 315"/>
+  <path class="edge" d="M765 270 C850 320, 930 315, 990 315"/>
+
+  <!-- evidence / intervention pipeline -->
+  <rect class="node" x="820" y="390" width="200" height="70"/>
+  <text class="nodeText" x="920" y="418">Intervention Pilot</text>
+  <text class="nodeSub" x="920" y="442">Minimum credible test</text>
+
+  <rect class="node" x="1060" y="390" width="220" height="70"/>
+  <text class="nodeText" x="1170" y="418">Confirmatory Evaluation</text>
+  <text class="nodeSub" x="1170" y="442">Frozen protocol / evidence gate</text>
+
+  <polygon class="decision" points="1370,385 1445,425 1370,465 1295,425"/>
+  <text class="nodeText" x="1370" y="422">Decision</text>
+  <text class="nodeSub" x="1370" y="443">Scale / Revise / Stop</text>
+
+  <path class="edge" d="M895 345 C895 365, 905 378, 920 390"/>
+  <path class="edge" d="M1065 345 C1045 365, 990 378, 960 390"/>
+  <path class="edge" d="M1235 250 C1235 315, 1180 360, 1170 390"/>
+  <path class="edge" d="M1020 425 L1060 425"/>
+  <path class="edge" d="M1280 425 L1295 425"/>
+
+  <rect class="node" x="1160" y="485" width="180" height="58"/><text class="nodeText" x="1250" y="520">Production / Platform</text>
+  <rect class="node" x="940" y="485" width="180" height="58"/><text class="nodeText" x="1030" y="520">Deploy</text>
+  <rect class="node" x="720" y="485" width="180" height="58"/><text class="nodeText" x="810" y="520">Monitoring</text>
+
+  <path class="edge" d="M1370 465 C1360 485, 1325 505, 1340 514"/>
+  <path class="edge" d="M1160 514 L1120 514"/>
+  <path class="edge" d="M940 514 L900 514"/>
+  <path class="feedback" d="M720 514 C570 545, 420 470, 475 295"/>
+
+  <!-- Practitioner panel -->
+  <rect class="panel" x="60" y="590" width="1480" height="280"/>
+  <text x="85" y="625" class="panelTitle">B. Practitioner Capability Map</text>
+
+  <rect class="node" x="85" y="675" width="155" height="70"/><text class="nodeText" x="162" y="704">Problem Framing</text><text class="nodeSub" x="162" y="729">Goal / Population / Metric</text>
+  <rect class="node" x="270" y="675" width="155" height="70"/><text class="nodeText" x="347" y="704">Data &amp; Supervision</text><text class="nodeSub" x="347" y="729">Object / Signal</text>
+  <rect class="node" x="455" y="675" width="155" height="70"/><text class="nodeText" x="532" y="704">Acquisition</text><text class="nodeSub" x="532" y="729">Human / Synthetic / Rollout</text>
+  <rect class="node" x="640" y="675" width="155" height="70"/><text class="nodeText" x="717" y="704">State / Trajectory</text><text class="nodeSub" x="717" y="729">What happened?</text>
+  <rect class="node" x="825" y="675" width="155" height="70"/><text class="nodeText" x="902" y="704">Eval / Diagnosis</text><text class="nodeSub" x="902" y="729">Evidence / Root Cause</text>
+  <rect class="node" x="1010" y="675" width="155" height="70"/><text class="nodeText" x="1087" y="704">Curation / Optimize</text><text class="nodeSub" x="1087" y="729">Filter / Mix / Experiment</text>
+  <rect class="node" x="1195" y="675" width="155" height="70"/><text class="nodeText" x="1272" y="704">Production / Govern</text><text class="nodeSub" x="1272" y="729">Lineage / Handoff</text>
+  <rect class="node" x="1370" y="675" width="145" height="70"/><text class="nodeText" x="1442" y="704">Monitor / Improve</text><text class="nodeSub" x="1442" y="729">Drift / Learn again</text>
+
+  <path class="edge" d="M240 710 L270 710"/>
+  <path class="edge" d="M425 710 L455 710"/>
+  <path class="edge" d="M610 710 L640 710"/>
+  <path class="edge" d="M795 710 L825 710"/>
+  <path class="edge" d="M980 710 L1010 710"/>
+  <path class="edge" d="M1165 710 L1195 710"/>
+  <path class="edge" d="M1350 710 L1370 710"/>
+  <path class="feedback" d="M1442 745 C1420 820, 220 830, 162 745"/>
+
+  <!-- Boundary -->
+  <rect class="boundary" x="85" y="900" width="1430" height="80"/>
+  <text class="boundaryTitle" x="110" y="930">Critical operating boundaries</text>
+  <text class="boundaryText" x="110" y="960">Problem ≠ Data Problem</text>
+  <text class="boundaryText" x="405" y="960">Failure Layer ≠ Failure Owner</text>
+  <text class="boundaryText" x="785" y="960">Pilot Result ≠ Scale Decision</text>
+  <text class="boundaryText" x="1125" y="960">Organization OS ≠ Practitioner OS</text>
+
+  <text x="85" y="1020" class="caption">Semantic source: figures/F14_Operating_Model_and_Capability_Map.md · source blob: 65a3c9acb498c06c74a870d5a3dd09b50e654ef2 · publication derivative v1</text>
+</svg>
