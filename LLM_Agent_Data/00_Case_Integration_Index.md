@@ -1,8 +1,8 @@
 # LLM / Agent Data Knowledge System：Canonical Case Integration Index
 
-> 状态：Editorial Infrastructure / Case Integration Map
+> 状态：`Stable Mother Edition V3.x / Case Routing Index`
 >
-> 上游：[`Canonical Casebook`](./00_Canonical_Casebook.md)
+> Registry：[`Canonical Casebook`](./00_Canonical_Casebook.md)
 >
 > Case files：[`C1 Order / Refund`](./cases/C1_Order_Refund_Agent.md) · [`C2 Calendar / Meeting`](./cases/C2_Calendar_Meeting_Agent.md) · [`C3 File / Repository`](./cases/C3_File_Repository_Agent.md) · [`C4 Reasoning Continue / Repair`](./cases/C4_Reasoning_Continue_Repair.md) · [`C5 Code / Execution`](./cases/C5_Code_Execution_Agent.md)
 
@@ -17,8 +17,11 @@
 原则：
 
 ```text
-Casebook / Case File
-= stable scenario / stable contract / stable ID
+Canonical Casebook
+= registry / stable invariants / variant namespace
+
+Case File
+= full stable scenario / contract / stable IDs
 
 Chapter
 = specific analytical lens
@@ -628,8 +631,9 @@ C5 → executable verification
 3. 引用 `C3-F5` 时，Tool truth 与 Harness-visible observation 必须不一致。
 4. 引用 `C4-SC` 时，所有 sibling 必须来自同一 authoritative prefix。
 5. 引用 `C5-F2` 时，public tests pass、held-out / hidden test fail。
-6. 如需改变上述关键条件，创建新的 variant ID，不得沿用旧 ID。
-7. Case ID 是实验语义的一部分，不只是文档标签。
+6. C2 中所有“明天 / 周五”等相对时间必须相对于 frozen case clock `2026-10-19 09:00 Asia/Shanghai` 解释，不得使用实际运行日。
+7. 如需改变上述关键条件，创建新的 variant ID，不得沿用旧 ID。
+8. Case ID 是实验语义的一部分，不只是文档标签。
 
 ---
 
