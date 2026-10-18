@@ -34,7 +34,7 @@ jobs:
           )
           section_matches = section_pattern.findall(text)
           assert len(section_matches) == 1, f"expected one 4.1 section, got {len(section_matches)}"
-          text = section_pattern.sub(new_section.rstrip("\\n"), text, count=1)
+          text = section_pattern.sub(new_section.rstrip("\n"), text, count=1)
 
           progress_pattern = re.compile(
               r'^\|\s*II\s*\|\s*4\. Context, Memory & Retrieval\s*\|.*\|$',
