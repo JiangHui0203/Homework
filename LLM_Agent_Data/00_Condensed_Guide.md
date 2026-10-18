@@ -19,7 +19,7 @@
 §3 Agent World
 §4 Credit / Failure
 §5 Evaluation
-§9 30-minute Diagnosis
+§13 30-minute Diagnosis
 §11 十条底线
 ```
 
@@ -37,13 +37,28 @@ F1 / F4 / F6 / F8 / F14
 F1 → F4 → F6 → F8 → F9 → F14
 ```
 
+如果需要口头表达，再看：
+
+- [`Figure Presentation Kit`](./00_Figure_Presentation_Kit.md)
+
 ## 半天
 
-再补：
+再补三篇互补 walkthrough：
 
 ```text
-C1 End-to-End Walkthrough
-+
+C1
+→ External Agent Decision / Data Learning Loop
+
+C3
+→ Permission / Harness / Failure Owner
+
+C4
+→ Reasoning Intervention / Trigger / Oracle / Selector
+```
+
+以及：
+
+```text
 Practical Playbooks P1–P7
 ```
 
@@ -55,6 +70,15 @@ Practical Playbooks P1–P7
 1. 概念边界
 2. 真实 case
 3. 可验证 workflow
+```
+
+推荐组合：
+
+```text
+Condensed Guide
+→ Figure Presentation Kit
+→ C1 / C3 / C4 Walkthrough
+→ Interview Index
 ```
 
 不要只背术语定义。
@@ -292,6 +316,8 @@ Model failed
 
 总图：[`F4 — Agent Task–Environment–Trajectory`](./figures/F4_Agent_Task_Environment_Trajectory.md)
 
+深度案例：[`C3 Permission / Harness Ownership Walkthrough`](./case_studies/C3_Permission_Harness_Ownership_Walkthrough.md)
+
 ---
 
 # 4. Failure Analysis：从 Outcome 到 Root Cause 不能跳步
@@ -366,7 +392,10 @@ Recoverability
 
 总图：[`F6 — Credit → Failure Causal Map`](./figures/F6_Credit_to_Failure_Causal_Map.md)
 
-完整案例：[`C1 End-to-End Walkthrough`](./case_studies/C1_End_to_End_Walkthrough.md)
+完整案例：
+
+- [`C1 End-to-End Walkthrough`](./case_studies/C1_End_to_End_Walkthrough.md)
+- [`C3 Permission / Harness Ownership Walkthrough`](./case_studies/C3_Permission_Harness_Ownership_Walkthrough.md)
 
 ---
 
@@ -513,6 +542,8 @@ Coverage
 而不是只有总体平均分。
 
 总图：[`F8 — Benchmark / Evaluation Protocol`](./figures/F8_Benchmark_Evaluation_Protocol.md)
+
+Reasoning intervention 实战：[`C4 Reasoning Intervention Walkthrough`](./case_studies/C4_Reasoning_Intervention_Walkthrough.md)
 
 ---
 
@@ -848,7 +879,24 @@ C5 Code / Execution
 
 案例入口：[`Canonical Cases`](./cases/README.md)
 
-完整实战：[`C1 End-to-End Walkthrough`](./case_studies/C1_End_to_End_Walkthrough.md)
+当前三篇 Practical Study：
+
+- [`C1 — End-to-End Data Learning Loop`](./case_studies/C1_End_to_End_Walkthrough.md)
+- [`C3 — Permission / Harness Ownership`](./case_studies/C3_Permission_Harness_Ownership_Walkthrough.md)
+- [`C4 — Reasoning Intervention`](./case_studies/C4_Reasoning_Intervention_Walkthrough.md)
+
+三篇分别回答：
+
+```text
+C1
+→ failure 怎样进入完整 learning loop？
+
+C3
+→ model 真的是正确 owner 吗？
+
+C4
+→ intervention headroom 能转化成 online value 吗？
+```
 
 ---
 
@@ -940,6 +988,8 @@ SFT
 
 如果面试官继续追问任何一层，再下钻到对应章节。
 
+口头讲图：[`Figure Presentation Kit`](./00_Figure_Presentation_Kit.md)
+
 ---
 
 # 15. 三套最实用的调用入口
@@ -958,7 +1008,9 @@ SFT
 
 案例演练：
 
-→ [`C1 End-to-End Walkthrough`](./case_studies/C1_End_to_End_Walkthrough.md)
+- [`C1 — End-to-End Data Learning Loop`](./case_studies/C1_End_to_End_Walkthrough.md)
+- [`C3 — Permission / Harness Ownership`](./case_studies/C3_Permission_Harness_Ownership_Walkthrough.md)
+- [`C4 — Reasoning Intervention`](./case_studies/C4_Reasoning_Intervention_Walkthrough.md)
 
 ---
 
