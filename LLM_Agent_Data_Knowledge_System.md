@@ -2,9 +2,9 @@
 
 > **LLM / Agent Data Knowledge System**
 >
-> 当前状态：25 章主体、结构性编辑、Canonical Cases 与 14 张 Master Figures 完成；进入 Retrieval Index / Verification / Final Read-through 阶段。
+> 当前状态：25 章主体、结构性编辑、Canonical Cases、14 张 Master Figures 与 Retrieval Indexes 均已完成；进入 Cross-reference / Verification / Final Read-through 阶段。
 >
-> 当前版本：V2.2（2026-10-18）
+> 当前版本：V2.3（2026-10-18）
 >
 > 关联文档：[`Agent_Knowledge_System.md`](./Agent_Knowledge_System.md)
 
@@ -64,28 +64,19 @@ Fresh Failure / Drift
 
 ## Part I — Learning Signals
 
-> **模型到底从什么经验、什么反馈中学习？**
-
 1. [Data Objects & Learning Signals](./LLM_Agent_Data/01_Data_Objects_and_Learning_Signals.md)
 2. [Pretraining、Instruction、SFT 与 Post-training Data](./LLM_Agent_Data/02_Pretraining_Instruction_SFT_and_Post_training_Data.md)
 3. [Preference Data、Reward 与 Feedback](./LLM_Agent_Data/03_Preference_Data_Reward_and_Feedback.md)
 4. [Reasoning Data 与 Process Supervision](./LLM_Agent_Data/04_Reasoning_Data_and_Process_Supervision.md)
 5. [Tool-use Data 与 Agent Trajectory Data](./LLM_Agent_Data/05_Tool_Use_and_Agent_Trajectory_Data.md)
 
-主线：
-
 ```text
-Example
-→ Demonstration
-→ Preference / Reward
-→ Process Supervision
-→ State-conditioned Experience
-→ Agent Trajectory
+Example → Demonstration → Preference / Reward → Process Supervision → Agent Experience
 ```
 
-## Part II — Data Acquisition & Selection
+Master Figures：F1 / F2 / F3。
 
-> **这些经验如何被生产、扩展、选择？**
+## Part II — Data Acquisition & Selection
 
 6. [Human Data](./LLM_Agent_Data/06_Human_Data_Annotation_and_Quality_Control.md)
 7. [Synthetic Data](./LLM_Agent_Data/07_Synthetic_Data_Generation_and_Synthesis.md)
@@ -94,35 +85,24 @@ Example
 
 ## Part III — Agent World & Diagnosis
 
-> **Agent 在什么世界中做什么，以及失败到底发生在哪里？**
-
 10. [Agent Task Design](./LLM_Agent_Data/10_Agent_Task_Design.md)
 11. [Environment Design](./LLM_Agent_Data/11_Environment_Design.md)
 12. [Agent Trajectory Anatomy](./LLM_Agent_Data/12_Agent_Trajectory_Anatomy.md)
 13. [Task Success 与 Credit Assignment](./LLM_Agent_Data/13_Task_Success_and_Credit_Assignment.md)
 14. [Agent Failure Taxonomy](./LLM_Agent_Data/14_Agent_Failure_Taxonomy.md)
 
-核心链：
-
 ```text
 Task → Environment → Trajectory → Outcome → Credit → Failure → Root Cause
 ```
 
-Master Figures：
-
-- [F4 — Agent Task–Environment–Trajectory](./LLM_Agent_Data/figures/F4_Agent_Task_Environment_Trajectory.md)
-- [F5 — Trajectory Anatomy](./LLM_Agent_Data/figures/F5_Trajectory_Anatomy.md)
-- [F6 — Credit → Failure Causal Map](./LLM_Agent_Data/figures/F6_Credit_to_Failure_Causal_Map.md)
+Master Figures：F4 / F5 / F6。
 
 ## Part IV — Measurement
 
 15. [Grader、Verifier 与 LLM-as-a-Judge](./LLM_Agent_Data/15_Grader_Verifier_and_LLM_as_a_Judge.md)
 16. [Benchmark Design 与 Evaluation Protocol](./LLM_Agent_Data/16_Benchmark_Design_and_Evaluation_Protocol.md)
 
-Master Figures：
-
-- [F7 — Evidence → Verifier → Grader → Judge](./LLM_Agent_Data/figures/F7_Evidence_Verifier_Grader_Judge.md)
-- [F8 — Benchmark / Evaluation Protocol](./LLM_Agent_Data/figures/F8_Benchmark_Evaluation_Protocol.md)
+Master Figures：F7 / F8。
 
 ## Part V — Data Optimization & Lifecycle
 
@@ -132,11 +112,11 @@ Master Figures：
 20. [Data Quality、Filtering、Deduplication 与 Mixture](./LLM_Agent_Data/20_Data_Quality_Filtering_Deduplication_and_Mixture.md)
 21. [Data Experiments](./LLM_Agent_Data/21_Data_Experiments_and_Causal_Validation.md)
 
-Master Figures：
+```text
+Flywheel → Strategy → Governance → Curation → Causal Validation
+```
 
-- [F9 — Data Flywheel](./LLM_Agent_Data/figures/F9_Data_Flywheel.md)
-- [F10 — Data Strategy / Portfolio / ROI](./LLM_Agent_Data/figures/F10_Data_Strategy_Portfolio_ROI.md)
-- [F11 — Governance / Lineage DAG](./LLM_Agent_Data/figures/F11_Governance_Lineage_DAG.md)
+Master Figures：F9 / F10 / F11。
 
 ## Part VI — Data Operations
 
@@ -144,31 +124,29 @@ Master Figures：
 23. [Data Monitoring、Online Feedback 与 Drift Detection](./LLM_Agent_Data/23_Data_Monitoring_Online_Feedback_and_Drift_Detection.md)
 24. [End-to-End LLM / Agent Data Operating Model](./LLM_Agent_Data/24_End_to_End_LLM_Agent_Data_Operating_Model.md)
 
-Master Figures：
-
-- [F12 — Data Production System](./LLM_Agent_Data/figures/F12_Data_Production_System.md)
-- [F13 — Monitoring / Drift Diagnostic Tree](./LLM_Agent_Data/figures/F13_Monitoring_Drift_Diagnostic_Tree.md)
+Master Figures：F12 / F13。
 
 ## Part VII — Synthesis
 
 25. [LLM / Agent Data 全景能力地图与实战方法论](./LLM_Agent_Data/25_LLM_Agent_Data_Capability_Map_and_Practical_Methodology.md)
 
-Master Figure：[F14 — Operating Model + Capability Map](./LLM_Agent_Data/figures/F14_Operating_Model_and_Capability_Map.md)。
+Master Figure：F14。
 
 ---
 
-# 四套导航资产
+# 五套导航资产
 
 ## 1. Canonical Concepts
 
 - [Canonical Glossary & Notation](./LLM_Agent_Data/00_Glossary_and_Notation.md)
+- [Concept Index](./LLM_Agent_Data/00_Concept_Index.md)
 
-解决：
+用于回答：
 
 ```text
 这个术语在哪里定义？
-Outcome / Reward / Credit 有什么区别？
-Tool / Harness / Environment 如何区分？
+在哪些章节应用？
+它和相邻概念有什么边界？
 ```
 
 ## 2. Canonical Cases
@@ -187,61 +165,38 @@ C4 Reasoning Continue / Repair
 C5 Code / Execution Agent
 ```
 
-Case ID 已具有稳定语义，例如：
-
-```text
-C1-VB = shipped / no refund allowed
-C3-F5 = tool truth failure / harness observation success
-C4-SC = same authoritative prefix sibling set
-C5-F2 = public tests pass / hidden test fail
-```
-
 ## 3. Master Figures
 
 - [Master Figure System](./LLM_Agent_Data/00_Master_Figure_System.md)
 - [Figure Index](./LLM_Agent_Data/figures/README.md)
 
-14 张 Master Figure 已全部完成：
+14 张 Master Figure 已全部完成。
+
+## 4. Role / Problem Retrieval
+
+- [Role Index](./LLM_Agent_Data/00_Role_Index.md)
+- [Problem Index](./LLM_Agent_Data/00_Problem_Index.md)
+
+用于回答：
 
 ```text
-F1  Learning System Overview
-F2  Data Object & Learning Signal Evolution
-F3  Reasoning State Decision Stack
-F4  Agent Task–Environment–Trajectory
-F5  Trajectory Anatomy
-F6  Credit → Failure Causal Map
-F7  Evidence → Verifier → Grader → Judge
-F8  Benchmark / Evaluation Protocol
-F9  Data Flywheel
-F10 Data Strategy / Portfolio / ROI
-F11 Governance / Lineage DAG
-F12 Data Production System
-F13 Monitoring / Drift Diagnostic Tree
-F14 Operating Model + Capability Map
+“我是 Agent Data / Eval 岗，优先读什么？”
+“Judge 分涨了但真实 success 不涨，先查什么？”
+“线上 success 掉了，到底是不是模型退化？”
 ```
 
-## 4. Retrieval Indexes
+## 5. Interview / Execution Retrieval
 
-正在建设：
+- [Interview Index](./LLM_Agent_Data/00_Interview_Index.md)
+- [Checklist Index](./LLM_Agent_Data/00_Checklist_Index.md)
 
-```text
-Concept Index
-Role Index
-Problem Index
-Interview Index
-Checklist Index
-```
-
-目标是从：
+用于：
 
 ```text
-“第几章讲什么？”
-```
-
-进一步升级成：
-
-```text
-“我现在遇到这个问题，应该去哪？”
+面试快速组织回答
+项目立项 / review
+数据生产 / 评测 / 上线前检查
+30-minute quick diagnosis
 ```
 
 ---
@@ -267,6 +222,9 @@ Master Figures
 ✓
 
 Retrieval Indexes
+✓
+
+Cross-reference / Broken-link Audit
 → 当前阶段
 
 Fact / Citation Verification
