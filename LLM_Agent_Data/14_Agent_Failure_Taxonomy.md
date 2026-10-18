@@ -8,6 +8,8 @@
 >
 > 编辑基础设施：[`Canonical Glossary`](./00_Glossary_and_Notation.md) · [`Canonical Casebook`](./00_Canonical_Casebook.md)
 >
+> **Master Figure：** [`F6 — Credit → Failure Causal Map`](./figures/F6_Credit_to_Failure_Causal_Map.md)
+>
 > 本章定位：**Failure / Symptom / Immediate Mechanism / Root Cause、Failure Layer、Failure Owner、Severity、Detectability 与 Failure→Intervention Routing 的 canonical chapter。**
 >
 > 本章核心问题：**“Agent 失败了”只是 Outcome，不是 Diagnosis。真正需要知道的是：看到了什么症状、失败发生在哪一层、哪个机制直接造成结果、根因是什么、责任属于 Model / Tool / Harness / Environment / Task / Evaluator 中的谁、严重度多高、能不能检测、能不能恢复，以及下一步到底应该做数据还是修系统。**
@@ -36,20 +38,31 @@ failure = 0
 下一轮应该补什么数据，还是根本不该补数据？
 ```
 
-成熟的 failure analysis 更像：
+全书关于 Credit → Failure 的 canonical visual relation 统一由 [`F6 — Credit → Failure Causal Map`](./figures/F6_Credit_to_Failure_Causal_Map.md) 维护。
 
-```mermaid
-flowchart LR
-    A[Outcome / Incident] --> B[Symptom]
-    B --> C[Localization]
-    C --> D[Immediate Mechanism]
-    D --> E[Root Cause]
-    E --> F[Failure Owner]
-    F --> G[Severity / Detectability]
-    G --> H[Recoverability / Repairability]
-    H --> I[Intervention Routing]
-    I --> J[Data / Model / Tool / Harness / Environment / Eval / Product Fix]
+本章只放大其中的诊断 Lens：
+
+```text
+Outcome / Incident
+↓
+Symptom
+↓
+Localization
+↓
+Immediate Mechanism
+↓
+Root Cause
+↓
+Failure Owner
+↓
+Severity / Detectability
+↓
+Recoverability / Repairability
+↓
+Intervention Routing
 ```
+
+这样全书只保留一个全局视觉真源，而本章继续负责解释每一层怎样判、怎样记录、怎样路由。
 
 所以 Failure Taxonomy 同时服务：
 
