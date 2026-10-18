@@ -4,7 +4,7 @@
 >
 > 当前状态：25 章主体、结构性编辑、Canonical Cases、14 张 Master Figures 与 Retrieval Indexes 均已完成；进入 Cross-reference / Verification / Final Read-through 阶段。
 >
-> 当前版本：V2.3（2026-10-18）
+> 当前版本：V2.4（2026-10-18）
 >
 > 关联文档：[`Agent_Knowledge_System.md`](./Agent_Knowledge_System.md)
 
@@ -201,6 +201,27 @@ C5 Code / Execution Agent
 
 ---
 
+# Verification & Audit
+
+- [Verification Log](./LLM_Agent_Data/00_Verification_Log.md)
+- [Cross-reference / Link Audit](./LLM_Agent_Data/00_Link_Audit.md)
+
+它们专门回答：
+
+```text
+哪些链接已经检查？
+哪些只是 spot-check？
+哪些公式已通过语义审计？
+哪些数字仍缺 source anchor？
+哪些 research example 只能支持 scoped claim？
+```
+
+审计原则与正文一致：
+
+> **部分验证不写成全量保证；没有来源的数字不因为“看起来熟悉”就标成已核验。**
+
+---
+
 # 编辑基础设施
 
 - [全书精修施工图](./LLM_Agent_Data/00_Book_Refinement_Blueprint.md)
@@ -208,6 +229,8 @@ C5 Code / Execution Agent
 - [Canonical Casebook](./LLM_Agent_Data/00_Canonical_Casebook.md)
 - [Case Integration Index](./LLM_Agent_Data/00_Case_Integration_Index.md)
 - [Master Figure System](./LLM_Agent_Data/00_Master_Figure_System.md)
+- [Verification Log](./LLM_Agent_Data/00_Verification_Log.md)
+- [Link Audit](./LLM_Agent_Data/00_Link_Audit.md)
 
 当前精修顺序：
 
@@ -224,11 +247,20 @@ Master Figures
 Retrieval Indexes
 ✓
 
-Cross-reference / Broken-link Audit
+Header / Path Audit
+✓ Round 1–2
+
+Formula / Metric Audit
+✓ Round 1; two notation refinements pending
+
+Research Number / Denominator Audit
+✓ Round 1
+
+Bibliographic Source Anchors
 → 当前阶段
 
-Fact / Citation Verification
-→ 后续
+Deep Body Anchor Audit
+→ 部分 pending
 
 Final Continuous Read-through
 → 最终
