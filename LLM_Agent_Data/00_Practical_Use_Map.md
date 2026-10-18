@@ -35,6 +35,9 @@
 我想查一个术语归谁定义
 → Concept Index / Glossary
 
+我想查“这个方法 / 结论外部来源是什么”
+→ Canonical References / Source Policy
+
 我想系统学习
 → 25-Chapter Mother Edition
 ```
@@ -181,6 +184,15 @@ Playbook P1 / P2 / P7
 Artifact A1–A10
 ```
 
+外部方法锚点：
+
+```text
+R06 Toolformer
+R07 ReAct
+R10 AgentBench
+R11 WebArena
+```
+
 ---
 
 # 5. 我正在做 Reasoning / Test-time / Selector
@@ -231,6 +243,8 @@ Net?
 Cost?
 ```
 
+外部 anchor 只负责相关公开方法背景；C4 的 `Risk / Recoverability / Selectability` operating decomposition 仍以本书 canonical definition 为准。
+
 ---
 
 # 6. 我正在做 Eval / Judge / Verifier
@@ -270,6 +284,16 @@ Claim 是什么？
 
 ```text
 “选哪个 Judge？”
+```
+
+外部锚点：
+
+```text
+R08 LLM-as-a-Judge
+R09 HELM
+R12 SWE-bench
+R14 Benchmark Contamination
+R15 LiveBench
 ```
 
 ---
@@ -358,6 +382,14 @@ Monitoring Alert
 ≠ Model Regression
 ```
 
+外部治理锚点：
+
+```text
+R13 Datasheets for Datasets
+R14 Benchmark Contamination
+R15 LiveBench
+```
+
 ---
 
 # 9. 我要准备面试 / 答辩 / 分享
@@ -405,9 +437,58 @@ Problem
 
 更能体现系统能力。
 
+如果需要回答“这个方法从哪里来”：
+
+- [`Canonical References`](./00_Canonical_References.md)
+- [`Reference & Source Policy`](./00_Reference_Source_Policy.md)
+
 ---
 
-# 10. 我不知道自己到底缺哪一块
+# 10. 我想查文献，但不想陷进 Related Work 海洋
+
+先打开：
+
+- [`Canonical References`](./00_Canonical_References.md)
+
+它只维护少量稳定 anchor，并给出：
+
+```text
+Reference ID
+Role
+主要章节
+能支撑什么
+不能支撑什么
+```
+
+如果要判断：
+
+```text
+外部论文
+内部 Research Example
+Teaching Case
+工程约定
+```
+
+到底该怎么区分，则看：
+
+- [`Reference & Source Policy`](./00_Reference_Source_Policy.md)
+
+核心纪律：
+
+```text
+External paper
+≠ Internal result evidence
+
+Similar topic
+≠ Valid source anchor
+
+Citation count
+≠ Evidence quality
+```
+
+---
+
+# 11. 我不知道自己到底缺哪一块
 
 先跑 30-minute diagnosis：
 
@@ -451,11 +532,14 @@ Scale / Revise / Stop
 
 不知道线上为什么变了
 → F13 + Ch23
+
+不知道外部出处
+→ Canonical References
 ```
 
 ---
 
-# 11. Practical Layer 的最终结构
+# 12. Practical Layer 的最终结构
 
 ```text
 Mother Edition
@@ -484,8 +568,11 @@ Case Studies
 
 Checklist Index
 = What Not to Miss
+
+Reference Layer
+= What External Evidence Anchors the Public Methods
 ```
 
 最终原则：
 
-> **不要为了“资料齐全”反复复制同一知识。每个 practical asset 都只解决一种调用问题。**
+> **不要为了“资料齐全”反复复制同一知识。每个 practical asset 都只解决一种调用问题；Reference Layer 只负责外部出处，不重新夺回 canonical definition 的所有权。**
