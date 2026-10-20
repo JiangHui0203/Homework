@@ -317,7 +317,8 @@ Evidence First, Judge Second
 
 - Full Technical Report: https://arxiv.org/abs/2211.09110
 - Related Formal Concise Report: https://doi.org/10.1111/nyas.15007
-- Status: `VERIFIED / VERSION-AWARE`
+- Status: `VERIFIED`
+- Version Note: `FULL TECHNICAL REPORT + FORMAL CONCISE REPORT CHECKED`
 - Role: `BENCHMARK / PROTOCOL`
 
 版本说明：
