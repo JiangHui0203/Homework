@@ -9,6 +9,8 @@
 > 目的：用一个可执行代码任务，把 `Task Contract → Candidate Pool → Evidence → Verifier Coverage → Judge → Hidden Evaluation → Runtime → Repair → Data → Experiment → Production → Monitoring` 串成一条完整链。
 >
 > 注意：**本文是 walkthrough，不改变 C5 的稳定 ID 语义。所有 canonical definition 仍以 `cases/C5_Code_Execution_Agent.md`、Glossary 与对应章节为准。**
+>
+> Evidence provenance：`TEACHING`（S3 Canonical Teaching Case）+ `S4 Engineering / Editorial Convention`。`normalize_date`、Candidate A/B/C/D、public / hidden test outcomes、V1–V3 verifier、C5-R1/R2 runtime 与 repair trajectory 都是教学对象，不是 SWE-bench run、真实 benchmark result 或 production measurement。External executable-evaluation anchors（例如 Canonical References 中的 R12 SWE-bench）只提供公开方法 / benchmark context，**不能反向证明本 C5 case、candidate outcome 或 verifier result**。统一边界见 [`Canonical References`](../00_Canonical_References.md) 与 [`Reference & Source Policy`](../00_Reference_Source_Policy.md)。
 
 ---
 
@@ -124,10 +126,12 @@ failure signature
   "verifier_suite": "date_suite_v5",
   "public_result": "PASS",
   "hidden_result": "PASS",
-  "execution_cost_ms": 0,
+  "execution_cost_ms": null,
   "judge_score": null
 }
 ```
+
+这里的 `execution_cost_ms: null` 是有意避免伪造测量值；若真实执行，应写入对应 run 的实际 artifact / measurement。
 
 这里的关键不是字段名本身，而是：
 
