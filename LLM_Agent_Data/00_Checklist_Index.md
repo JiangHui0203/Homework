@@ -5,6 +5,8 @@
 > 角色：把全书方法论压缩成可执行检查表。适合项目立项、实验设计、数据生产、评测、上线前 review 与复盘。
 >
 > 调用原则：**先判断项目从哪个 Entry 进入，再加载对应专项 Checklist；Checklist Index 不是要求所有项目按同一条线性流程逐项填写。**
+>
+> 勾选语义：每个 `[ ]` 表示“这个问题在当前项目中是否需要被解析”，不是无条件 mandatory requirement。适用且已有证据时才标完成；不适用时显式记 `N/A + rationale`，证据不足时保留 `UNRESOLVED / pending`。不要为了让 checklist 看起来全绿而伪造 artifact、结论、metric 或 root cause。
 
 ---
 
