@@ -1,13 +1,7 @@
-name: Apply Agent 6.5 patch
-
-on:
-  push:
-    branches:
-      - agent/ch6-5-shared-private-context-20261020
-
+name: agent65
+on: push
 permissions:
   contents: write
-
 jobs:
   patch:
     runs-on: ubuntu-latest
@@ -16,68 +10,11 @@ jobs:
         with:
           ref: agent/ch6-5-shared-private-context-20261020
           fetch-depth: 0
-
-      - name: Patch canonical document
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          doc_path = Path('Agent_Knowledge_System.md')
-          section_path = Path('.tmp/section_6_5.md')
-          doc = doc_path.read_text(encoding='utf-8')
-          section = section_path.read_text(encoding='utf-8').rstrip()
-
-          placeholder = '### 6.5 Shared / Private Context\n### 6.6 Coordination Failure'
-          if doc.count(placeholder) != 1:
-              raise SystemExit(f'expected one 6.5 placeholder, found {doc.count(placeholder)}')
-          doc = doc.replace(placeholder, section + '\n\n### 6.6 Coordination Failure', 1)
-
-          old_progress = '| II | 6. Multi-Agent & Agent Interoperability | 进行中：6.1–6.3 已完成 |'
-          new_progress = '| II | 6. Multi-Agent & Agent Interoperability | 进行中：6.1–6.5 已完成；下一节 6.6 Coordination Failure |'
-          if doc.count(old_progress) != 1:
-              raise SystemExit(f'expected one old progress row, found {doc.count(old_progress)}')
-          doc = doc.replace(old_progress, new_progress, 1)
-
-          old_pending = '''### 6.7 A2A
-
-- Agent Card
-- Discovery
-- Task
-- State
-- Remote Agent
-
-以上各节待补充。'''
-          new_pending = '''### 6.7 A2A
-
-- Agent Card
-- Discovery
-- Task
-- State
-- Remote Agent
-
-6.6–6.7 待补充。'''
-          if doc.count(old_pending) != 1:
-              raise SystemExit(f'expected one Chapter 6 pending block, found {doc.count(old_pending)}')
-          doc = doc.replace(old_pending, new_pending, 1)
-          doc_path.write_text(doc, encoding='utf-8')
-          PY
-
-      - name: Verify patch scope
-        shell: bash
-        run: |
-          grep -q '^#### 6\.5\.153 参考资料$' Agent_Knowledge_System.md
-          grep -q '^### 6\.6 Coordination Failure$' Agent_Knowledge_System.md
-          grep -q '6\.1–6\.5 已完成；下一节 6\.6 Coordination Failure' Agent_Knowledge_System.md
-          test "$(grep -c '^### 6\.5 Shared / Private Context$' Agent_Knowledge_System.md)" -eq 1
-          test "$(grep -c '^### 6\.6 Coordination Failure$' Agent_Knowledge_System.md)" -eq 1
-
-      - name: Commit canonical-only net change
-        shell: bash
-        run: |
-          git config user.name 'A_Jiang'
-          git config user.email '79295145+JiangHui0203@users.noreply.github.com'
+      - run: python .tmp/apply_agent_6_5.py
+      - run: |
+          git config user.name A_Jiang
+          git config user.email 79295145+JiangHui0203@users.noreply.github.com
           git add Agent_Knowledge_System.md
-          git rm .tmp/section_6_5.md .github/workflows/agent-ch6-5-patch.yml
-          git commit -m 'docs: complete Agent 6.5 Shared / Private Context' -m 'Apply Agent 6.5 to canonical document; advance the Chapter 6 breakpoint to 6.6 Coordination Failure.'
+          git rm .tmp/section_6_5.md .tmp/apply_agent_6_5.py .github/workflows/agent-ch6-5-patch.yml
+          git commit -m "docs: complete Agent 6.5 Shared / Private Context"
           git push origin HEAD:agent/ch6-5-shared-private-context-20261020
