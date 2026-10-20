@@ -270,6 +270,8 @@ recovery opportunity
 action choice
 ```
 
+> **External anchor boundary：** [`R04 — Let's Verify Step by Step`](./00_Canonical_References.md) 支撑公开文献中的 Outcome Supervision vs Process Supervision、step-level feedback 与 process reward context；本章进一步定义的 `Correctness / Risk / Recoverability / Repairability / Selectability`，以及 Continue / Stop、Keep / Branch / Repair 等状态级 operating distinctions，属于本书 canonical model，**不反向归因给 R04**。
+
 ---
 
 ## 4.2.3 Outcome 与 Process 是互补关系
@@ -909,7 +911,7 @@ flowchart TD
 
 # 4.11 研究实例一：More Thinking Is Not Always Better
 
-> 本节是具体研究实例，不是通用定义。正式书稿发布前，论文完整题名与 bibliographic metadata 统一在引用审计阶段核验。
+> 本节是具体研究实例，不是通用定义。当前公开作者主页已可核对完整题名、作者与 NLPCC publication identity；但固定深度数值、population 与具体 protocol 的 claim-bearing evidence 仍按 **Internal Research Example + SOURCE ANCHOR PENDING for quantitative evidence** 处理。**Public identity listing ≠ Claim-bearing evidence anchor。** 统一边界见 [`Canonical References`](./00_Canonical_References.md) 与 [`Reference & Source Policy`](./00_Reference_Source_Policy.md)。
 
 该研究关注的核心不是简单证明：
 
@@ -1686,7 +1688,7 @@ Right → Wrong
 - Test-time scaling / best-of-N / tree search / verifier-guided search；
 - Reasoning correction / critique / repair / recovery data。
 
-正式书稿发布前，具体论文题名、年份和引用格式统一在 bibliographic audit 阶段核验。
+外部文献 anchor、内部 Research Example 与本章 canonical operating distinctions 的证据边界统一见 [`Canonical References`](./00_Canonical_References.md) 与 [`Reference & Source Policy`](./00_Reference_Source_Policy.md)。其中 R04 只承担公开 Process Supervision 文献锚点，不承担本章状态级五分法或内部研究数值的证明责任。
 
 ---
 
