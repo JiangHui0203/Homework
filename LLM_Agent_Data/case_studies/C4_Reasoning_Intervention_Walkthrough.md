@@ -9,6 +9,8 @@
 > 目的：把一个局部 reasoning-state intervention 从 `Risk Detection → Same-prefix Candidate Generation → Oracle Headroom → Selector → End-to-end Evaluation → Cost / Coverage` 完整跑一遍。
 >
 > 注意：**本文讨论的是显式、可观察的 reasoning prefix / structured state，不依赖不可访问的隐藏 chain-of-thought。canonical definition 仍以 `cases/C4_Reasoning_Continue_Repair.md`、Glossary 与对应章节为准。**
+>
+> Evidence provenance：本文整体状态为 `TEACHING`。它吸收了内部 reasoning-intervention 研究中常见的 trigger / same-prefix / selector / cost 问题形状，但**不是 RoTFuse / K17 的实验报告，也不能替代 S2 Internal Research artifacts**。只有显式挂接 frozen config / protocol / population / result artifact 的内容，才能作为内部定量证据；§11 的 population 数字、§12 的 `+0.5pt / 5×` 等均为 teaching-only illustration。真实 K17 threshold、population、Rescue / Harmful / Net 或成本结论必须回到研究 artifact。统一边界见 [`Reference & Source Policy`](../00_Reference_Source_Policy.md)。
 
 ---
 
