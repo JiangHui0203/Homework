@@ -76,7 +76,7 @@ Practical Playbooks P1–P7
 
 ```text
 1. 概念边界
-2. 真实 case
+2. 真实项目 / 研究 evidence
 3. 可验证 workflow
 ```
 
@@ -89,6 +89,8 @@ Interview Pack
 → C1 / C3 / C4 / C5 Walkthrough
 → Interview Index
 ```
+
+这里的 C1 / C3 / C4 / C5 Walkthrough 属于 **S3 Teaching Case / rehearsal asset**：它们用来练习结构、边界和 workflow，不属于“我做过的真实项目 / 研究 evidence”。如果面试需要回答“你实际做过什么”，必须另接自己的 frozen project / research artifact；尤其不能把 C4 Walkthrough 直接当成 RoTFuse / K17 的结果报告。
 
 不要只背术语定义，也不要为了展示框架而跳过问题本身的 Direct Answer。
 
