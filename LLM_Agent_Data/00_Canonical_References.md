@@ -7,6 +7,8 @@
 > 目的：维护一组**少而稳定、真正承担方法论支撑的外部文献锚点**。本文件不是完整 related work，也不是按“论文重要性”排序。
 >
 > 核心边界：**External Literature 负责支撑公开方法与公开证据；C1–C5、Practical Walkthrough 与内部 Research Example 仍由本书 / 内部 artifact 自己负责。**
+>
+> Freshness check：`2026-10-20`。本轮只刷新已有 anchor 的 venue / version metadata 与内部研究证据边界，**不新增 Rxx**。
 
 ---
 
@@ -36,8 +38,9 @@
 
 **Christiano P F, Leike J, Brown T B, et al. Deep reinforcement learning from human preferences[C]//Advances in Neural Information Processing Systems. 2017. arXiv:1706.03741.**
 
-- Source: https://arxiv.org/abs/1706.03741
-- Status: `VERIFIED`
+- Venue Source: https://papers.nips.cc/paper/7017-deep-reinforcement-learning
+- arXiv: https://arxiv.org/abs/1706.03741
+- Status: `VERIFIED + VENUE`
 - Role: `FOUNDATIONAL / PREFERENCE`
 
 它提供的外部锚点：
@@ -131,10 +134,11 @@ DPO
 
 # R04 — Process Supervision
 
-**Lightman H, Kosaraju V, Burda Y, et al. Let's Verify Step by Step[J]. arXiv preprint arXiv:2305.20050, 2023.**
+**Lightman H, Kosaraju V, Burda Y, et al. Let's Verify Step by Step[C]//International Conference on Learning Representations. 2024. arXiv:2305.20050.**
 
-- Source: https://arxiv.org/abs/2305.20050
-- Status: `VERIFIED`
+- Venue Source: https://proceedings.iclr.cc/paper_files/paper/2024/hash/aca97732e30bcf1303bc22ac3924fd16-Abstract-Conference.html
+- arXiv: https://arxiv.org/abs/2305.20050
+- Status: `VERIFIED + VENUE`
 - Role: `PROCESS SUPERVISION`
 
 核心锚点：
@@ -168,10 +172,11 @@ low confidence = error
 
 # R05 — Synthetic Instruction Data
 
-**Wang Y, Kordi Y, Mishra S, et al. Self-Instruct: Aligning Language Models with Self-Generated Instructions[J]. arXiv preprint arXiv:2212.10560, 2022.**
+**Wang Y, Kordi Y, Mishra S, et al. Self-Instruct: Aligning Language Models with Self-Generated Instructions[C]//Proceedings of the 61st Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers). 2023: 13484–13508. arXiv:2212.10560.**
 
-- Source: https://arxiv.org/abs/2212.10560
-- Status: `VERIFIED`
+- Venue Source: https://aclanthology.org/2023.acl-long.754/
+- arXiv: https://arxiv.org/abs/2212.10560
+- Status: `VERIFIED + VENUE`
 - Role: `SYNTHETIC DATA`
 
 核心锚点：
@@ -267,10 +272,11 @@ Ch12 reasoning/action/observation sequence
 
 # R08 — LLM-as-a-Judge
 
-**Zheng L, Chiang W L, Sheng Y, et al. Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena[J]. arXiv preprint arXiv:2306.05685, 2023.**
+**Zheng L, Chiang W L, Sheng Y, et al. Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena[C]//Advances in Neural Information Processing Systems 36, Datasets and Benchmarks Track. 2023. arXiv:2306.05685.**
 
-- Source: https://arxiv.org/abs/2306.05685
-- Status: `VERIFIED`
+- Venue Source: https://papers.nips.cc/paper_files/paper/2023/hash/91f18a1287b398d378ef22505bf41832-Abstract-Datasets_and_Benchmarks.html
+- arXiv: https://arxiv.org/abs/2306.05685
+- Status: `VERIFIED + VENUE`
 - Role: `EVALUATION / JUDGE`
 
 重要外部锚点：
@@ -309,9 +315,20 @@ Evidence First, Judge Second
 
 **Liang P, Bommasani R, Lee T, et al. Holistic Evaluation of Language Models[J]. arXiv preprint arXiv:2211.09110, 2022.**
 
-- Source: https://arxiv.org/abs/2211.09110
-- Status: `VERIFIED`
+- Full Technical Report: https://arxiv.org/abs/2211.09110
+- Related Formal Concise Report: https://doi.org/10.1111/nyas.15007
+- Status: `VERIFIED / VERSION-AWARE`
 - Role: `BENCHMARK / PROTOCOL`
+
+版本说明：
+
+```text
+2022 full technical report
+≠
+2023 formal concise report
+```
+
+后者由 Bommasani / Liang / Lee 以 concise report 形式正式发表；它可以核对 HELM 的 publication identity 与总体思想，但不是对 full technical report 的机械替换。本 registry 继续使用 full technical report 承担完整 benchmark / protocol anchor。
 
 核心锚点：
 
@@ -344,10 +361,11 @@ Benchmark Object
 
 # R10 — Agent Evaluation Across Environments
 
-**Liu X, Yu H, Zhang H, et al. AgentBench: Evaluating LLMs as Agents[J]. arXiv preprint arXiv:2308.03688, 2023.**
+**Liu X, Yu H, Zhang H, et al. AgentBench: Evaluating LLMs as Agents[C]//International Conference on Learning Representations. 2024. arXiv:2308.03688.**
 
-- Source: https://arxiv.org/abs/2308.03688
-- Status: `VERIFIED`
+- Venue Source: https://openreview.net/pdf?id=zAdUB0aCTQ
+- arXiv: https://arxiv.org/abs/2308.03688
+- Status: `VERIFIED + VENUE`
 - Role: `AGENT EVALUATION`
 
 核心锚点：
@@ -404,10 +422,11 @@ final world state matters
 
 # R12 — Executable Software Evaluation
 
-**Jimenez C E, Yang J, Wettig A, et al. SWE-bench: Can Language Models Resolve Real-World GitHub Issues?[J]. arXiv preprint arXiv:2310.06770, 2023.**
+**Jimenez C E, Yang J, Wettig A, et al. SWE-bench: Can Language Models Resolve Real-World GitHub Issues?[C]//International Conference on Learning Representations. 2024. arXiv:2310.06770.**
 
-- Source: https://arxiv.org/abs/2310.06770
-- Status: `VERIFIED`
+- Venue Source: https://openreview.net/forum?id=VTF8yNQM66
+- arXiv: https://arxiv.org/abs/2310.06770
+- Status: `VERIFIED + VENUE`
 - Role: `EXECUTABLE EVALUATION`
 
 核心锚点：
@@ -591,6 +610,32 @@ Teaching / Editorial Asset
 
 不能把一篇外部“相似论文”挂上去以后，就把内部 claim 伪装成 external evidence。
 
+## More Thinking — current source boundary
+
+公开作者主页现已列出：
+
+```text
+NLPCC
+More Thinking Is Not Always Better:
+Structural and Semantic Factors of Complex Reasoning Tasks in LLMs
+
+Hui Jiang / Shizhu He / Kang Liu / Jun Zhao
+```
+
+- Public identity listing: https://heshizhu.github.io/
+- Identity status: title / authors / NLPCC venue identity publicly checkable
+- Quantitative evidence status: `SOURCE ANCHOR PENDING`
+
+因此：
+
+```text
+public publication listing
+≠ evidence for 69.04 / 74.09 / 70.97
+≠ evidence for fixed-depth protocol details
+```
+
+在 formal paper / proceedings 或 internal frozen result summary 可定位以前，固定深度数值仍保持 Internal Research Example 口径。
+
 ---
 
 # 3. Maintenance Rule
@@ -610,6 +655,15 @@ Teaching / Editorial Asset
 ```
 
 则通常放 related reading，而不进入 canonical registry。
+
+Reference metadata 更新时还要额外检查：
+
+```text
+formal venue version
+≈ current claim-bearing version ?
+```
+
+如果不等价，则保留 version relationship，不做 silent replacement。
 
 目标不是拥有最长 bibliography，而是：
 
