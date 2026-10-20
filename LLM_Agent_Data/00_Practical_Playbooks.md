@@ -21,6 +21,8 @@
 > ```
 >
 > 原则：**每个 Playbook 必须有明确 Trigger、Minimum Inputs、Produced Artifacts 与 Decision Gate。没有决策出口的“流程”只是活动清单；不同 Playbook 可以从不同 Artifact Entry 开始，不要求都先造 A1。**
+>
+> 执行语义：Playbook 中出现的数量、分数与场景值（例如 `10万 / 50万 / 100万`、`quality_score = 0.83`、`+1.2 pt`）都只是 **illustrative trigger / teaching value**，除非显式挂接真实 project / run artifact，否则不能当作已发生事实或测量结果。`Produced Artifacts` 表示“这个 Playbook 可能需要形成的证据 / 决策对象类别”，**不要求每一行都单独生成一份文件**；不适用时应标 `N/A`，证据不足时应保留 `UNRESOLVED / suspected` 或停在 Gate，而不是为了流程完整伪造结论。
 
 ---
 
@@ -86,7 +88,7 @@ Evaluator Result if any
 ```text
 Failure Record
 Evidence Package
-Root Cause / Owner
+Root Cause / Owner Status (confirmed / suspected / unresolved)
 Capability Gap Statement
 Data Problem Gate Decision
 Pilot Spec
@@ -329,7 +331,7 @@ Dataset View 能不能从 Source Asset 重建？
 
 # P3 — 想做 Synthetic Agent Data，怎么避免“模型批量自嗨”？
 
-Entry：通常是 `Hypothesis-led` 或 `Asset / Production-led`
+Entry：通常是 `Hypothesis-led`；如果起点是一批既有 seed / source assets，则从 `Asset-led / Curation-led` 进入。`Production-led` 不是独立 canonical Entry。
 
 ## Trigger
 
@@ -647,7 +649,7 @@ Candidate existence
 
 # P6 — 一批数据让指标 +1.2pt，值不值得继续投？
 
-Entry：`Data Experiment / Strategy Decision`
+Entry：这不是新的项目 origin；它是 **A7 之后的 Decision-stage continuation**，沿用上游项目已经选择的五入口 Entry。
 
 ## Trigger
 
@@ -859,7 +861,7 @@ Asset-led / Curation-led
 “拿到几十万条 trajectory 怎么开工？”
 → P2
 
-Hypothesis / Production-led
+Hypothesis-led / Asset-led / Curation-led
 “想批量做 synthetic data”
 → P3
 
@@ -871,7 +873,7 @@ Hypothesis-led Selective Research
 “有好 candidate 但方法不涨”
 → P5
 
-Data Strategy
+Decision-stage continuation（继承上游项目 Entry）
 “数据实验涨了，值不值得继续？”
 → P6
 
