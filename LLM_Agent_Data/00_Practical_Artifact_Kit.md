@@ -9,6 +9,8 @@
 > 按需扩展：[`Scenario Pack Candidate Extensions`](./00_Scenario_Pack_Candidate_Extensions.md)
 >
 > 原则：**没有 Artifact 的流程很难复盘；没有 Version / Evidence / Decision 的 Artifact 很难审计。Artifact Kit 是工件目录，不是要求所有项目 A1→A11 线性填满的流水线。**
+>
+> 模板语义：`<...>` 表示待填 placeholder / allowed shape，不是已有事实；`null / [] / UNKNOWN / NOT YET ESTABLISHED` 都是合法状态。模板里的枚举项表示**可选值集合**，复制时只保留实际适用项，不要因为模板列出了多个候选就把它们全部当作已发生事实。只有与真实 artifact / trace / config / run 绑定后的填写值才构成项目记录；模板本身不能证明某个实验、事故、成本或结果已经发生。
 
 ---
 
@@ -102,14 +104,14 @@ Product / Task Contract
 
 # A1 — Problem Intake Card
 
-适用：需要正式定义问题 / scientific question 的 failure-led、hypothesis-led、evaluation-led、strategy-led 项目；Monitoring-led 可以先从 A10 进入，Asset-led 可以先从 A11 / source asset contract 进入。
+适用：需要正式定义问题 / scientific question 的 failure-led、hypothesis-led、evaluation-led 项目；Monitoring-led 可以先从 A10 进入，Asset-led / Curation-led 可以先从 A11 / source asset contract 进入。
 
 ```yaml
 problem_id: PI-YYYYMMDD-001
 owner: <person/team>
 created_at: <timestamp>
 
-project_origin: <failure_led|monitoring_led|hypothesis_led|evaluation_led|asset_led|strategy_led>
+project_origin: <failure_led|monitoring_led|hypothesis_led|evaluation_led|asset_led_or_curation_led>
 
 problem_statement: >
   用一句话描述真实问题 / scientific question，而不是预设解决方案。
@@ -138,15 +140,7 @@ initial_evidence:
 severity_or_priority: <low|medium|high|critical>
 
 suspected_layers:
-  - task
-  - model
-  - tool
-  - harness
-  - environment
-  - evaluator
-  - data
-  - inference_policy
-  - unknown
+  - <one or more of: task|model|tool|harness|environment|evaluator|data|inference_policy|unknown>
 
 candidate_intervention_owner_or_type: >
   当前最可能属于哪一层？未确认时写 UNKNOWN。
@@ -351,7 +345,7 @@ events:
     branch_from_event_id: null
     retry_of_attempt_id: null
     logical_action_id: null
-    agent_visible: true
+    agent_visible: <true|false>
     payload: {}
     timestamp: <optional>
 
@@ -521,7 +515,7 @@ evaluator_type: <verifier|grader|judge|human|hybrid>
 output_schema:
   label_space: []
   score_range: <optional>
-  abstain_supported: true
+  abstain_supported: <true|false>
 
 priority_rules:
   - <e.g. executable failure overrides style preference>
@@ -601,18 +595,10 @@ hypothesis: >
 data_operation: <add|remove|replace|reweight|transform>
 
 source_experience:
-  - human
-  - synthetic
-  - rollout
-  - production_mined
+  - <one or more of: human|synthetic|rollout|production_mined>
 
 learning_signal:
-  - sft
-  - preference
-  - reward
-  - process
-  - recovery
-  - verifier
+  - <one or more of: sft|preference|reward|process|recovery|verifier>
 
 construction_policy: >
   数据如何产生？
@@ -932,13 +918,7 @@ population_shift:
   triggered_or_routed: <change|null>
 
 suspected_drift:
-  - data
-  - concept
-  - failure
-  - capability
-  - judge
-  - infrastructure
-  - routing_or_calibration
+  - <one or more of: data|concept|failure|capability|judge|infrastructure|routing_or_calibration>
 
 root_cause_status: <confirmed|suspected|unresolved>
 owner: <team|null>
