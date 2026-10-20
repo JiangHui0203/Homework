@@ -1222,7 +1222,152 @@ V3.x Compatible Evolution / Reference Maintenance
 
 ---
 
-# 17. Final Principle
+# 17. Maintenance Sweep — Reference Usage / Claim–Source Alignment
+
+本轮反向审计高引用章节实际如何消费 Reference Layer：
+
+```text
+Ch4
+Ch7
+Ch15
+Ch16
+Ch19
+Ch20
+Ch23
+```
+
+目标不是增加 citation density，而是检查：
+
+```text
+External Anchor
+是否承担了超出原论文的证明责任？
+
+Book Canonical Operating Model
+是否被误写成外部论文定义？
+
+Benchmark / Publication Identity
+是否被误当成 universal validity？
+```
+
+## 17.1 Ch4 — source boundary repaired
+
+发现两处明确 stale usage：
+
+```text
+“正式书稿发布前再核验 bibliographic metadata”
+```
+
+已经落后于当前 Reference Layer；同时 R04 与本章状态级五分法之间缺少显式 ownership boundary。
+
+现修正为：
+
+```text
+R04 — Let's Verify Step by Step
+→ external anchor for Outcome vs Process Supervision
+→ step-level feedback / process reward context
+
+Correctness / Risk / Recoverability / Repairability / Selectability
+Continue / Stop
+Keep / Branch / Repair
+→ book-defined canonical operating distinctions
+→ not attributed back to R04
+```
+
+More Thinking 研究实例也同步当前 source status：
+
+```text
+public title / authors / NLPCC identity
+→ checkable
+
+fixed-depth quantitative results / protocol
+→ Internal Research Example
+→ SOURCE ANCHOR PENDING for quantitative evidence
+```
+
+因此：
+
+```text
+Public identity listing
+≠ Claim-bearing quantitative evidence
+```
+
+## 17.2 Ch7 / Ch15 / Ch16 / Ch19 / Ch20 / Ch23 — audit only
+
+完整复核后，没有发现需要为了 Reference Layer 强行改正文的高置信 over-attribution。
+
+这些章节当前已经通过章节定位、canonical owner 与跨章边界明确表达：
+
+```text
+Ch7
+Experience Synthesis / failure-driven / trajectory / environment synthesis
+→ book extension beyond R05 Self-Instruct
+
+Ch15
+Evidence → Evaluator → Judgment → Label
+Evidence First, Judge Second
+Verifier / Grader / Judge operating boundary
+→ book canonical model
+R08 只承担公开 LLM-as-a-Judge / bias / agreement context
+R12 只承担 executable-evaluation context
+
+Ch16
+Benchmark ≠ Protocol ≠ Run ≠ Report
+Population Accounting / Denominator Discipline
+Stable Ruler + Moving Frontier
+→ book canonical evaluation decomposition
+R09–R15 作为 external benchmark / protocol / contamination / freshness anchors
+不拥有这些 canonical definitions
+
+Ch19
+Identity / Provenance / Lineage / Versioning
+Historical Decision / Re-score / Re-run / Replay
+→ book governance model
+R13 / R14 不承担全部治理 taxonomy 定义权
+
+Ch20
+Decision-level / Family-level Dedup
+Dataset Size ≠ Training Exposure
+→ book curation operating model
+R14 只承担 contamination research anchor
+
+Ch23
+Monitoring ≠ Diagnosis
+Stable Ruler + Moving Frontier as monitoring usage
+Judge / Tool / Harness / Environment Drift decomposition
+→ book monitoring operating model
+R15 只提供 fresh / objective / contamination-aware benchmark example
+```
+
+因此本轮保持这些章节原文。
+
+固定判断：
+
+> **“没有逐段写 Rxx”不等于缺失；只要 canonical ownership 已清楚、没有外部论文被过度归因，就不为了形式完整把母本改造成 literature survey。**
+
+## 17.3 Scope guard
+
+本轮没有：
+
+```text
+新增 Rxx
+增加 bibliography 数量
+改变已有 reference claim role
+给每章机械添加 citation box
+把 book canonical taxonomy 外包给 external paper
+把 More Thinking 定量结果升级成 public evidence
+重写 V3.0 Release Readiness
+新增 Ch / Pack / Figure / Artifact ID
+```
+
+本轮仍属于：
+
+```text
+V3.x Compatible Evolution / Claim–Source Maintenance
+```
+
+---
+
+# 18. Final Principle
 
 ```text
 Release Snapshot
