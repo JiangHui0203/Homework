@@ -9,6 +9,8 @@
 > 目的：用同一个 File / Repository Agent，完整演练 **Permission、Irreversible Side Effect、Idempotency、Tool Truth、Harness Observation 与 Failure Owner** 怎样进入数据、评测和系统决策。
 >
 > 注意：**本文是 walkthrough，不改变 C3 stable ID 语义。canonical definition 仍以 `cases/C3_File_Repository_Agent.md`、Glossary 与对应章节为准。**
+>
+> Evidence provenance：`TEACHING`（S3 Canonical Teaching Case）+ `S4 Engineering / Editorial Convention`。下文 `Incident A / B / C`、tool backend 状态、harness observation、filesystem state 与 Failure Record 都是**为稳定边界而构造的教学场景**，不是已记录的 production incident，也不代表某类错误在线上的真实频率。文中的 permission / retry / verification 路径是 operating convention，不应被引用成经验统计结论。统一边界见 [`Reference & Source Policy`](../00_Reference_Source_Policy.md)。
 
 ---
 
