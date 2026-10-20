@@ -72,10 +72,20 @@ population / denominator
 More Thinking fixed-depth 69.04 / 74.09 / 70.97
 ```
 
-在正式 paper 或 internal frozen summary 挂上以前，只能作为：
+截至 2026-10-20，公开作者主页已经可以核对该工作的 title / authors / NLPCC venue identity；但这种公开身份信息只解决 bibliographic identity，不足以支撑固定深度结果、denominator、protocol 或其他定量 claim。
+
+因此在正式 paper / proceedings 或 internal frozen result summary 挂上以前，相关定量结果仍只能作为：
 
 ```text
 Internal Research Example
++ SOURCE ANCHOR PENDING for quantitative evidence
+```
+
+固定边界：
+
+```text
+Public identity listing
+≠ Claim-bearing evidence anchor
 ```
 
 ---
@@ -196,11 +206,21 @@ DO NOT CITE AS EVIDENCE
 → 仅用于启发或背景，不能支撑目标 claim
 ```
 
+状态升级只针对它实际解决的证据问题。例如作者主页、会议 program 或 publication list 可以核对 title / authors / venue identity，但如果页面没有目标实验、protocol 与结果，就不能据此把内部 quantitative claim 从 `SOURCE ANCHOR PENDING` 升级成 public evidence。
+
 ---
 
 # 3. Source Priority
 
-同一工作优先顺序：
+Source priority 先受两个条件约束：
+
+```text
+Claim Coverage
++
+Version Equivalence
+```
+
+只有在多个来源确实对应同一 bibliographic object、且对目标 claim 的覆盖基本等价时，才按下面顺序优先：
 
 ```text
 正式 venue / publisher page
@@ -213,6 +233,17 @@ author-maintained page
 >
 可靠二手来源
 ```
+
+如果不同版本在 authorship、篇幅、实验细节或 claim coverage 上存在实质差异，则不能机械执行“venue 替换 arXiv”。应选择**真正包含目标证据的版本**，并保留 version note。
+
+典型情况：
+
+```text
+full technical report
+≠ later concise venue report
+```
+
+此时正式 venue 可以证明 publication identity，但未必能替代完整 technical report 承担所有方法与实验 claim。
 
 正文 bibliography 默认至少保留：
 
@@ -286,6 +317,20 @@ Source Anchor Pending
 ```
 
 必须保留。
+
+尤其不要把：
+
+```text
+“这项工作公开列在作者主页 / program 上”
+```
+
+误写成：
+
+```text
+“这些内部结果已经有公开证据支持”
+```
+
+bibliographic identity 与 result evidence 是两个不同问题。
 
 ---
 
@@ -386,6 +431,15 @@ Reference ID 是检索 ID，不是论文重要性排名。
 修作者 / title / year
 ```
 
+其中“补正式 venue”仍要先检查：
+
+```text
+venue version
+≈ current claim-bearing version ?
+```
+
+如果只是 publication identity 得到确认，而正文依赖的完整方法 / 实验仍只存在于 technical report，则应保留两者关系，不做 silent replacement。
+
 需要 review 的变化：
 
 ```text
@@ -396,4 +450,4 @@ Reference ID 是检索 ID，不是论文重要性排名。
 
 原则：
 
-> **Bibliography 可以增长，但 Claim ↔ Source 的对应关系不能静默漂移。**
+> **Bibliography 可以增长，但 Claim ↔ Source 的对应关系不能静默漂移；Version ↔ Claim 也不能静默漂移。**
