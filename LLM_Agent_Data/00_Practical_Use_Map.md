@@ -41,7 +41,7 @@
 我需要填写可审计项目工件
 → Practical Artifact Kit
 
-我想看一个完整项目怎么走
+我想看一个完整项目结构怎样被教学化走通
 → Practical Case Studies
 
 我怕项目某阶段漏项
@@ -185,11 +185,13 @@ Large-scale Curation
 
 ---
 
-# 3. 我想看“真实项目到底怎么走完”
+# 3. 我想看“一个项目结构怎样完整走通”
 
 打开：
 
 - [`Practical Case Studies`](./case_studies/README.md)
+
+这里的 C1 / C3 / C4 / C5 都是 **S3 Teaching Case / walkthrough**：用于展示结构、边界与执行链怎样连起来，不是 production incident、个人项目经历或内部实验结果。真实项目的 symptom、trajectory、population、result 与 cost 必须回到自己的 project / research artifacts。
 
 当前四篇分别解决：
 
@@ -211,7 +213,7 @@ Executable Task / Verifier
 → 什么 Evidence 足以叫“正确”
 ```
 
-如果想看“模板实际填成什么样”：
+如果想看“教学模板实际填成什么样”：
 
 - [`C1 Filled Artifact Pack`](./case_studies/C1_Artifact_Pack.md)
 
@@ -250,7 +252,7 @@ F4
 → F13
 ```
 
-实战案例：
+教学演练：
 
 ```text
 C1
@@ -318,7 +320,7 @@ F3
 → F13
 ```
 
-实战：
+教学演练：
 
 - [`C4 Reasoning Intervention Walkthrough`](./case_studies/C4_Reasoning_Intervention_Walkthrough.md)
 
@@ -385,7 +387,7 @@ F7
 → F13
 ```
 
-实战：
+教学演练：
 
 - [`C5 Executable Truth / Verifier Coverage Walkthrough`](./case_studies/C5_Executable_Truth_Verifier_Coverage_Walkthrough.md)
 
@@ -795,7 +797,7 @@ Artifact Kit
 = What to Produce
 
 Case Studies
-= How the Pieces Connect in Practice
+= How the Pieces Connect in a Teaching Walkthrough
 
 Checklist Index
 = What Not to Miss
