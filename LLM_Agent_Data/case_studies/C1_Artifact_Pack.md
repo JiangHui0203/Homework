@@ -7,6 +7,8 @@
 > 对应模板：[`Practical Artifact Kit`](../00_Practical_Artifact_Kit.md)
 >
 > 目的：展示同一个 failure 如何被记录成一组可审计项目工件。这里不是重新定义 C1，而是演示 A1–A10 应该填到什么粒度。
+>
+> Evidence provenance：`TEACHING`。本文所有已填 ID、`model_x` / `harness_v1` 等 runtime 名、source channel、`seeds: 3`、snapshot / transaction 名称与示例配置，都是**reference fill-in values**，不是某个真实 production incident、training run 或 evaluation run 的记录；`PENDING / TBD / <value>` 则明确表示尚无结果证据。不要从“字段已填”反推“实验已执行”。统一边界见 [`Reference & Source Policy`](../00_Reference_Source_Policy.md)。
 
 ---
 
@@ -17,7 +19,7 @@ problem_id: PI-C1-001
 owner: agent_data_eval
 
 problem_statement: >
-  在订单已经 shipped 的情况下，Agent 仍执行退款，违反用户明确的条件约束并产生真实 side effect。
+  在订单已经 shipped 的情况下，Agent 仍执行退款，违反用户明确的条件约束，并在该 teaching case 的 world state 中产生 forbidden side effect。
 
 user_or_product_impact: >
   错误退款会造成资金与订单状态不一致，并破坏用户对自动化 Agent 的信任。
@@ -317,7 +319,7 @@ hypothesis: >
 
 intervention_type: replace
 
-source_experience:
+source_experience:  # illustrative source channels for the reference pack, not provenance claims
   - production_mined
   - synthetic
   - rollout
