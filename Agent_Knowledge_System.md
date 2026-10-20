@@ -105733,6 +105733,3002 @@ Context should be projected, not broadcast.
 9. OWASP. *Top 10 for LLM Applications / Agentic AI security guidance*. 关于 Prompt Injection、Excessive Agency、敏感信息暴露与 Agent 间攻击传播风险。
 
 ### 6.6 Coordination Failure
+
+#### 6.6.1 Coordination Failure 到底是什么
+
+在 Multi-Agent 系统中，**Coordination Failure** 不是“某个 Agent 答错了”，也不只是“Agent 之间没沟通好”。
+
+更准确地说：
+
+> **Coordination Failure 是多个自治执行单元在共同完成一个全局任务时，因为任务依赖、所有权、共享状态、时序、承诺、资源或终止条件没有被一致维护，导致局部行为看似合理，但全局结果错误、重复、冲突、停滞或不可恢复。**
+
+因此它关注的基本对象不是单个 response，而是：
+
+```text
+Agents
+  +
+Task Graph
+  +
+Shared / Private State
+  +
+Dependencies
+  +
+Authority / Ownership
+  +
+Temporal Order
+  +
+Commitments
+  +
+Resources
+  +
+Termination Condition
+        ↓
+Global Outcome
+```
+
+最重要的一句话是：
+
+> **Local Success ≠ Global Success。**
+
+---
+
+#### 6.6.2 为什么 Multi-Agent 天然更容易出现 Coordination Failure
+
+单 Agent 主要维护一条控制链：
+
+```text
+State → Decision → Action → Observation → State
+```
+
+Multi-Agent 则同时存在多条自治轨迹：
+
+```text
+Agent A trajectory ─┐
+Agent B trajectory ─┼→ Shared Environment / Shared Goal
+Agent C trajectory ─┘
+```
+
+一旦多个轨迹之间存在：
+
+- 前后依赖；
+- 共享资源；
+- 共享可变状态；
+- 权限边界；
+- 共同完成条件；
+- 需要互相承诺的 handoff；
+
+系统就不仅要解决“每个 Agent 会不会做”，还要解决：
+
+> **它们是否在正确的时间，以正确的权限，基于正确版本的状态，做了彼此兼容的事情。**
+
+---
+
+#### 6.6.3 Coordination Failure 与 Local Reasoning Failure 的边界
+
+假设 Research Agent 把论文年份看错了：
+
+```text
+2025 → 2024
+```
+
+这是 **Local Reasoning / Extraction Failure**。
+
+但如果 Research Agent 已正确产出证据，而 Writer Agent 在证据尚未完成前就开始写结论，最终使用了旧版本材料，这更接近：
+
+```text
+Dependency / State Coordination Failure
+```
+
+区分方法：
+
+> **把每个 Agent 的局部输出替换成 oracle 后，系统是否仍可能失败？**
+
+如果仍会因为时序、重复执行、状态冲突、错误 handoff、终止判断等失败，那么问题就在 Coordination Layer。
+
+---
+
+#### 6.6.4 Coordination Failure 与 Communication Failure 的边界
+
+Communication 主要回答：
+
+```text
+消息能否被发送、到达、解析、理解？
+```
+
+Coordination 进一步回答：
+
+```text
+收到消息以后，整个系统是否因此形成正确的联合行为？
+```
+
+例如：
+
+```text
+A → B: “数据已准备好”
+```
+
+消息成功送达且 B 正确理解，但如果：
+
+- B 与 C 同时覆盖同一文件；
+- B 使用的其实是旧 version；
+- A 没有 authority 宣告 ready；
+- B 完成后没人触发最终 join；
+
+仍然会失败。
+
+所以：
+
+> **Communication Success ≠ Coordination Success。**
+
+---
+
+#### 6.6.5 Coordination Failure 与 Shared / Private Context Failure 的边界
+
+6.5 主要研究：
+
+```text
+谁能看见什么？
+谁能写什么？
+哪个版本可信？
+什么信息应该共享？
+```
+
+6.6 更关心：
+
+```text
+这些状态被多个 Agent 使用后，
+系统能否保持正确的联合执行关系？
+```
+
+例如 stale state 本身属于 Context / State 问题；但两个 Agent 基于 stale state 同时执行互斥 side effect，最终造成资源冲突，则已经上升为 Coordination Failure。
+
+因此 6.5 是信息一致性的基础，6.6 是联合行为一致性的结果层。
+
+---
+
+#### 6.6.6 Coordination Failure 与 Task Decomposition Failure 的边界
+
+如果任务一开始就被拆错：
+
+```text
+关键子任务遗漏
+任务边界错误
+依赖关系建错
+```
+
+首先属于 Decomposition Failure。
+
+但即使 decomposition 正确，也可能在运行时发生：
+
+```text
+Task B 在 Task A 完成前启动
+Task C 被重复分配
+Task D 完成后没有被 join
+```
+
+这属于 Coordination Failure。
+
+可以理解为：
+
+```text
+Decomposition = 定义工作结构
+Coordination  = 让工作结构在运行时保持成立
+```
+
+---
+
+#### 6.6.7 Coordination 的最小系统模型
+
+可以把一个协作任务抽象成：
+
+```text
+G = (T, D)
+```
+
+其中：
+
+- `T`：任务 / 子任务集合；
+- `D`：任务之间的依赖关系。
+
+每个 task 至少还需要：
+
+```text
+task_id
+parent_id
+owner
+state
+inputs
+outputs
+preconditions
+postconditions
+dependencies
+authority
+version
+retry / timeout policy
+completion evidence
+```
+
+Coordination 的目标不是让所有 Agent 时刻同步，而是确保：
+
+> **所有会影响全局正确性的约束在必要位置被维护。**
+
+---
+
+#### 6.6.8 什么是 Coordination Invariant
+
+**Coordination Invariant** 是系统在并行、失败、重试和恢复过程中都必须保持成立的全局约束。
+
+例如：
+
+```text
+同一付款意图最多产生一次不可逆扣款
+只有当前 owner 可以提交最终 artifact
+Task B 只能在 Task A VERIFIED 后执行
+同一资源不能同时被两个互斥动作占用
+任务只有在所有 required child 完成后才能 DONE
+```
+
+很多 Multi-Agent 设计的问题在于只写了 prompt，却没有显式写 invariant。
+
+工程上应先问：
+
+> **哪些东西一旦被多个 Agent 同时做错，会破坏全局正确性？**
+
+这些就是应该被 Harness / Runtime 显式保护的协调不变量。
+
+---
+
+#### 6.6.9 Coordination Surface
+
+可以把需要跨 Agent 达成一致、排序或互斥的那部分系统定义为 **Coordination Surface**。
+
+例如：
+
+```text
+Task ownership
+Shared mutable state
+Irreversible side effects
+Scarce resources
+Cross-task dependencies
+Global completion condition
+```
+
+而下面这些通常不需要强协调：
+
+```text
+独立草稿
+私有 scratchpad
+互不影响的候选生成
+只读检索
+可丢弃的探索分支
+```
+
+一个重要设计目标是：
+
+> **减少 Coordination Surface，而不是让所有 Agent 共享更多状态。**
+
+---
+
+#### 6.6.10 为什么“更多同步”不等于“更可靠”
+
+过度同步会带来：
+
+- 等待；
+- blocking；
+- coordination overhead；
+- 更大的 shared mutable state；
+- 更复杂的 failure recovery；
+- 更大的 blast radius；
+- 更长 critical path。
+
+因此：
+
+```text
+No Coordination → races / conflicts
+Too Much Coordination → latency / coupling / fragility
+```
+
+真正目标是找到足以保护 invariant 的最小协调集合。
+
+---
+
+#### 6.6.11 Local Success ≠ Global Success
+
+考虑三个 Agent：
+
+```text
+Researcher: SUCCESS
+Analyst:    SUCCESS
+Writer:     SUCCESS
+```
+
+最终报告仍可能失败，因为：
+
+```text
+Researcher 使用数据 v2
+Analyst 使用数据 v3
+Writer 混合引用 v2 / v3
+```
+
+三个局部 task 都成功，但全局 artifact 不一致。
+
+所以 Multi-Agent 系统必须同时记录：
+
+```text
+Local Task Outcome
+Global Task Outcome
+```
+
+不能用 local success rate 代替 end-to-end success rate。
+
+---
+
+#### 6.6.12 Coordination Failure 的一级分类
+
+可以先按系统破坏的对象分成八类：
+
+```text
+1. Assignment Failure
+2. Dependency / Ordering Failure
+3. Ownership / Authority Failure
+4. Shared-State / Concurrency Failure
+5. Progress / Liveness Failure
+6. Retry / Recovery Failure
+7. Commitment / Completion Failure
+8. Resource / Side-effect Conflict
+```
+
+实际事故常常跨多个类别传播。
+
+例如：
+
+```text
+stale owner
+  ↓
+重复执行
+  ↓
+side-effect conflict
+  ↓
+retry
+  ↓
+retry storm
+  ↓
+系统超时
+```
+
+因此需要看 failure chain，而不是只给最终错误贴一个标签。
+
+---
+
+#### 6.6.13 Misassignment：任务分给了错误 Agent
+
+典型形式：
+
+```text
+Task requires DB write
+       ↓
+assigned to read-only analyst
+```
+
+或者：
+
+```text
+high-risk approval task
+       ↓
+assigned to low-trust autonomous worker
+```
+
+Misassignment 可能来自：
+
+- capability routing 错误；
+- role definition 模糊；
+- permission 与 role 不一致；
+- stale capability registry；
+- orchestrator 只看语义相似度，不看 authority。
+
+因此 Assignment 必须同时匹配：
+
+```text
+Capability
+Permission
+Availability
+Trust
+Task constraints
+```
+
+---
+
+#### 6.6.14 Orphan Task：任务存在，但没有有效 owner
+
+常见状态：
+
+```text
+CREATED → ASSIGNED → owner crash
+```
+
+如果系统没有 lease / heartbeat / reassignment：
+
+```text
+Task 永久停在 RUNNING
+```
+
+这就是 Orphan Task。
+
+关键问题不是“Agent 是否在线”，而是：
+
+> **系统能否判断当前 task 是否仍被一个有效 owner 持有。**
+
+---
+
+#### 6.6.15 Duplicate Assignment：同一任务被重复分配
+
+例如：
+
+```text
+Task T
+ ├→ Agent A
+ └→ Agent B
+```
+
+如果任务是只读研究，重复工作主要浪费 token 与 latency。
+
+如果任务带 side effect：
+
+```text
+send_email
+create_ticket
+charge_card
+merge_code
+```
+
+重复分配可能造成真实世界重复执行。
+
+因此 Duplicate Work 与 Duplicate Effect 必须分开统计。
+
+---
+
+#### 6.6.16 Cyclic Delegation：循环委派
+
+例如：
+
+```text
+A → B: 请解决 X
+B → C: 请解决 X
+C → A: 请解决 X
+```
+
+三个 Agent 都在“合理委派”，但系统没有前进。
+
+检测手段包括：
+
+- parent / child lineage；
+- delegation depth；
+- repeated semantic task hash；
+- visited-agent / visited-task set；
+- no-progress detector。
+
+Cyclic Delegation 是典型的：
+
+> **每一步局部合理，但 trajectory 全局不收敛。**
+
+---
+
+#### 6.6.17 Over-delegation：可以本地完成，却不断创建 Subagent
+
+例如一个两步检索任务被拆成十几个 worker。
+
+后果包括：
+
+- communication overhead；
+- context duplication；
+- join complexity；
+- cost amplification；
+- 更多 failure surface。
+
+因此 Agent 数量不是能力指标。
+
+> **Delegation 本身必须有净收益。**
+
+---
+
+#### 6.6.18 Dependency Violation：依赖尚未满足就执行
+
+设：
+
+```text
+A → B
+```
+
+表示 B 依赖 A。
+
+错误执行：
+
+```text
+A = RUNNING
+B = RUNNING  ← 不应发生
+```
+
+尤其危险的是 B 对外产生 side effect，而 A 后来失败。
+
+所以 dependency 不应只存在于 prompt 描述中，而应成为 runtime 可检查的 precondition。
+
+---
+
+#### 6.6.19 Incorrect Join：并行分支没有被正确汇合
+
+Fan-out 后常见：
+
+```text
+          ┌→ B1
+A → split ├→ B2
+          └→ B3
+             ↓
+            Join
+```
+
+Join Failure 包括：
+
+- 少等一个 required child；
+- 永远等待 optional child；
+- 把 failed child 当 success；
+- 使用不同版本 child output；
+- 重复消费同一 child output。
+
+所以 Join 必须知道：
+
+```text
+required set
+optional set
+completion policy
+version
+failure semantics
+```
+
+---
+
+#### 6.6.20 Race Condition：结果取决于执行时序
+
+例如两个 Agent 都读到：
+
+```text
+counter = 10
+```
+
+A 写 11，B 也写 11。
+
+最终本应 12，却得到 11。
+
+LLM 不会因为“会推理”就自动解决 race condition。
+
+> **Concurrency correctness 是系统属性，不是语言模型能力。**
+
+---
+
+#### 6.6.21 Conflicting Actions：两个 Agent 执行互不兼容的动作
+
+例如：
+
+```text
+Agent A: deploy version X
+Agent B: rollback version X
+```
+
+或者：
+
+```text
+A: approve invoice
+B: cancel invoice
+```
+
+单看每个 Agent 的局部 context 都可能合理。
+
+因此对互斥 action 需要：
+
+- authoritative state；
+- ownership；
+- serialization / conflict check；
+- version precondition。
+
+---
+
+#### 6.6.22 Resource Contention：多个 Agent 竞争有限资源
+
+资源可以是：
+
+- GPU；
+- browser session；
+- file lock；
+- API quota；
+- DB connection；
+- human approval attention；
+- rate limit budget。
+
+如果没有 admission control，Multi-Agent 并行化可能反而降低吞吐。
+
+因此：
+
+> **Parallelism ≠ Unlimited Concurrency。**
+
+---
+
+#### 6.6.23 Lost Update：后写覆盖前写
+
+典型过程：
+
+```text
+A reads v7
+B reads v7
+A writes v8
+B writes v8'  ← 覆盖 A 的更新
+```
+
+如果共享状态更新不带 version / compare-and-swap 条件，很容易发生。
+
+这也是为什么 6.5 强调 Canonical Shared State 与 Versioning。
+
+---
+
+#### 6.6.24 Stale-State Coordination Failure
+
+Agent 基于旧状态执行动作：
+
+```text
+State v12: task unassigned
+Agent A reads v12
+State v13: task assigned to B
+Agent A still executes
+```
+
+问题不是 A 推理错误，而是 A 的 observation 已过期。
+
+因此在高风险 action 前，常常需要重新验证：
+
+```text
+Freshness
+Version
+Ownership
+Preconditions
+```
+
+---
+
+#### 6.6.25 Split-Brain：系统同时存在两个“权威 owner”
+
+例如网络分区或 lease 设计错误导致：
+
+```text
+Coordinator 1 believes A owns Task T
+Coordinator 2 believes B owns Task T
+```
+
+如果 A、B 都执行 irreversible action，后果非常严重。
+
+因此 owner 不是 prompt 里的角色名称，而是需要可验证的 runtime authority。
+
+---
+
+#### 6.6.26 Deadlock：大家都在等别人
+
+最经典形式：
+
+```text
+A holds R1, waits R2
+B holds R2, waits R1
+```
+
+Agent 系统中的 deadlock 还可能表现为：
+
+```text
+Writer waits Reviewer approval
+Reviewer waits Writer final draft
+```
+
+或者：
+
+```text
+A waits B decision
+B waits A clarification
+```
+
+因此不仅要看线程锁，还要看语义级 dependency cycle。
+
+---
+
+#### 6.6.27 Livelock：大家都在动，但任务没有前进
+
+例如：
+
+```text
+A revises
+B rejects
+A revises
+B rejects
+...
+```
+
+每轮都有 token、message、action，但全局 state 没有接近 completion。
+
+所以观测系统不能只看 activity，还要看：
+
+> **Progress。**
+
+---
+
+#### 6.6.28 Starvation：某个任务长期得不到执行机会
+
+可能因为：
+
+- 高优先级任务持续插队；
+- 某个 Agent 长期占有资源；
+- scheduler 不公平；
+- retry task 不断重新进入队列；
+- low-confidence task 永远被 postpone。
+
+因此系统需要区分：
+
+```text
+Waiting because dependency not ready
+Waiting because resource unavailable
+Waiting because scheduler never selects it
+```
+
+---
+
+#### 6.6.29 Retry Storm：局部 retry 叠加成全局放大
+
+假设 20 个 Agent 同时遇到同一 API timeout，并各自重试 5 次：
+
+```text
+20 × 5 = 100 additional requests
+```
+
+这可能让已经过载的服务更差。
+
+Multi-Agent 中 retry policy 不能只做 Agent-local 设计，还应考虑：
+
+```text
+Global retry budget
+Backoff
+Jitter
+Circuit breaker
+Shared dependency health
+```
+
+---
+
+#### 6.6.30 Timeout Ambiguity：超时不等于失败
+
+Agent 调用外部动作：
+
+```text
+submit_order()
+```
+
+客户端 timeout，但服务端可能已经成功。
+
+如果系统把：
+
+```text
+TIMEOUT = FAILED
+```
+
+然后直接 retry，就可能重复 side effect。
+
+正确状态更可能是：
+
+```text
+UNKNOWN
+```
+
+然后进入 reconciliation。
+
+这与前面已有原则一致：
+
+> **Unknown ≠ False，Pending ≠ Failed。**
+
+---
+
+#### 6.6.31 Partial Failure：部分 Agent 成功、部分失败
+
+Multi-Agent 系统最常见的不是“全成或全败”，而是：
+
+```text
+A SUCCESS
+B SUCCESS
+C TIMEOUT
+D FAILED
+```
+
+此时系统必须回答：
+
+- 已成功的结果还能不能用？
+- 是否需要补跑 C？
+- D 的失败是否阻断全局任务？
+- 已产生的 side effect 要不要 compensate？
+- 最终结果应该是 PARTIAL、DEGRADED 还是 FAILED？
+
+因此二元 success/failure 通常不够。
+
+---
+
+#### 6.6.32 Role Drift：Agent 在运行中越过原角色边界
+
+例如 Reviewer 原本只负责审查：
+
+```text
+Review only
+```
+
+但在发现问题后直接修改 production artifact。
+
+这可能来自 prompt 中“尽量完成任务”的泛化倾向。
+
+所以 role 不是人格设定，而应对应：
+
+```text
+Allowed decisions
+Allowed tools
+Allowed writes
+Allowed effects
+Escalation boundary
+```
+
+---
+
+#### 6.6.33 Authority Conflict：多个 Agent 都认为自己有最终决定权
+
+例如：
+
+```text
+Planner: final plan approved
+Reviewer: final plan rejected
+Executor: proceeds anyway
+```
+
+如果系统没有明确：
+
+```text
+Who proposes?
+Who verifies?
+Who approves?
+Who commits?
+```
+
+冲突只能靠自然语言临时协商。
+
+高可靠系统应把 authority 显式编码。
+
+---
+
+#### 6.6.34 Commitment Breach：handoff 承诺没有兑现
+
+Agent A 可能宣告：
+
+```text
+“I will provide verified data v3.”
+```
+
+但实际只生成了草稿 v2。
+
+如果 B 只读取一句“done”，就会把未满足 postcondition 的状态当作完成。
+
+因此 handoff 应验证：
+
+```text
+Declared status
+Artifact existence
+Artifact version
+Required checks
+Completion evidence
+```
+
+---
+
+#### 6.6.35 Premature Termination：系统过早宣布完成
+
+典型错误：
+
+```text
+所有 active Agent 都停止
+            ↓
+系统判断 DONE
+```
+
+但可能仍有：
+
+- queued task；
+- orphan task；
+- pending approval；
+- unresolved UNKNOWN effect；
+- unjoined child；
+- failed required branch。
+
+因此：
+
+> **No Active Worker ≠ Global Completion。**
+
+---
+
+#### 6.6.36 Non-Termination：系统无法收敛到停止条件
+
+常见原因：
+
+- critic-revise 无限循环；
+- agents 互相追问；
+- retry 没有上限；
+- dynamic delegation 不断生成新 task；
+- completion condition 模糊。
+
+因此必须有：
+
+```text
+Explicit terminal states
+Budget
+Max depth / iterations
+No-progress policy
+Escalation policy
+```
+
+---
+
+#### 6.6.37 Inconsistent Verification：不同 Agent 使用不同成功标准
+
+例如：
+
+```text
+Coder: tests pass = done
+Reviewer: static analysis pass = done
+Release Agent: deployment health pass = done
+```
+
+如果系统把这些 `done` 当成同一语义，就会混淆 task-level 与 system-level verification。
+
+因此 completion criterion 必须与 task type 和 responsibility 对齐。
+
+---
+
+#### 6.6.38 False Global Success：协调层把局部状态错误聚合成成功
+
+例如 aggregator 使用：
+
+```text
+if majority(success): DONE
+```
+
+但某个少数 failed branch 恰好是 required safety check。
+
+因此 global success aggregation 不能只看数量，而必须看：
+
+```text
+Required vs Optional
+Critical vs Non-critical
+Dependency semantics
+Verification semantics
+```
+
+---
+
+#### 6.6.39 Cancellation Propagation Failure
+
+用户取消任务后，如果 cancellation 没有沿 task tree 传播：
+
+```text
+Root CANCELLED
+ ├→ Worker A still running
+ ├→ Worker B still calling API
+ └→ Worker C still writing file
+```
+
+就会发生：
+
+- 无意义成本；
+- stale write；
+- 用户以为已停止但 side effect 仍继续。
+
+因此 cancellation 本身也是一种需要协调的全局状态。
+
+---
+
+#### 6.6.40 Compensation Failure：补偿动作本身也会失败
+
+在不可逆外部系统中，失败恢复往往不是 rollback，而是 compensation。
+
+例如：
+
+```text
+Reserve inventory
+Charge payment
+Create shipment
+```
+
+如果 shipment 创建失败，系统可能需要：
+
+```text
+refund payment
+release inventory
+```
+
+但 compensation 自身也可能 timeout、重复或失败。
+
+所以 recovery 不是一条“失败就回滚”的简单分支，而应有独立状态、幂等性与审计。
+
+---
+
+#### 6.6.41 Failure Propagation：一个局部失败如何扩散
+
+典型传播链：
+
+```text
+Worker timeout
+   ↓
+Parent retries
+   ↓
+Duplicate child
+   ↓
+Shared state conflict
+   ↓
+Verifier sees inconsistent artifact
+   ↓
+Global task fails
+```
+
+成熟系统要记录：
+
+```text
+origin failure
+propagated failures
+recovery attempts
+secondary harm
+```
+
+否则只能看到最终错误，无法定位 first cause。
+
+---
+
+#### 6.6.42 Central Orchestrator Failure
+
+集中式 orchestrator 的优点是控制清晰，但它也可能成为：
+
+- single point of failure；
+- single point of stale state；
+- routing bottleneck；
+- latency bottleneck；
+- global policy bug amplifier。
+
+因此 centralized coordination 并不等于“永远更可靠”，而是把协调复杂度集中到一个更容易验证的位置。
+
+---
+
+#### 6.6.43 Decentralized Coordination Failure
+
+去中心化系统减少单点控制，但需要额外解决：
+
+- discovery；
+- peer trust；
+- state convergence；
+- duplicate ownership；
+- consensus / arbitration；
+- termination detection。
+
+如果任务并不需要这些能力，强行去中心化通常只会扩大 failure surface。
+
+---
+
+#### 6.6.44 Cross-Organization / Remote Agent Failure
+
+跨组织 Agent 协作时，还会多出：
+
+- 不同身份系统；
+- 不同 authority model；
+- 网络分区；
+- schema / protocol version mismatch；
+- remote task lifecycle；
+- audit boundary；
+- trust boundary。
+
+这些将在 6.7 A2A 中从协议层继续展开。
+
+---
+
+#### 6.6.45 Task State Machine：协调的最小执行骨架
+
+一个 task 不应只有：
+
+```text
+running / done
+```
+
+更稳妥的状态机可能是：
+
+```text
+CREATED
+  ↓
+READY
+  ↓
+ASSIGNED
+  ↓
+RUNNING
+  ├→ WAITING
+  ├→ UNKNOWN
+  ├→ FAILED
+  └→ COMPLETED
+         ↓
+      VERIFIED
+         ↓
+      COMMITTED
+```
+
+另外还可能有：
+
+```text
+CANCELLED
+EXPIRED
+COMPENSATING
+COMPENSATED
+```
+
+状态越明确，recovery semantics 才越可定义。
+
+---
+
+#### 6.6.46 为什么 `DONE` 这个状态通常太粗
+
+`DONE` 可能混淆：
+
+```text
+model finished generation
+worker process exited
+artifact generated
+artifact verified
+side effect committed
+global dependency satisfied
+```
+
+这些不是同一件事。
+
+因此 task lifecycle 应把：
+
+> **Execution Completion、Verification Completion、Commitment Completion**
+
+分开。
+
+---
+
+#### 6.6.47 Correlation ID 与 Task Lineage
+
+跨 Agent 调试必须能回答：
+
+```text
+这个 message 属于哪个 root task？
+这个 child 是谁创建的？
+这次 retry 对应哪次 original attempt？
+这个 artifact 来自哪条 branch？
+```
+
+因此常见标识包括：
+
+```text
+root_task_id
+parent_task_id
+task_id
+attempt_id
+message_id
+artifact_id
+correlation_id
+```
+
+没有 lineage，就很难区分并行分支与重复执行。
+
+---
+
+#### 6.6.48 Dependency DAG
+
+如果 task 之间存在明确依赖，应尽量显式表示：
+
+```text
+T1 ─┬→ T3
+    └→ T4
+T2 ───→ T4
+T3,T4 → T5
+```
+
+DAG 可以支持：
+
+- ready detection；
+- parallel scheduling；
+- critical path；
+- join；
+- failure propagation；
+- cancellation propagation；
+- progress estimation。
+
+比“让 Agent 自己记得先后关系”可靠得多。
+
+---
+
+#### 6.6.49 Preconditions 与 Postconditions
+
+一个 task 可以定义：
+
+```text
+Precondition:
+  dataset.version == 4
+  review.status == APPROVED
+
+Postcondition:
+  report.exists == true
+  report.source_version == 4
+  verification == PASS
+```
+
+这样协调层可以判断：
+
+```text
+Can Start?
+Really Done?
+```
+
+而不是只相信 Agent 的自然语言声明。
+
+---
+
+#### 6.6.50 Owner ≠ Executor
+
+Owner 表示谁对 task 当前状态与完成负责；Executor 表示谁实际做这次 attempt。
+
+可能存在：
+
+```text
+Owner: Orchestrator
+Executor: Worker A
+```
+
+或者：
+
+```text
+Owner: Team Agent
+Executor: Remote Agent B
+```
+
+把二者分开有助于处理 retry、delegation 与 failover。
+
+---
+
+#### 6.6.51 Authority ≠ Capability
+
+某 Agent 会执行某动作，不代表它有权执行。
+
+```text
+Capability: can_merge_pr
+Authority: may_merge_this_pr_now
+```
+
+Coordination Layer 应同时检查：
+
+```text
+Capability
+Permission
+Current ownership
+Task state
+Approval state
+Version precondition
+```
+
+---
+
+#### 6.6.52 Lease：用时效所有权避免永久占有
+
+Lease 可以表达：
+
+```text
+Agent A owns Task T until time τ
+```
+
+如果 A 崩溃且 lease 到期，系统可以重新分配。
+
+相比永久 owner，lease 更适合动态 worker。
+
+但 lease 本身需要处理：
+
+- clock assumptions；
+- renewal；
+- expiry race；
+- old owner late write。
+
+因此 late commit 必须再次校验 lease / version。
+
+---
+
+#### 6.6.53 Heartbeat：活着不等于有进展
+
+Heartbeat 可以判断 worker 是否仍存活，但不能证明：
+
+```text
+task is making progress
+```
+
+所以应区分：
+
+```text
+Liveness heartbeat
+Progress signal
+```
+
+一个 Agent 每秒发送 heartbeat，却在同一循环里卡十分钟，仍然属于 coordination problem。
+
+---
+
+#### 6.6.54 Versioned State
+
+关键 shared state 应带版本：
+
+```text
+state_version = 17
+```
+
+写入时声明：
+
+```text
+write if current_version == 17
+```
+
+如果已经变成 18，则拒绝 stale write。
+
+这把“我以为状态没变”变成可检测冲突。
+
+---
+
+#### 6.6.55 Optimistic Concurrency Control
+
+当冲突不频繁时，可以允许多个 Agent 并行读取，再在 commit 时检查版本：
+
+```text
+Read v7
+Compute independently
+Commit if still v7
+Else reconcile / retry
+```
+
+优点：
+
+- 减少锁等待；
+- 保留并行性。
+
+缺点：
+
+- 冲突高时重试成本大；
+- side effect 必须延后到 commit boundary。
+
+---
+
+#### 6.6.56 Pessimistic Locking
+
+对强互斥资源，可以在执行前锁定：
+
+```text
+Acquire lock
+Perform critical action
+Release lock
+```
+
+适合：
+
+- 高频冲突；
+- 短 critical section；
+- 高风险 side effect。
+
+但锁会引入：
+
+- deadlock；
+- lock expiry；
+- holder crash；
+- reduced parallelism。
+
+所以不要默认“加锁最安全”。
+
+---
+
+#### 6.6.57 Idempotency Key
+
+如果 action 可能 retry，应该尽量让重复请求映射到同一逻辑操作。
+
+例如：
+
+```text
+create_payment(intent_id=abc123)
+```
+
+而不是每次 retry 都产生新 intent。
+
+Idempotency 的目的不是阻止所有重复调用，而是：
+
+> **让重复 attempt 不产生重复 effect。**
+
+---
+
+#### 6.6.58 Deduplication
+
+对于 message / task / event，可根据：
+
+```text
+message_id
+task_id
+semantic operation id
+idempotency key
+```
+
+做去重。
+
+但 dedup 不能只看文本相同，因为：
+
+```text
+same text ≠ same logical operation
+```
+
+反之：
+
+```text
+different wording may represent same operation
+```
+
+因此应优先使用显式 identity。
+
+---
+
+#### 6.6.59 Exactly-Once 是 effect 语义，不是“只调用一次”
+
+分布式系统中，网络失败会让客户端无法知道请求到底有没有成功。
+
+因此更实用的目标通常是：
+
+```text
+At-least-once delivery
++
+Idempotent / deduplicated effect
++
+Reconciliation
+```
+
+不要把“发送一次 RPC”误当成“effect exactly once”。
+
+---
+
+#### 6.6.60 Fan-out / Fan-in
+
+并行 worker 常采用：
+
+```text
+        ┌→ W1 ─┐
+Root ───┼→ W2 ─┼→ Aggregator
+        └→ W3 ─┘
+```
+
+设计时必须定义：
+
+- fan-out unit；
+- max concurrency；
+- required workers；
+- timeout；
+- partial completion policy；
+- aggregation rule；
+- deduplication。
+
+否则“并行”只是把复杂度推给 join。
+
+---
+
+#### 6.6.61 Barrier
+
+Barrier 表示某阶段必须等待一组条件全部满足。
+
+例如：
+
+```text
+Research complete
+Security review complete
+Data validation complete
+        ↓
+Release may start
+```
+
+Barrier 适合真正需要阶段一致性的地方。
+
+但全局 barrier 太多会把 Multi-Agent 退化成串行 workflow。
+
+---
+
+#### 6.6.62 Quorum：不是所有场景都必须等全员
+
+某些任务可以采用：
+
+```text
+2 of 3 reviewers approve
+```
+
+但 quorum 只适用于业务语义允许“部分成员足够”的场景。
+
+不能把它机械用于：
+
+```text
+required compliance check
+unique authority approval
+mandatory dependency
+```
+
+所以 quorum 是 completion policy，而不是通用可靠性技巧。
+
+---
+
+#### 6.6.63 Prepare / Commit Boundary
+
+对高风险动作，可以先分成：
+
+```text
+Prepare
+  ↓
+Validate / Review
+  ↓
+Commit
+```
+
+例如：
+
+```text
+Agent prepares database migration
+Verifier checks diff
+Authorized actor commits
+```
+
+这样模型可以高自治地产生 proposal，但真实 side effect 仍受 deterministic boundary 控制。
+
+---
+
+#### 6.6.64 Saga / Compensation
+
+跨多个外部系统时，很难获得一个真正原子的全局 transaction。
+
+更常见的是：
+
+```text
+Step 1 commit
+Step 2 commit
+Step 3 fails
+        ↓
+Compensate Step 2
+Compensate Step 1
+```
+
+这就是 Saga 风格的 recovery。
+
+在 Agent 系统中尤其重要，因为工具往往跨 SaaS、网页、数据库和人工流程。
+
+---
+
+#### 6.6.65 Cancellation Token
+
+取消应成为 task tree 中可传播的控制信号：
+
+```text
+Root cancelled
+   ↓
+children receive cancellation
+   ↓
+stop new effects
+   ↓
+finish / compensate safe boundary
+```
+
+不是简单 kill process。
+
+某些 critical section 可能需要：
+
+```text
+finish atomically → then stop
+```
+
+---
+
+#### 6.6.66 Retry Policy
+
+Retry 至少应回答：
+
+```text
+Which errors are retryable?
+How many attempts?
+What backoff?
+What jitter?
+What global budget?
+Is the action idempotent?
+What if outcome is UNKNOWN?
+```
+
+“失败就重试三次”通常不是完整策略。
+
+---
+
+#### 6.6.67 Backoff 与 Jitter
+
+如果大量 Agent 同时 retry：
+
+```text
+1s → retry
+1s → retry
+1s → retry
+```
+
+会形成同步峰值。
+
+Jitter 让重试时间错开，Backoff 降低持续压力。
+
+这类机制看似 Runtime 细节，但会直接决定 Multi-Agent 的全局稳定性。
+
+---
+
+#### 6.6.68 Global Retry Budget
+
+除了 per-task retry limit，还应考虑：
+
+```text
+total retry tokens
+total API calls
+total wall-clock
+total external effects
+```
+
+否则每个 worker 都遵守自己的上限，整体仍可能指数级放大。
+
+---
+
+#### 6.6.69 Circuit Breaker
+
+当下游依赖持续失败时：
+
+```text
+closed → failures exceed threshold → open
+```
+
+open 状态下暂时拒绝新调用，避免所有 Agent 继续冲击故障服务。
+
+之后进入 half-open 探测恢复。
+
+这把 dependency health 提升成共享 coordination signal。
+
+---
+
+#### 6.6.70 Bulkhead：限制故障扩散
+
+将不同任务 / tenant / capability 的资源池隔离：
+
+```text
+Pool A failure
+   ✕
+Pool B remains available
+```
+
+Multi-Agent 如果所有 worker 共享同一个无限制队列，一类任务就可能耗尽全部资源。
+
+Bulkhead 的目标是控制 blast radius。
+
+---
+
+#### 6.6.71 Timeout Policy
+
+Timeout 不是单纯一个数字。
+
+它要与：
+
+- expected latency；
+- critical path；
+- retry budget；
+- user deadline；
+- external side-effect semantics；
+- cancellation policy；
+
+一起设计。
+
+过短造成 false timeout，过长造成资源长期占用。
+
+---
+
+#### 6.6.72 Reconciliation
+
+当 outcome 不确定时，不应盲猜，而应主动对真实环境做 reconciliation：
+
+```text
+Did the payment actually happen?
+Which artifact is canonical now?
+Who currently owns the task?
+Which version was committed?
+```
+
+Reconciliation 是把 Agent belief 重新对齐 Environment State 的过程。
+
+---
+
+#### 6.6.73 Checkpoint / Resume
+
+长任务可保存：
+
+```text
+Task graph
+completed nodes
+pending nodes
+state versions
+artifacts
+commitments
+external effects
+```
+
+恢复时从已验证 checkpoint 继续，而不是重新让所有 Agent 从头生成。
+
+这既减少成本，也降低重复 side effect 风险。
+
+---
+
+#### 6.6.74 Recovery 不等于 Retry
+
+Retry 只是：
+
+```text
+再试一次同类动作
+```
+
+Recovery 可能包括：
+
+```text
+retry
+reroute
+reassign
+reconcile
+rollback / compensate
+use degraded mode
+request human help
+resume from checkpoint
+abort safely
+```
+
+因此 7.11 Recovery Policy 不应被写成“高级 retry”。
+
+---
+
+#### 6.6.75 Escalation
+
+当系统无法在当前 autonomy boundary 内安全恢复，应升级：
+
+```text
+Worker → Supervisor Agent
+Supervisor → Deterministic Policy
+Policy → Human Approval / Operator
+```
+
+成熟系统的目标不是“永不求助”，而是：
+
+> **知道什么时候继续自治已经不划算或不安全。**
+
+---
+
+#### 6.6.76 Termination Detection
+
+全局完成条件至少要考虑：
+
+```text
+All required tasks terminal
+All required artifacts verified
+No unresolved UNKNOWN effects
+No pending mandatory approvals
+No active required recovery
+No unjoined required branch
+```
+
+因此 termination 是一个协调问题，不是某个 Agent 说 `done` 就结束。
+
+---
+
+#### 6.6.77 No-Progress Detector
+
+可以监测：
+
+```text
+state unchanged for N rounds
+same task repeatedly delegated
+same critique repeated
+same tool calls repeated
+artifact quality not improving
+```
+
+当 activity 很高但 state progress 很低时，应触发：
+
+- reroute；
+- strategy switch；
+- budget stop；
+- escalation。
+
+---
+
+#### 6.6.78 Budget 也是 Shared Coordination State
+
+Multi-Agent 中预算不应只存在于各 Agent 本地。
+
+需要共享：
+
+```text
+remaining token budget
+remaining wall-clock
+remaining tool calls
+remaining retry budget
+remaining risk / approval budget
+```
+
+否则每个 Agent 都“合理消费”，整体仍会失控。
+
+---
+
+#### 6.6.79 Critical Path
+
+并行系统的总 latency 由关键路径决定，而不是所有任务 latency 的简单和。
+
+因此优化应问：
+
+```text
+Which task lies on critical path?
+Which wait blocks downstream work?
+Which parallel branch is actually irrelevant to completion time?
+```
+
+只增加 worker 数量不一定降低 end-to-end latency。
+
+---
+
+#### 6.6.80 Useful Parallelism
+
+真正有价值的并行满足：
+
+```text
+independent enough
+useful enough
+joinable enough
+resource-feasible enough
+```
+
+可以定义直觉上的：
+
+```text
+Useful Parallelism
+= useful independent work
+  / total parallel work launched
+```
+
+如果大量 worker 产出被丢弃或重复，就只是 concurrency inflation。
+
+---
+
+#### 6.6.81 Centralized vs Decentralized Coordination
+
+两种方式没有绝对优劣。
+
+集中式更适合：
+
+- authority 清晰；
+- task graph 可显式表达；
+- 高风险 effect 需要统一 gate；
+- 需要强 observability。
+
+去中心化更适合：
+
+- peer autonomy 很强；
+- topology 动态；
+- 单点 orchestrator 成为瓶颈；
+- 协作关系天然跨组织。
+
+真正问题不是“哪个更先进”，而是：
+
+> **你的 coordination invariants 需要在哪里被维护。**
+
+---
+
+#### 6.6.82 Blackboard vs Message Passing
+
+Blackboard / Shared-State 模式：
+
+```text
+Agents ↔ Shared State
+```
+
+优点：
+
+- 共享事实集中；
+- 易于查询；
+- 适合 task board。
+
+风险：
+
+- shared mutable state；
+- stale read；
+- conflict；
+- authority 不清。
+
+Message Passing 模式：
+
+```text
+Agent A → Message → Agent B
+```
+
+优点：
+
+- ownership 较清晰；
+- loose coupling；
+- event history 可追踪。
+
+风险：
+
+- duplicate delivery；
+- out-of-order；
+- missing message；
+- state reconstruction 更复杂。
+
+实际系统常常混合使用。
+
+---
+
+#### 6.6.83 Static Team vs Dynamic Team
+
+Static Team 中：
+
+```text
+roles known before runtime
+```
+
+Dynamic Team 中：
+
+```text
+agents discovered / spawned / delegated at runtime
+```
+
+动态团队需要额外维护：
+
+- capability discovery；
+- role binding；
+- temporary authority；
+- lease；
+- lifecycle cleanup；
+- dynamic termination。
+
+Agent 动态创建越容易，越需要 Harness 约束 delegation surface。
+
+---
+
+#### 6.6.84 Deterministic Coordination Shell
+
+一个实用架构是：
+
+```text
+LLM / Agent decides uncertain semantic work
+            ↓
+Deterministic coordination shell
+            ↓
+Task state / dependency / permission / version / commit
+```
+
+也就是：
+
+> **把“怎么判断内容”留给 Agent，把“哪些全局不变量绝不能破坏”留给 deterministic system。**
+
+这与前面“deterministic workflow + agentic decision”一致。
+
+---
+
+#### 6.6.85 Uncertainty Frontier 在 Coordination 中的含义
+
+可以把决策分成两类：
+
+```text
+确定性约束：
+- ownership
+- version check
+- permission
+- dependency ready
+- retry limit
+- task state transition
+
+语义不确定性：
+- 谁更适合做研究
+- 哪个方案更优
+- 是否需要额外验证
+- 如何综合冲突证据
+```
+
+前者优先程序化，后者才适合 Agent 自主判断。
+
+---
+
+#### 6.6.86 Minimal Necessary Coordination
+
+本节加入一个新的工程原则：
+
+> **Minimal Necessary Coordination：只对会影响全局正确性、共享资源、不可逆 effect、任务依赖与完成条件的部分建立必要协调，不把所有 Agent 强行同步到同一全局状态。**
+
+它的目标是同时避免：
+
+```text
+Under-coordination → race / conflict / inconsistency
+Over-coordination  → blocking / coupling / overhead
+```
+
+---
+
+#### 6.6.87 Minimal Necessary Coordination 不等于越少越好
+
+如果过度追求“低协调”：
+
+```text
+no ownership
+no version check
+no join semantics
+no retry budget
+no global termination
+```
+
+系统会失去最基本的安全边界。
+
+因此 Minimal 的前提始终是：
+
+> **Necessary invariants 已被完整保护。**
+
+---
+
+#### 6.6.88 Coordination Surface 最小化
+
+可通过以下方法减少需要协调的区域：
+
+1. immutable artifacts；
+2. append-only event log；
+3. task-local private state；
+4. partitioned ownership；
+5. idempotent operations；
+6. read-only parallel workers；
+7. single-writer principle；
+8. late aggregation；
+9. reference sharing rather than shared editing。
+
+一般来说：
+
+> **减少共享可变状态，比增加同步协议更有效。**
+
+---
+
+#### 6.6.89 High-Risk Effect 要有更强 Coordination Boundary
+
+风险越高，越应该加强：
+
+```text
+Freshness check
+Version check
+Authority check
+Approval
+Idempotency
+Audit
+Verification
+Reconciliation
+```
+
+例如：
+
+```text
+draft text
+```
+
+可以允许多 Agent 自由并行；
+
+而：
+
+```text
+send money / delete data / deploy production
+```
+
+通常需要显著更强的 commit boundary。
+
+---
+
+#### 6.6.90 Fail-Stop、Degraded Mode 与 Failover
+
+故障发生后不只有一种策略。
+
+**Fail-Stop**：
+
+```text
+无法保证 invariant → 停止
+```
+
+**Degraded Mode**：
+
+```text
+保留安全子集能力
+```
+
+**Failover**：
+
+```text
+换 owner / worker / dependency
+```
+
+选择取决于：
+
+- effect risk；
+- task criticality；
+- recovery confidence；
+- available redundancy；
+- user deadline。
+
+---
+
+#### 6.6.91 Human-in-the-Loop 也是 Coordination Node
+
+Human Approval 不是“系统之外的临时操作”，而应进入 task state：
+
+```text
+WAITING_APPROVAL
+      ↓
+APPROVED / REJECTED / EXPIRED
+```
+
+并具有：
+
+- request identity；
+- scope；
+- expiry；
+- evidence；
+- audit trail。
+
+否则多个 Agent 可能对同一个模糊的人类回答做不同解释。
+
+---
+
+#### 6.6.92 Trust 与 Security 也会形成 Coordination Failure
+
+例如 Agent A 从网页读取了 prompt injection，并把恶意指令包装成“任务要求”发给 B。
+
+此时：
+
+```text
+Communication technically succeeds
+Coordination also proceeds
+but trust boundary is corrupted
+```
+
+所以跨 Agent 传播时应保留：
+
+- provenance；
+- trust label；
+- source authority；
+- permission boundary；
+- sanitization state。
+
+不能因为信息来自“另一个 Agent”就自动提升可信度。
+
+---
+
+#### 6.6.93 Observability：为什么单 Agent trace 不够
+
+单条 trace 只能看到：
+
+```text
+Agent A did X
+```
+
+Coordination 调试需要看到：
+
+```text
+A created T1
+T1 unblocked T2
+B claimed T2
+C concurrently claimed T2
+B committed v8
+C attempted stale commit v7
+Verifier rejected C
+```
+
+因此需要 cross-agent causal trace。
+
+---
+
+#### 6.6.94 Coordination Event Schema
+
+关键事件至少应包含：
+
+```text
+timestamp
+root_task_id
+task_id
+parent_id
+agent_id
+attempt_id
+event_type
+old_state
+new_state
+state_version
+owner / lease
+input artifact refs
+output artifact refs
+correlation_id
+error / retry / recovery metadata
+```
+
+这样才能重建全局执行轨迹。
+
+---
+
+#### 6.6.95 Causal Graph
+
+Multi-Agent trace 最终更像一张图：
+
+```text
+Task
+ ↓
+Assignment
+ ↓
+Attempt
+ ↓
+Message / Tool / Artifact
+ ↓
+State transition
+ ↓
+Downstream task
+```
+
+时间线重要，但仅靠时间排序不足以表示 causal dependency。
+
+所以 observability 应尽量保留 parent-child、depends-on、triggered-by 等关系。
+
+---
+
+#### 6.6.96 必须同时记录 Local Outcome 与 Global Outcome
+
+一个评测样本可以记录：
+
+```text
+Agent-level:
+A correct
+B correct
+C correct
+
+System-level:
+Final answer wrong
+```
+
+这类 case 对研究尤其有价值，因为它能直接证明：
+
+> **性能瓶颈已经从 capability 转移到 coordination。**
+
+---
+
+#### 6.6.97 Coordination Failure Rate
+
+可以定义：
+
+```text
+Coordination Failure Rate
+= coordination-caused failed tasks
+  / evaluated tasks
+```
+
+关键在于 attribution：
+
+只有在局部 capability 足够、但系统因 assignment / dependency / ownership / state / recovery / completion 等失败时，才应归入 Coordination Failure。
+
+---
+
+#### 6.6.98 Handoff Success Rate
+
+Handoff 不只是“消息送达”。
+
+更合理的成功条件是：
+
+```text
+receiver accepted responsibility
++
+required context available
++
+artifact/version correct
++
+downstream task completed under intended semantics
+```
+
+因此 Handoff Success Rate 比 Message Delivery Rate 更接近真实协作质量。
+
+---
+
+#### 6.6.99 Duplicate Work Rate 与 Duplicate Effect Rate
+
+分别统计：
+
+```text
+Duplicate Work Rate
+= redundant attempts / total attempts
+```
+
+和：
+
+```text
+Duplicate Effect Rate
+= duplicated real side effects / effect operations
+```
+
+后者风险通常远高于前者。
+
+---
+
+#### 6.6.100 Conflict Rate
+
+可以统计：
+
+- stale write rejected；
+- concurrent ownership conflict；
+- incompatible actions；
+- artifact merge conflict；
+- authority conflict。
+
+Conflict 不一定是坏事。
+
+如果系统能在 commit 前检测并安全解决冲突，说明 coordination mechanism 正在发挥作用。
+
+真正危险的是：
+
+```text
+Undetected Conflict
+```
+
+---
+
+#### 6.6.101 Stale-State Rate
+
+可记录：
+
+```text
+actions attempted on non-current state
+/ state-dependent action attempts
+```
+
+同时区分：
+
+```text
+stale read detected before effect
+stale action executed
+stale action caused harm
+```
+
+这样能评估 freshness check 的真实价值。
+
+---
+
+#### 6.6.102 Deadlock / Livelock / Starvation Metrics
+
+可以观察：
+
+```text
+blocked task duration
+wait-cycle count
+state-change-without-progress rounds
+max queue age
+starved task count
+```
+
+其中 livelock 尤其需要 progress-aware metric，单纯 QPS 或 token 数无法发现。
+
+---
+
+#### 6.6.103 Retry Amplification Factor
+
+定义直觉指标：
+
+```text
+Retry Amplification Factor
+= total attempts after failure
+  / original failed operations
+```
+
+如果一个下游 timeout 导致多个 Agent、多个 parent、多个 supervisor 同时 retry，放大因子会很高。
+
+---
+
+#### 6.6.104 Recovery Success 与 Harmful Recovery
+
+Recovery 不能只看“最后成功了没有”。
+
+应至少统计：
+
+```text
+Recovery Attempt Rate
+Recovery Success Rate
+Harmful Recovery Rate
+Duplicate Side-effect Rate
+Recovery Cost
+Recovery Latency
+False-success-after-recovery Rate
+```
+
+这与前面整个知识体系的 failure-analysis 口径保持一致。
+
+---
+
+#### 6.6.105 Coordination Overhead
+
+协调机制本身会产生成本：
+
+```text
+messages
+state reads / writes
+locks
+verification
+waiting
+supervisor calls
+human approvals
+```
+
+因此应评估：
+
+```text
+End-to-end Quality
+vs
+Coordination Cost
+vs
+Latency
+vs
+Risk
+```
+
+而不是只证明“加机制以后更稳”。
+
+---
+
+#### 6.6.106 Critical-Path Latency
+
+总任务 latency 应关注关键路径：
+
+```text
+Critical-Path Latency
+```
+
+而不仅是平均 worker latency。
+
+一个不在关键路径上的 worker 变快 50%，可能对用户完全无影响；一个关键 join 多等 10 秒，则 end-to-end 就多 10 秒。
+
+---
+
+#### 6.6.107 Fault Injection
+
+Coordination Layer 很适合用 Fault Injection 测试。
+
+可以主动注入：
+
+```text
+worker crash
+message delay
+message duplicate
+out-of-order delivery
+stale state
+lease expiry
+version conflict
+partial API timeout
+slow reviewer
+lost heartbeat
+retry storm
+cancellation during side effect
+```
+
+然后观察：
+
+- invariant 是否保持；
+- 是否安全恢复；
+- 是否出现 duplicate effect；
+- recovery 是否放大故障。
+
+---
+
+#### 6.6.108 Ablation：证明 Coordination Mechanism 真正有用
+
+例如对 Version Check 做：
+
+```text
+Full system
+vs
+No version check
+```
+
+对 Retry Policy 做：
+
+```text
+bounded backoff
+vs
+naive immediate retry
+```
+
+对 Lease 做：
+
+```text
+lease + reassignment
+vs
+permanent ownership
+```
+
+并比较 Wrong→Right / Right→Wrong、cost、latency、risk。
+
+这比只展示几个成功 demo 更有研究价值。
+
+---
+
+#### 6.6.109 Failure Localization Protocol
+
+当 Multi-Agent 任务失败时，可以按以下顺序排查：
+
+```text
+1. Decomposition correct?
+2. Correct task assigned to capable agent?
+3. Required message delivered and understood?
+4. Correct context / state version visible?
+5. Dependency satisfied before execution?
+6. Ownership / authority valid?
+7. Concurrent action conflict?
+8. Retry / timeout semantics correct?
+9. Handoff postcondition actually satisfied?
+10. Join / aggregation correct?
+11. Global completion condition correct?
+12. Recovery introduced secondary harm?
+```
+
+这能避免把所有问题都归因于“模型能力不够”。
+
+---
+
+#### 6.6.110 Oracle Decomposition
+
+研究时可以做多级 oracle：
+
+```text
+Oracle local outputs
+Oracle assignment
+Oracle state freshness
+Oracle join
+Oracle verifier
+```
+
+逐层替换真实组件，观察 end-to-end 上限。
+
+如果 Oracle Local Output 仍不能显著提升，而 Oracle Coordination 能提升，就说明系统瓶颈不在模型推理本身。
+
+---
+
+#### 6.6.111 一个 Research Team Case
+
+任务：生成行业研究报告。
+
+```text
+Planner
+ ├→ Search Agent A
+ ├→ Search Agent B
+ ├→ Data Analyst
+ └→ Writer
+```
+
+典型 coordination failure：
+
+```text
+A uses source snapshot v1
+B uses snapshot v2
+Analyst updates key metric
+Writer starts before update
+Reviewer only checks prose fluency
+Final report contains internally inconsistent numbers
+```
+
+所有 worker 都“完成了工作”，但 shared evidence version 与 dependency 没有被协调。
+
+---
+
+#### 6.6.112 一个 Coding Agent Case
+
+```text
+Planner
+ ├→ Frontend worker
+ ├→ Backend worker
+ └→ Test worker
+```
+
+如果 Frontend 与 Backend 同时修改同一 API contract：
+
+```text
+frontend expects /v2/user
+backend implements /v3/user
+```
+
+各自测试可能都通过局部 mock，最终 integration 失败。
+
+这里需要：
+
+- canonical contract；
+- version ownership；
+- integration join；
+- conflict detection。
+
+---
+
+#### 6.6.113 一个 Payment Case
+
+Agent 触发付款：
+
+```text
+POST /pay
+   ↓
+timeout
+```
+
+错误恢复：
+
+```text
+retry immediately
+```
+
+正确 coordination 思路：
+
+```text
+mark UNKNOWN
+   ↓
+reconcile by payment intent id
+   ↓
+if absent → retry idempotently
+if present → accept committed effect
+```
+
+这是 `Unknown ≠ False` 在真实 side effect 中的典型应用。
+
+---
+
+#### 6.6.114 一个 Incident Response Case
+
+多个 Agent 同时处理线上事故：
+
+```text
+A proposes rollback
+B proposes traffic shift
+C restarts service
+```
+
+如果都能直接执行，就可能相互干扰。
+
+更稳妥的是：
+
+```text
+parallel diagnosis
+       ↓
+shared incident state
+       ↓
+single incident commander / commit authority
+       ↓
+serialized high-risk actions
+```
+
+并行适合 diagnosis，不一定适合 effect commit。
+
+---
+
+#### 6.6.115 面试：Communication Failure 和 Coordination Failure 有什么区别？
+
+Communication Failure 是消息没有被正确传输、解析或理解。
+
+Coordination Failure 是即使消息链路正常，多个 Agent 的 assignment、依赖、状态、ownership、时序、恢复或完成条件仍没有形成正确的全局行为。
+
+一句话：
+
+> **Communication 解决“信息有没有到”，Coordination 解决“大家有没有一起把事做对”。**
+
+---
+
+#### 6.6.116 面试：为什么所有 Agent 都成功，最终任务仍可能失败？
+
+因为 local task success 不保证：
+
+- 使用同一状态版本；
+- 满足跨任务依赖；
+- 没有重复 effect；
+- aggregation 正确；
+- 全局 invariant 成立。
+
+所以：
+
+> **Local Success ≠ Global Success。**
+
+---
+
+#### 6.6.117 面试：Deadlock 和 Livelock 的区别？
+
+Deadlock：
+
+```text
+大家都在等待，没有动作。
+```
+
+Livelock：
+
+```text
+大家不断动作，但没有实质进展。
+```
+
+Agent 系统尤其容易出现语义 livelock，例如无限 critic-revise、互相委派和重复澄清。
+
+---
+
+#### 6.6.118 面试：为什么 timeout 不能直接当 failed？
+
+因为客户端 timeout 只说明：
+
+```text
+我没有在 deadline 内得到确定结果
+```
+
+不代表服务器端 effect 没发生。
+
+高风险 side effect 更合理的状态通常是 `UNKNOWN`，然后通过 reconciliation 确认真实世界状态。
+
+---
+
+#### 6.6.119 面试：Idempotency 在 Multi-Agent 中为什么重要？
+
+因为重试、重复消息、重复 assignment 与网络不确定性都可能导致同一逻辑操作被执行多次。
+
+Idempotency 让：
+
+```text
+multiple attempts → one logical effect
+```
+
+从而降低 duplicate side effect 风险。
+
+---
+
+#### 6.6.120 面试：Lease 和普通 owner 有什么区别？
+
+普通 owner 容易在 worker crash 后永久占住任务。
+
+Lease 给 ownership 加入有效期：
+
+```text
+owner valid until τ
+```
+
+到期后系统可以重新分配，但 late writer 必须再次校验 lease 与 version。
+
+---
+
+#### 6.6.121 面试：为什么 Multi-Agent 不应该共享所有状态？
+
+因为全量共享会扩大：
+
+- shared mutable state；
+- stale-state surface；
+- privacy / security exposure；
+- synchronization overhead；
+- coupling。
+
+应只共享当前协作所需的最小可信状态，并只协调真正影响全局 invariant 的部分。
+
+---
+
+#### 6.6.122 面试：什么是 Minimal Necessary Coordination？
+
+在保证全局正确性、共享资源安全、不可逆 effect、任务依赖与 completion semantics 的前提下，只建立必要协调，不让无关 Agent、无关状态和独立任务进入全局同步。
+
+---
+
+#### 6.6.123 面试：怎样判断一个问题应该用锁、版本检查还是幂等？
+
+可以按问题类型区分：
+
+```text
+需要互斥进入 critical section → lock / lease
+并行计算、提交时检测冲突 → optimistic version check
+请求可能重复、effect 应只发生一次 → idempotency / dedup
+```
+
+实际高风险系统经常组合使用。
+
+---
+
+#### 6.6.124 面试：Recovery 和 Retry 有什么区别？
+
+Retry 只是重新尝试动作。
+
+Recovery 是更大的策略集合，包括：
+
+- retry；
+- reassign；
+- reroute；
+- reconcile；
+- compensate；
+- failover；
+- degraded mode；
+- checkpoint resume；
+- human escalation；
+- safe abort。
+
+---
+
+#### 6.6.125 面试：如何评估一个 Multi-Agent 系统的 Coordination？
+
+不能只看最终 accuracy。
+
+至少应同时看：
+
+```text
+End-to-end Success
+Coordination Failure Rate
+Handoff Success
+Duplicate Work / Effect
+Conflict Rate
+Stale-State Rate
+Deadlock / Livelock
+Retry Amplification
+Recovery Success / Harm
+Critical-Path Latency
+Coordination Cost
+```
+
+并配合 Fault Injection 与 Ablation。
+
+---
+
+#### 6.6.126 面试：为什么增加更多 Agent 可能变差？
+
+因为更多 Agent 同时增加：
+
+```text
+parallel capacity
++
+communication edges
++
+coordination surface
++
+state conflicts
++
+join complexity
++
+recovery complexity
+```
+
+当新增协作成本超过并行收益时，系统反而退化。
+
+---
+
+#### 6.6.127 面试：Multi-Agent 中最值得程序化保护的是什么？
+
+不是所有语义决策，而是那些明确、稳定且一旦破坏会造成全局错误的 invariant，例如：
+
+- permission；
+- ownership；
+- dependency readiness；
+- version；
+- retry budget；
+- idempotency；
+- commit boundary；
+- termination condition。
+
+---
+
+#### 6.6.128 面试：Central Orchestrator 一定比去中心化更好吗？
+
+不一定。
+
+集中式更容易维护全局 invariant 与 observability，但会形成单点与瓶颈；去中心化提供自治与扩展性，但需要更复杂的 discovery、trust、ownership、state convergence 与 termination。
+
+选择取决于任务结构和 coordination invariants。
+
+---
+
+#### 6.6.129 面试：怎样定位 Coordination Failure，而不是归咎于模型？
+
+做 oracle / controlled replacement：
+
+```text
+固定局部正确输出
+固定正确 assignment
+固定正确 state
+固定正确 join
+```
+
+逐层替换并观察 end-to-end 是否恢复。
+
+如果局部输出正确而系统仍失败，就应继续检查 coordination layer。
+
+---
+
+#### 6.6.130 本节应掌握的 Durable Principles
+
+1. **Local Success ≠ Global Success。**
+2. **Communication Success ≠ Coordination Success。**
+3. **Coordination correctness 是系统属性，不是 LLM 能力。**
+4. **先定义 Coordination Invariants，再设计 Agent 协作。**
+5. **Dependency 必须成为可检查的 runtime precondition。**
+6. **Owner、Executor、Authority 必须分开。**
+7. **Shared mutable state 越少，Coordination Surface 越小。**
+8. **Version / Lease / Idempotency 是三类不同问题的控制手段。**
+9. **Timeout ≠ Failed；UNKNOWN 需要 Reconciliation。**
+10. **Retry 是局部动作，Recovery 是系统策略。**
+11. **No Active Worker ≠ Global Completion。**
+12. **Heartbeat ≠ Progress。**
+13. **Parallelism ≠ Unlimited Concurrency。**
+14. **Duplicate Work 与 Duplicate Effect 分开评估。**
+15. **高风险 side effect 使用更强 commit boundary。**
+16. **把稳定 invariant 放进 deterministic coordination shell。**
+17. **Fault Injection 是验证协调机制的核心手段。**
+18. **评估 Coordination 要同时看 quality、risk、latency、cost。**
+19. **减少 Coordination Surface，优先于增加复杂同步协议。**
+20. **Minimal Necessary Coordination。**
+
+---
+
+#### 6.6.131 面试掌握边界
+
+学完本节后，应能清楚回答：
+
+- Coordination Failure 与 Reasoning / Communication / Context Failure 的区别；
+- 为什么 Multi-Agent 会出现 local success / global failure；
+- assignment、dependency、ownership、concurrency、liveness、retry、completion 的主要故障；
+- deadlock、livelock、starvation、retry storm、split-brain 的含义；
+- task state machine、DAG、lease、version、idempotency、reconciliation 的作用；
+- retry 与 recovery 的区别；
+- centralized / decentralized coordination 的权衡；
+- 如何做 cross-agent observability、fault injection 与 ablation；
+- Minimal Necessary Coordination 的设计原则。
+
+如果只能说“多个 Agent 要多沟通”，说明还没有掌握 Coordination。
+
+---
+
+#### 6.6.132 本节总结
+
+Multi-Agent 的难点从来不只是让多个模型同时工作，而是让多个自治执行单元在存在并发、延迟、失败、重试、共享资源和不确定环境的情况下，仍然保持全局任务的正确性与可恢复性。
+
+可以把可靠协调压缩成一条链：
+
+```text
+Task / Goal
+   ↓
+Explicit Dependencies
+   ↓
+Owner / Authority
+   ↓
+Versioned Shared State
+   ↓
+Bounded Parallel Execution
+   ↓
+Conflict / Timeout Detection
+   ↓
+Verification / Join
+   ↓
+Commit / Effect
+   ↓
+Recovery / Reconciliation
+   ↓
+Global Termination
+```
+
+最值得保留的结论是：
+
+> **Coordination Failure 的本质，是系统没有把跨 Agent 的全局不变量变成可执行、可观测、可恢复的 runtime contract。可靠 Multi-Agent 系统并不追求所有 Agent 时刻一致，而是明确哪些依赖必须满足、哪些状态必须新鲜、谁拥有提交权、失败后如何恢复、什么时候才真正完成；成熟架构会尽量缩小 Coordination Surface，并用 deterministic shell 保护关键 invariant，把自治保留给真正需要语义判断的部分。**
+
+---
+
+#### 6.6.133 参考资料
+
+1. Wooldridge, M. *An Introduction to MultiAgent Systems*. Wiley, 2009. 多 Agent 自治、协作、组织与协调的基础理论。
+2. Shoham, Y., Leyton-Brown, K. *Multiagent Systems: Algorithmic, Game-Theoretic, and Logical Foundations*. Cambridge University Press, 2008. 多主体交互、协调机制与系统级行为基础。
+3. Kleppmann, M. *Designing Data-Intensive Applications*. O’Reilly Media, 2017. 复制、一致性、并发控制、事务、分布式故障、幂等与状态恢复。
+4. Hohpe, G., Woolf, B. *Enterprise Integration Patterns*. Addison-Wesley, 2003. Message、Correlation、Idempotent Receiver、Competing Consumers、Aggregator 等协作模式。
+5. Google. *Site Reliability Engineering* / *The Site Reliability Workbook*. 关于 overload、backoff、retry、circuit breaking、graceful degradation、incident response 与可靠性工程。
+6. AWS Builders’ Library. *Timeouts, retries, and backoff with jitter*. 关于 timeout、retry amplification、backoff 与 jitter 的工程原则。
+7. Anthropic. *Building Effective Agents*. 关于 routing、parallelization、orchestrator-workers，以及优先使用简单、可组合 agentic patterns 的工程原则。
+8. OpenTelemetry. *Tracing Concepts and Semantic Conventions*. 关于跨服务 / 跨执行单元 trace、span、causal correlation 与 observability。
+9. NIST. *AI Risk Management Framework*. 关于 AI 系统风险、治理、责任、监测与高影响行为控制。
+10. OWASP. *LLM / Agentic AI Security Guidance*. 关于 excessive agency、prompt injection、敏感信息传播与跨 Agent trust boundary 风险。
+
 ### 6.7 A2A
 
 - Agent Card
@@ -105741,7 +108737,7 @@ Context should be projected, not broadcast.
 - State
 - Remote Agent
 
-6.6–6.7 待补充。
+6.7 待补充。
 
 概念边界：
 
@@ -106075,7 +109071,7 @@ Model
 | II | 3. Tool Use & Action | 已完成：3.1–3.9 |
 | II | 4. Context, Memory & Retrieval | 已完成：4.1–4.6 |
 | II | 5. Capability Extension & Protocols | 已完成：5.1–5.4 |
-| II | 6. Multi-Agent & Agent Interoperability | 进行中：6.1–6.5 已完成；下一节 6.6 Coordination Failure |
+| II | 6. Multi-Agent & Agent Interoperability | 进行中：6.1–6.6 已完成；下一节 6.7 A2A |
 | III | 7. Agent Harness | 待写 |
 | III | 8. Runtime & Infrastructure | 待写 |
 | III | 9. Observability & Evaluation | 待写 |
