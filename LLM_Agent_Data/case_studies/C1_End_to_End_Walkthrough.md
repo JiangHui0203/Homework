@@ -9,12 +9,14 @@
 > 目的：用同一个稳定 Case，把 `Task → Environment → Trajectory → Evidence → Credit → Failure → Data → Experiment → Production → Governance → Monitoring` 串成一条完整工作流。
 >
 > 注意：**本文是 walkthrough，不改变 C1 的稳定 ID 语义。所有 canonical definition 仍以 `cases/C1_Order_Refund_Agent.md`、Glossary 与对应章节为准。**
+>
+> Evidence provenance：`TEACHING`（S3 Canonical Teaching Case）+ `S4 Engineering / Editorial Convention`。订单 1847、失败轨迹、artifact / lineage ID，以及后续 production / monitoring 场景都是**教学构造**，不是 production log、真实线上事故记录或实测结果；本文出现“线上 failure / production incident”等措辞时，是在模拟这类工作流的形状。任何真实定量 claim 都必须另有 S1 / S2 source anchor。统一边界见 [`Reference & Source Policy`](../00_Reference_Source_Policy.md)。
 
 ---
 
 # 0. 先看完整链
 
-这个案例从一条很小的线上 failure 开始：
+这个教学案例模拟从一条很小的线上 failure 开始：
 
 ```text
 用户：
