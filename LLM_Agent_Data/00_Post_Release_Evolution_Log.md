@@ -1656,7 +1656,190 @@ V3.x Compatible Evolution / Evidence Provenance Maintenance
 
 ---
 
-# 19. Final Principle
+# 19. Maintenance Sweep — Practical Reuse Provenance
+
+本轮继续检查 Teaching Case 在高频复用入口里有没有被二次包装成个人项目 / 实验 evidence。
+
+审计范围：
+
+```text
+00_Interview_Pack.md
+00_Interview_Index.md
+00_Condensed_Guide.md
+00_Role_Index.md
+00_Problem_Index.md
+00_Project_Starter_Pack.md
+```
+
+## 19.1 Interview Pack — teaching rehearsal ≠ personal project
+
+Interview Pack 原本已经拥有 Evidence Provenance discipline：
+
+```text
+Public Literature
+My Project / Frozen Result
+Canonical Teaching Case
+Hypothetical Design
+```
+
+但“2–3 个深度 Case”局部仍直接列：
+
+```text
+C1 / C3 / C4 / C5
+```
+
+如果脱离 §0.1 阅读，仍可能被误用成个人项目素材。
+
+现明确：
+
+```text
+C1 / C3 / C4 / C5
+= Canonical Teaching Case / Practical Study
+= rehearsal asset
+≠ personal project evidence
+```
+
+尤其：
+
+```text
+C4
+→ 可用于组织 reasoning-intervention 表达
+→ 不能直接充当 RoTFuse / K17 实验证据
+```
+
+## 19.2 Condensed Guide — remove “真实 case” ambiguity
+
+Condensed Guide 的面试入口原来写：
+
+```text
+概念边界
+真实 case
+可验证 workflow
+```
+
+随后立即推荐：
+
+```text
+C1 / C3 / C4 / C5 Walkthrough
+```
+
+这会制造最直接的 provenance ambiguity。
+
+现收紧为：
+
+```text
+概念边界
+真实项目 / 研究 evidence
+可验证 workflow
+```
+
+并明确：
+
+```text
+C1 / C3 / C4 / C5 Walkthrough
+= S3 Teaching Case / rehearsal asset
+≠ “我做过”的 project / research evidence
+```
+
+面试回答真实经历时，必须另接 frozen project / research artifact。
+
+## 19.3 Project Starter Pack — routing anchor ≠ project evidence
+
+Starter Pack 的五类启动路径使用：
+
+```text
+C1 / C3
+C4
+C5
+```
+
+作为典型 project route 的结构锚点。
+
+现显式固定：
+
+```text
+Case IDs
+= S3 routing anchors
+≠ symptom / trajectory / population / result / cost evidence
+```
+
+真实项目仍必须回到：
+
+```text
+A1 / A3 / A7 / A8
+```
+
+或：
+
+```text
+S2 Internal Research artifacts
+```
+
+Path B 额外固定：
+
+```text
+C4 teaching schema
+≠ RoTFuse / K17 result source
+```
+
+真实 K17 threshold、population、Rescue / Harmful / Net 与 cost 仍必须来自 frozen config / protocol / result artifact。
+
+## 19.4 Interview Index / Role Index / Problem Index — audit only
+
+三份文件当前只是：
+
+```text
+题型 retrieval
+role-specific learning compression
+symptom-first diagnostic routing
+```
+
+它们引用 Case 的用途是定位概念与排查结构，没有把 Case 写成个人经历、真实事故或 empirical result。
+
+同时 Evidence Provenance 的口头表达 ownership 已明确归：
+
+```text
+Interview Pack
+```
+
+因此本轮不在三个 Index 中重复添加免责声明，避免 provenance rule 再次多处维护。
+
+## 19.5 Fixed reuse boundary
+
+以后任何入口复用 Practical Study，默认遵守：
+
+```text
+Teaching Case
+→ 可回答“怎么理解 / 怎么分析 / 怎么设计”
+
+Personal / Internal Evidence
+→ 才可回答“我实际做了什么 / 得到什么结果”
+```
+
+二者可以在同一个回答中相邻出现，但必须有显式话语切换与独立 evidence provenance。
+
+## 19.6 Scope guard
+
+本轮没有：
+
+```text
+改变 C1–C5 semantics
+新增 Case / Walkthrough / Artifact / Rxx
+改写 Interview Index ownership
+把 Case Study 变成 project report
+把 K17 evidence 迁入 Teaching Case
+重写 V3.0 Release Readiness
+```
+
+本轮仍属于：
+
+```text
+V3.x Compatible Evolution / Practical Reuse Provenance Maintenance
+```
+
+---
+
+# 20. Final Principle
 
 ```text
 Release Snapshot
