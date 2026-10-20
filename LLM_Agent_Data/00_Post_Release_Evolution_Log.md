@@ -1839,7 +1839,263 @@ V3.x Compatible Evolution / Practical Reuse Provenance Maintenance
 
 ---
 
-# 20. Final Principle
+# 20. Maintenance Sweep — Practical Execution Semantics
+
+本轮审计：
+
+```text
+00_Practical_Playbooks.md
+00_Practical_Artifact_Kit.md
+00_Checklist_Index.md
+00_Practical_Use_Map.md
+```
+
+目标不是增加新的流程，而是检查：
+
+```text
+placeholder / example value
+是否被读成已执行事实？
+
+optional / composable contract
+是否被读成 mandatory process？
+
+项目阶段 / 决策阶段
+是否被误注册成新的 Entry？
+```
+
+## 20.1 Five-entry origin model re-locked
+
+发现两类高置信 drift：
+
+```text
+Artifact Kit A1
+project_origin 仍残留 strategy_led
+
+Playbooks
+P3 使用 Hypothesis / Production-led
+P6 使用 Data Strategy 作为 Entry 标签
+```
+
+这些都与当前唯一的五入口 practical model 不完全一致。
+
+现固定：
+
+```text
+Failure-led
+Monitoring-led
+Hypothesis-led
+Evaluation-led
+Asset-led / Curation-led
+```
+
+具体修正：
+
+```text
+A1 project_origin
+→ 移除 strategy_led
+
+P3 Synthetic Data
+→ 通常 Hypothesis-led
+→ 若从既有 seed / source assets 起步，则 Asset-led / Curation-led
+→ Production-led 不是独立 canonical Entry
+
+P6 Data Investment Decision
+→ 不是新的 project origin
+→ 是 A7 之后的 Decision-stage continuation
+→ 继承上游项目原有 Entry
+```
+
+因此固定：
+
+```text
+Project Origin
+≠ Workflow Stage
+≠ Decision Stage
+```
+
+## 20.2 Artifact Kit — template value ≠ project fact
+
+Artifact Kit 现在显式定义模板语义：
+
+```text
+<...>
+= placeholder / allowed shape
+≠ recorded fact
+
+null / [] / UNKNOWN / NOT YET ESTABLISHED
+= legal unresolved / absent state
+```
+
+枚举候选也不再默认表示“全部已选中”。
+
+高风险字段同步收紧：
+
+```text
+A1 suspected_layers
+→ one-or-more choice set
+
+A3 agent_visible
+→ <true|false>
+
+A5 abstain_supported
+→ <true|false>
+
+A6 source_experience
+→ one-or-more choice set
+
+A6 learning_signal
+→ one-or-more choice set
+
+A10 suspected_drift
+→ one-or-more choice set
+```
+
+固定：
+
+```text
+Copied Template
+≠ Executed Artifact
+
+Filled Field
+≠ Evidence
+
+Artifact becomes evidence-bearing
+only when linked to real trace / config / run / source asset
+```
+
+## 20.3 Playbooks — illustrative trigger ≠ measured result
+
+Playbooks 中的：
+
+```text
+10万 / 50万 / 100万 trajectories
+quality_score = 0.83
+“剩下 42 万条”
+100 万 synthetic data
++1.2 pt
+```
+
+统一标记为 illustrative trigger / teaching value。
+
+同时固定：
+
+```text
+Produced Artifacts
+= expected evidence / decision-object categories as applicable
+≠ every line requires a separate file
+```
+
+证据不足时：
+
+```text
+UNRESOLVED / suspected / stop at Gate
+```
+
+优于：
+
+```text
+为了闭环形式而伪造 Root Cause / Report / Decision
+```
+
+P1 因此将：
+
+```text
+Root Cause / Owner
+```
+
+收紧为：
+
+```text
+Root Cause / Owner Status
+(confirmed / suspected / unresolved)
+```
+
+## 20.4 Checklist — green checklist ≠ valid project
+
+Checklist Index 现在明确：
+
+```text
+[ ]
+= 当前项目需要解析的问题
+≠ unconditional mandatory requirement
+```
+
+合法状态包括：
+
+```text
+completed with evidence
+N/A + rationale
+UNRESOLVED / pending
+```
+
+禁止为了“全绿”伪造：
+
+```text
+artifact
+metric
+root cause
+experiment result
+```
+
+## 20.5 Practical Use Map — teaching walkthrough ≠ real project record
+
+Use Map 原来仍有：
+
+```text
+“我想看真实项目到底怎么走完”
+→ Practical Case Studies
+```
+
+这与 §18–19 已固定的 Teaching provenance 冲突。
+
+现改为：
+
+```text
+“我想看一个完整项目结构怎样被教学化走通”
+→ Practical Case Studies
+```
+
+并明确：
+
+```text
+C1 / C3 / C4 / C5
+= S3 Teaching Case / walkthrough
+≠ production incident
+≠ personal project evidence
+≠ internal experiment result
+```
+
+对应的“实战案例”措辞也收紧为：
+
+```text
+教学演练
+```
+
+## 20.6 Scope guard
+
+本轮没有：
+
+```text
+新增 Entry
+新增 P8
+新增 A12
+改变 A1–A11 stable IDs
+改变 P1–P7 stable Playbook set
+改变 C1–C5 semantics
+新增 Case / Figure / Rxx
+把 optional extension 提升成 mandatory Core
+修改 V3.0 Release Readiness
+```
+
+本轮仍属于：
+
+```text
+V3.x Compatible Evolution / Practical Execution Semantics Maintenance
+```
+
+---
+
+# 21. Final Principle
 
 ```text
 Release Snapshot
