@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   patch:
-    if: ${{ !contains(github.event.head_commit.message, 'apply Agent 6.5 to canonical document') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,11 +31,7 @@ jobs:
           placeholder = '### 6.5 Shared / Private Context\n### 6.6 Coordination Failure'
           if doc.count(placeholder) != 1:
               raise SystemExit(f'expected one 6.5 placeholder, found {doc.count(placeholder)}')
-          doc = doc.replace(
-              placeholder,
-              section + '\n\n### 6.6 Coordination Failure',
-              1,
-          )
+          doc = doc.replace(placeholder, section + '\n\n### 6.6 Coordination Failure', 1)
 
           old_progress = '| II | 6. Multi-Agent & Agent Interoperability | 进行中：6.1–6.3 已完成 |'
           new_progress = '| II | 6. Multi-Agent & Agent Interoperability | 进行中：6.1–6.5 已完成；下一节 6.6 Coordination Failure |'
@@ -65,7 +60,6 @@ jobs:
           if doc.count(old_pending) != 1:
               raise SystemExit(f'expected one Chapter 6 pending block, found {doc.count(old_pending)}')
           doc = doc.replace(old_pending, new_pending, 1)
-
           doc_path.write_text(doc, encoding='utf-8')
           PY
 
