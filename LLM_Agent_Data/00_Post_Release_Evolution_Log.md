@@ -1084,7 +1084,145 @@ V3.x Compatible Evolution / Use-driven Maintenance
 
 ---
 
-# 16. Final Principle
+# 16. Maintenance Sweep — Reference Freshness & Version Discipline
+
+本轮只审：
+
+```text
+00_Canonical_References.md
+00_Reference_Source_Policy.md
+```
+
+目标是更新已有 anchor 的 bibliographic freshness 与 Claim ↔ Source 边界，不扩大 bibliography。
+
+## 16.1 Existing anchor venue metadata refreshed
+
+外部核验后，补齐或纠正已有 canonical anchor 的正式 venue metadata：
+
+```text
+R01 Deep RL from Human Preferences
+→ NIPS / NeurIPS 2017 venue status confirmed
+
+R04 Let's Verify Step by Step
+→ ICLR 2024
+
+R05 Self-Instruct
+→ ACL 2023 Long Papers
+
+R08 Judging LLM-as-a-Judge
+→ NeurIPS 2023 Datasets and Benchmarks Track
+
+R10 AgentBench
+→ ICLR 2024
+
+R12 SWE-bench
+→ ICLR 2024
+```
+
+这些变化只更新 bibliography / source status：
+
+```text
+Reference ID 不变
+Claim Role 不变
+Chapter Routing 不变
+```
+
+本轮没有新增 R16 或其他 Rxx。
+
+## 16.2 Source priority becomes version-aware
+
+原规则：
+
+```text
+formal venue
+>
+project / repo
+>
+arXiv
+```
+
+在版本内容完全等价时成立，但对：
+
+```text
+full technical report
+vs
+later concise formal report
+```
+
+可能过强。
+
+现固定先判断：
+
+```text
+Claim Coverage
++
+Version Equivalence
+```
+
+只有同一 bibliographic object 且目标 claim coverage 基本等价，才机械优先正式 venue。
+
+HELM 作为明确示例保留：
+
+```text
+2022 full technical report
+≠ 2023 formal concise report
+```
+
+后者可核对 formal publication identity，但不能静默替换 full report 承担全部 benchmark / protocol claim。
+
+## 16.3 More Thinking — identity anchor ≠ quantitative evidence anchor
+
+本轮找到公开作者主页，可核对：
+
+```text
+NLPCC
+More Thinking Is Not Always Better:
+Structural and Semantic Factors of Complex Reasoning Tasks in LLMs
+
+Hui Jiang / Shizhu He / Kang Liu / Jun Zhao
+```
+
+因此 title / authors / NLPCC identity 已有公开 professional listing。
+
+但该页面不提供固定深度结果、population、protocol 或完整论文证据，因此：
+
+```text
+public identity listing
+≠ evidence for 69.04 / 74.09 / 70.97
+```
+
+固定深度定量 claim 继续保持：
+
+```text
+Internal Research Example
++ SOURCE ANCHOR PENDING for quantitative evidence
+```
+
+没有用外部相似主题论文替代内部 evidence anchor。
+
+## 16.4 Scope guard
+
+本轮没有：
+
+```text
+新增 Rxx
+替换 foundational anchor
+改变 reference claim role
+把 internal claim 升级成 public evidence
+扩 related-work bibliography
+重写 V3.0 Release Readiness
+改变 canonical concept / Case / Figure ownership
+```
+
+本轮仍属于：
+
+```text
+V3.x Compatible Evolution / Reference Maintenance
+```
+
+---
+
+# 17. Final Principle
 
 ```text
 Release Snapshot
