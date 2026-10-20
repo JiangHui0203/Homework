@@ -1367,7 +1367,296 @@ V3.x Compatible Evolution / Claim–Source Maintenance
 
 ---
 
-# 18. Final Principle
+# 18. Maintenance Sweep — Practical Evidence Provenance
+
+本轮只审五个高频 practical assets：
+
+```text
+case_studies/C1_End_to_End_Walkthrough.md
+case_studies/C1_Artifact_Pack.md
+case_studies/C3_Permission_Harness_Ownership_Walkthrough.md
+case_studies/C4_Reasoning_Intervention_Walkthrough.md
+case_studies/C5_Executable_Truth_Verifier_Coverage_Walkthrough.md
+```
+
+目标不是重写 walkthrough，而是保证任何人把其中一段摘出去时，仍能回答：
+
+```text
+这是 Teaching Case？
+Internal Research Evidence？
+External Literature？
+还是 Engineering Convention？
+```
+
+## 18.1 Common drift — canonical disclaimer ≠ evidence provenance
+
+五个 asset 原本都已声明：
+
+```text
+walkthrough / artifact pack
+≠ canonical definition owner
+```
+
+但这只能解决语义 ownership，不能自动解决 evidence provenance。
+
+例如：
+
+```text
+“线上 failure”
+“Incident A / B / C”
+production_mined
+model_x / harness_v1
+200 screened states
+Candidate A hidden tests FAIL
+```
+
+在脱离上下文后二次引用时，仍可能被误读为：
+
+```text
+真实 production incident
+真实内部 run
+真实 benchmark result
+```
+
+因此本轮为五个 asset 增加显式 Evidence provenance boundary。
+
+## 18.2 C1 Walkthrough — simulated production workflow
+
+现在固定：
+
+```text
+C1 Walkthrough
+= S3 TEACHING + S4 Engineering / Editorial Convention
+```
+
+订单 1847、失败轨迹、artifact / lineage IDs 与 production / monitoring 场景都属于 teaching construction。
+
+正文开头也从：
+
+```text
+“这个案例从一条很小的线上 failure 开始”
+```
+
+收紧为：
+
+```text
+“这个教学案例模拟从一条很小的线上 failure 开始”
+```
+
+因此：
+
+```text
+Production-shaped scenario
+≠ Production evidence
+```
+
+## 18.3 C1 Artifact Pack — filled field ≠ executed project
+
+`C1_Artifact_Pack.md` 现在明确：
+
+```text
+TEACHING
+```
+
+以下内容都是 reference fill-in values：
+
+```text
+PI-C1-001 / EXP-C1-001 等 ID
+model_x / harness_v1
+snapshot / transaction names
+source channels
+seeds: 3
+example configs
+```
+
+不能因为字段已经填满，就推断对应训练 / 评测 / production run 已经执行。
+
+A6 的：
+
+```text
+production_mined / synthetic / rollout
+```
+
+也显式标成 illustrative source channels，而不是该 Pack 的真实 provenance claim。
+
+继续保持：
+
+```text
+PENDING / TBD / <value>
+= no result evidence
+```
+
+## 18.4 C3 Walkthrough — Incident label is pedagogical
+
+C3 的：
+
+```text
+Incident A
+Incident B
+Incident C
+```
+
+现在显式归类为 S3 Teaching Case 中的 constructed variants。
+
+因此：
+
+```text
+Tool backend failure
+Harness false-success observation
+Blind retry
+```
+
+是 case-world facts，用于稳定：
+
+```text
+Failure Layer ≠ Failure Owner
+Tool Truth ≠ Harness Observation
+Transport Failure ≠ Action Failure
+```
+
+它们不是生产事件频率或某产品事故报告。
+
+permission / retry / verification route 则属于 S4 operating convention，不应被引用为 empirical guarantee。
+
+## 18.5 C4 Walkthrough — research-shaped teaching ≠ K17 report
+
+C4 是本轮最重要的 provenance boundary。
+
+固定：
+
+```text
+C4 Practical Walkthrough
+= TEACHING
+```
+
+它确实吸收内部 reasoning-intervention 研究中常见的：
+
+```text
+trigger
+same-prefix candidate
+oracle
+selector
+Rescue / Harmful
+coverage / cost
+```
+
+问题形状，但：
+
+```text
+Walkthrough
+≠ RoTFuse / K17 experiment report
+```
+
+只有挂接 frozen：
+
+```text
+config / protocol
+population / denominator
+result summary
+artifact path / version
+```
+
+的内容才能升级成 S2 Internal Research Evidence。
+
+特别固定：
+
+```text
+§11 200 / 50 / 20 / 11 / 6
+§12 +0.5pt / 5× / +0.4pt / 1.2×
+= teaching-only illustration
+```
+
+真实 K17 threshold、population、Rescue / Harmful / Net、cost 必须回到 authoritative research artifacts。
+
+## 18.6 C5 Walkthrough — executable benchmark context ≠ C5 evidence
+
+C5 现在明确：
+
+```text
+normalize_date
+Candidate A / B / C / D
+public / hidden test outcomes
+V1–V3 verifier
+C5-R1 / C5-R2 runtime
+repair trajectory
+= TEACHING objects
+```
+
+R12 SWE-bench 等 external executable-evaluation anchor 只能提供：
+
+```text
+public benchmark / executable evaluation context
+```
+
+不能证明：
+
+```text
+C5 task itself
+C5 candidate outcomes
+C5 verifier result
+```
+
+同时把示例：
+
+```text
+execution_cost_ms: 0
+```
+
+改为：
+
+```text
+execution_cost_ms: null
+```
+
+避免 placeholder 看起来像真实测量值。
+
+## 18.7 Fixed provenance discipline
+
+本轮固定四条复用规则：
+
+```text
+S3 Teaching Case
+→ 可以稳定 relation / boundary / workflow
+→ 不能证明真实发生频率或性能提升
+
+S4 Engineering Convention
+→ 可以定义本书 operating practice
+→ 不能伪装成 empirical outcome
+
+S1 External Literature
+→ 只支撑论文实际研究过的 claim
+→ 不会自动验证本书 teaching case
+
+S2 Internal Research
+→ 定量 claim 必须回到 frozen artifact / protocol / denominator
+→ research-shaped walkthrough 不等于 research evidence
+```
+
+## 18.8 Scope guard
+
+本轮没有：
+
+```text
+改变 C1 / C3 / C4 / C5 canonical semantics
+新增 C2 walkthrough
+新增 Case / Variant ID
+新增 Artifact ID
+新增 Rxx
+把 teaching case 升级成 internal evidence
+把 external benchmark 反向当作 teaching-case proof
+修改 V3.0 Release Readiness
+声称 exhaustive rendered validation
+```
+
+本轮仍属于：
+
+```text
+V3.x Compatible Evolution / Evidence Provenance Maintenance
+```
+
+---
+
+# 19. Final Principle
 
 ```text
 Release Snapshot
