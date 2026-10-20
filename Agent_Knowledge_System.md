@@ -108731,19 +108731,3582 @@ Global Termination
 
 ### 6.7 A2A
 
-- Agent Card
-- Discovery
-- Task
-- State
-- Remote Agent
+#### 6.7.1 A2A 到底是什么
 
-6.7 待补充。
+**A2A（Agent2Agent Protocol）** 是面向独立 Agent 系统之间通信与互操作的开放协议。
+
+它要解决的核心问题不是：
+
+```text
+如何让一个 LLM 更会推理？
+```
+
+也不是：
+
+```text
+如何在同一个框架内部创建多个 subagent？
+```
+
+而是：
+
+```text
+当 Agent A 与 Agent B
+由不同团队、不同框架、不同 runtime、不同厂商实现时，
+它们如何在不了解彼此内部实现的前提下：
+
+发现对方
+→ 理解能力
+→ 建立受控连接
+→ 委派 / 接受任务
+→ 交换消息与产物
+→ 跟踪任务状态
+→ 处理长任务与中断
+→ 得到可验证结果
+```
+
+因此，A2A 的系统定位可以写成：
+
+> **Agent ↔ Agent interoperability protocol**
+
+它标准化的是**跨 Agent 边界的交互契约**，而不是 Agent 内部的 reasoning、memory、planner、tool loop 或 orchestration policy。
+
+---
+
+#### 6.7.2 为什么需要 A2A
+
+在单一 Agent 平台内部，系统通常可以直接依赖内部对象：
+
+```text
+Python function
+shared memory
+internal queue
+framework-specific state
+subagent API
+```
+
+但一旦跨越团队或平台边界，这些假设迅速失效：
+
+```text
+Agent A: LangGraph
+Agent B: custom runtime
+Agent C: Java service
+Agent D: vendor-managed agent
+```
+
+如果每一对 Agent 都定义一套私有协议，则集成复杂度近似增长为：
+
+```text
+A↔B
+A↔C
+A↔D
+B↔C
+B↔D
+C↔D
+...
+```
+
+这会产生：
+
+- capability description 不一致；
+- message schema 不一致；
+- task state 不一致；
+- authentication 方式不一致；
+- streaming / async 语义不一致；
+- retry / cancel 行为难以统一；
+- observability 难以串联；
+- vendor lock-in 加重。
+
+A2A 的价值，就是把大量 pairwise integration 收敛到一个更稳定的协议边界。
+
+---
+
+#### 6.7.3 A2A 解决的是“互操作”，不是“智能”
+
+这是理解 A2A 最重要的边界。
+
+即使两个 Agent 完全遵守同一个 A2A 协议：
+
+```text
+Discovery OK
+Authentication OK
+Message delivered
+Task created
+Status updated
+Artifact returned
+```
+
+也不代表：
+
+```text
+Agent 选对了对方
+Agent 理解了任务
+Agent 推理正确
+Agent 完成了真实目标
+Artifact 内容可信
+全局系统协调正确
+```
+
+所以：
+
+> **Protocol Correctness ≠ Task Correctness ≠ Global Correctness**
+
+A2A 可以降低互操作摩擦，但不能替代：
+
+- routing；
+- delegation policy；
+- trust decision；
+- verification；
+- coordination；
+- governance；
+- recovery；
+- end-to-end evaluation。
+
+---
+
+#### 6.7.4 A2A 在整套 Agent 栈中的位置
+
+可以把整体系统画成：
+
+```text
+User / Upstream Goal
+        ↓
+┌──────────────────────┐
+│      Agent A         │
+│ policy / memory /    │
+│ planning / harness   │
+└──────────┬───────────┘
+           │
+           │ A2A
+           ↓
+┌──────────────────────┐
+│      Agent B         │
+│ remote autonomous    │
+│ agentic application  │
+└──────────┬───────────┘
+           │
+           │ MCP / Tool API / Native Tool
+           ↓
+┌──────────────────────┐
+│ Capability / Data /  │
+│ Tool / External Sys  │
+└──────────────────────┘
+```
+
+因此最简边界是：
+
+```text
+MCP：Agent / Host ↔ Capability / Data / Tool
+A2A：Agent / Client ↔ Remote Agent
+```
+
+但这只是第一层理解。
+
+真正工程上还必须继续区分：
+
+```text
+protocol
+architecture
+policy
+runtime
+trust
+coordination
+```
+
+---
+
+#### 6.7.5 A2A ≠ Multi-Agent Architecture
+
+**Multi-Agent** 描述的是系统结构：
+
+```text
+一个任务中存在多个具有一定自治能力的 Agent，
+它们通过 delegation、communication、coordination 共同完成目标。
+```
+
+**A2A** 描述的是互操作协议：
+
+```text
+两个独立 Agent 系统如何在标准边界上交换能力描述、消息、任务状态与结果。
+```
+
+所以：
+
+```text
+Multi-Agent without A2A   ✓
+A2A between two services  ✓
+A2A inside Multi-Agent    ✓
+Multi-Agent = A2A         ✗
+```
+
+一个完全运行在同一进程内的 supervisor–worker 系统，可能根本不需要 A2A。
+
+反过来，一个 shell client 或 CI job 也可以通过 A2A 把工作提交给 remote agent，而调用方本身未必是完整 Agent。
+
+---
+
+#### 6.7.6 A2A ≠ Delegation Policy
+
+Delegation 回答：
+
+```text
+要不要把任务交给别人？
+交给谁？
+交多少？
+何时收回？
+```
+
+A2A 回答：
+
+```text
+一旦决定与某个 remote agent 交互，
+跨边界的信息和任务如何被标准化表达与传输？
+```
+
+因此：
+
+> **A2A 可以承载 delegation，但不决定 delegation 是否正确。**
+
+错误 routing 完全可能通过 A2A 被非常可靠地执行。
+
+---
+
+#### 6.7.7 A2A ≠ Tool Calling
+
+Tool Calling 通常是：
+
+```text
+Model
+  ↓
+function / tool name + arguments
+  ↓
+Harness / Runtime
+  ↓
+Tool execution
+```
+
+A2A 更接近：
+
+```text
+Client Agent / Application
+  ↓
+Remote Agent contract
+  ↓
+Task / Message interaction
+  ↓
+Remote autonomous execution
+```
+
+Tool 往往暴露一个**能力原语**：
+
+```text
+search(query)
+create_ticket(...)
+query_database(...)
+```
+
+Remote Agent 则可能自行：
+
+- 规划；
+- 追问；
+- 调多个工具；
+- 长时间执行；
+- 产生多个 artifact；
+- 暂停等待输入；
+- 处理自己的内部状态。
+
+因此：
+
+> **Tool Call 更像调用一个能力；A2A 更像把一个任务交给另一个自治执行单元。**
+
+---
+
+#### 6.7.8 A2A ≠ MCP
+
+这两个协议最容易被混淆。
+
+可以先记住：
+
+```text
+MCP
+Agent / Host → 找能力、读资源、调用工具
+
+A2A
+Agent / Client → 找 Agent、发消息、委派任务、跟踪远程任务
+```
+
+进一步看：
+
+| 维度 | MCP | A2A |
+|---|---|---|
+| 核心边界 | Host ↔ Capability Server | Client ↔ Remote Agent |
+| 主要对象 | Tools / Resources / Prompts 等 | Agent Card / Message / Task / Artifact 等 |
+| 自治性假设 | 服务暴露能力 | 对端可拥有独立 agentic runtime |
+| 典型目的 | 扩展一个 Agent 的能力边界 | 连接独立 Agent 系统 |
+| 长任务状态 | 不是核心抽象中心 | Task lifecycle 是核心语义之一 |
+| 内部实现可见性 | 不要求暴露服务内部实现 | 不要求暴露 Agent 内部 state / memory / tools |
+
+两者不是竞争关系，而是可组合关系：
+
+```text
+Agent A
+   │
+   ├── MCP → Search / DB / Files
+   │
+   └── A2A → Agent B
+                 │
+                 └── MCP → CRM / ERP / Internal Tools
+```
+
+---
+
+#### 6.7.9 A2A ≠ “远程 Function Calling”
+
+把 A2A 简化成“远程函数调用”会丢掉几个关键语义：
+
+- Remote Agent 可能无法立即完成；
+- 任务可能持续很久；
+- 对端可能需要额外输入；
+- 对端可能要求认证；
+- 任务可能取消、拒绝或失败；
+- 结果可能是多个 artifact；
+- 状态可能通过 stream / async mechanism 持续更新。
+
+因此 A2A 的中心不是：
+
+```text
+request → response
+```
+
+而更接近：
+
+```text
+request
+  ↓
+message or task
+  ↓
+stateful lifecycle
+  ↓
+updates / artifacts / further input
+  ↓
+terminal or interrupted state
+```
+
+---
+
+#### 6.7.10 A2A 的最小交互闭环
+
+一个最小 A2A interaction 可以抽象为：
+
+```text
+1. Discover
+2. Inspect Capability Contract
+3. Authenticate / Authorize
+4. Select Compatible Interface
+5. Send Message
+6. Receive Message or Task
+7. If Task:
+      observe state
+      receive updates
+      provide more input if needed
+8. Receive Artifact / final result
+9. Verify outcome
+10. Update local state
+```
+
+更完整一点：
+
+```text
+Discover
+   ↓
+Resolve Capability
+   ↓
+Trust / Policy Check
+   ↓
+Authenticate / Authorize
+   ↓
+Protocol / Interface Negotiation
+   ↓
+Message Submission
+   ↓
+Task Creation / Immediate Message
+   ↓
+Task Tracking
+   ↓
+Artifact / Result
+   ↓
+Verification
+   ↓
+Commit downstream action
+```
+
+注意最后两个步骤通常属于调用方 Harness，而不是协议自动替你完成的事情。
+
+---
+
+#### 6.7.11 A2A 的核心对象
+
+长期最值得掌握的对象不是某个 SDK 方法名，而是这些语义对象：
+
+```text
+Agent Card
+Agent Skill
+Agent Interface
+Security Scheme
+Message
+Part
+Task
+Task Status / State
+Artifact
+Context
+Extension
+```
+
+它们大致对应：
+
+```text
+Who are you?              → Agent Card
+What can you do?           → Skills / Capabilities
+How can I reach you?       → Agent Interface
+How do I authenticate?     → Security Scheme
+What am I telling you?     → Message
+What content is carried?   → Part
+What work are you doing?   → Task
+Where is the work now?     → Task State
+What did you produce?      → Artifact
+Which interactions belong together? → Context
+What optional semantics exist?       → Extension
+```
+
+---
+
+#### 6.7.12 Remote Agent 为什么可以是 opaque 的
+
+A2A 的一个关键设计思想是：
+
+> **互操作不要求共享内部实现。**
+
+Remote Agent 不需要暴露：
+
+- chain-of-thought；
+- hidden state；
+- internal memory；
+- planner internals；
+- private prompt；
+- internal tool inventory；
+- framework-specific graph；
+- model weights。
+
+调用方真正需要的是：
+
+```text
+能力契约
+交互接口
+任务状态
+必要消息
+正式产物
+安全与认证要求
+```
+
+这也是为什么 A2A 更适合跨团队、跨组织、跨 vendor 的 agentic systems。
+
+---
+
+#### 6.7.13 Opaque ≠ Unobservable
+
+“不暴露内部思维”不代表“什么都看不到”。
+
+一个生产级 remote-agent boundary 仍需要足够的外部可观测性：
+
+```text
+request / task ID
+current state
+status timestamp
+artifacts
+errors
+latency
+retry history
+provenance
+trace correlation
+policy decision
+```
+
+因此要区分：
+
+```text
+Private Internal Reasoning
+          ≠
+Operationally Necessary Observability
+```
+
+> **不要为了 observability 要求暴露 chain-of-thought；应该观测协议事件、状态转换、输入输出、side effect 和验证结果。**
+
+---
+
+#### 6.7.14 Agent Card：远程 Agent 的公开能力契约
+
+**Agent Card** 可以理解为 remote agent 的机器可读“业务卡片 / 能力卡片”。
+
+它用于描述：
+
+- Agent identity；
+- description / provider；
+- 可连接的 interface；
+- protocol version / binding；
+- capabilities；
+- security requirements；
+- skills；
+- input / output modes；
+- extension support。
+
+调用方因此能够在真正发送任务前先回答：
+
+```text
+它是谁？
+它大概能做什么？
+我该连哪个 endpoint？
+我支持它的 protocol binding 吗？
+需要什么认证？
+它接受什么输入？
+它可能返回什么输出？
+```
+
+---
+
+#### 6.7.15 Agent Card ≠ Agent 本体
+
+Agent Card 是 description，不是 Agent 本身。
+
+因此：
+
+```text
+Agent Card says capability X
+        ≠
+Agent can always successfully perform X
+```
+
+也不代表：
+
+```text
+endpoint reachable
+credentials valid
+current capacity sufficient
+skill currently enabled
+backend dependency healthy
+policy will authorize this caller
+```
+
+所以 Agent Card 更接近**可发现契约**，不是实时运行状态的完整镜像。
+
+---
+
+#### 6.7.16 Agent Card ≠ Trust Certificate
+
+这是非常重要的安全边界。
+
+一个 Agent Card 可以声明：
+
+```text
+name = "Finance Agent"
+skill = "execute_payment"
+```
+
+这并不能自动证明：
+
+```text
+它确实属于可信组织
+它有权执行付款
+返回结果可信
+当前 card 未被篡改
+调用它符合本地 policy
+```
+
+即使 Card 支持签名，也只是帮助验证某些 authenticity / integrity 属性，不能自动完成：
+
+- business trust；
+- authorization；
+- suitability；
+- output correctness；
+- safety approval。
+
+因此：
+
+> **Discovery Metadata ≠ Trust Decision**
+
+---
+
+#### 6.7.17 Discovery 到底发现什么
+
+A2A Discovery 的目标不是“发现所有 Agent”。
+
+更准确地说，它是在当前环境中找到：
+
+> **可能与当前任务交互的 remote-agent contract。**
+
+可抽象为：
+
+```text
+Agent Universe
+   ↓
+Known Domains / Registry / Configuration
+   ↓
+Discover Agent Cards
+   ↓
+Permission / Tenant Filter
+   ↓
+Compatibility Filter
+   ↓
+Trust / Risk Filter
+   ↓
+Task Relevance Filter
+   ↓
+Candidate Remote Agents
+```
+
+这与前面 Capability Discovery 的思想是一致的：
+
+> **系统拥有很多可连接 Agent，不等于当前模型应该看到所有 Agent。**
+
+---
+
+#### 6.7.18 常见 Agent Discovery 路径
+
+当前 A2A 体系中常见的 discovery 方式包括：
+
+```text
+1. well-known URI
+2. curated registry / catalog
+3. direct configuration
+```
+
+它们分别适合：
+
+```text
+public / domain-owned agent
+enterprise capability catalog
+known private integration
+```
+
+这里要注意：
+
+> **A2A 标准化 Agent Card，本身并不意味着所有 registry 的查询 API 都被统一标准化。**
+
+因此 Discovery Plane 往往仍然是企业治理的重要扩展点。
+
+---
+
+#### 6.7.19 Discovery ≠ Selection
+
+发现一个 Agent，只说明：
+
+```text
+它进入了 candidate set
+```
+
+并不等于：
+
+```text
+应该选择它执行当前任务
+```
+
+所以应该沿用第 5 章 Capability Discovery 的分层思想：
+
+```text
+Discovered
+   ↓
+Compatible
+   ↓
+Authorized
+   ↓
+Trusted
+   ↓
+Relevant
+   ↓
+Suitable
+   ↓
+Selected
+```
+
+稳定表达是：
+
+> **Discovered ≠ Trusted ≠ Authorized ≠ Reachable ≠ Compatible ≠ Suitable ≠ Selected**
+
+---
+
+#### 6.7.20 Agent Skill：能力描述，不是执行保证
+
+Agent Card 中的 **Skill** 用于说明 remote agent 可以处理什么类型的任务。
+
+一个 skill 通常需要让调用方理解：
+
+- skill identity；
+- name / description；
+- input modes；
+- output modes；
+- examples / tags；
+- capability scope。
+
+它主要服务于：
+
+```text
+Discovery
+Routing
+Request Construction
+Compatibility Check
+```
+
+但仍应坚持：
+
+```text
+Skill advertised
+   ≠
+Skill currently available
+   ≠
+Skill authorized for caller
+   ≠
+Skill succeeds on this case
+```
+
+这和 Tool schema 的边界非常类似：**schema 描述接口，不证明结果。**
+
+---
+#### 6.7.21 Agent Interface：能力与传输方式之间的连接契约
+
+在稳定的 A2A 语义中，Agent Card 不只是给一个 URL，而可以声明一个或多个 **Agent Interface**。
+
+Interface 解决的是：
+
+```text
+同一个 Agent capability
+可以通过什么 endpoint
+使用什么 protocol binding
+按照什么 protocol version
+被访问？
+```
+
+因此应区分：
+
+```text
+Agent Identity
+Agent Capability
+Agent Interface
+Transport / Binding
+```
+
+同一个 Agent 可以暴露多个 interface，而不是“一个 Agent = 一个 URL”。
+
+---
+
+#### 6.7.22 Protocol Binding ≠ Agent Semantics
+
+A2A v1.x 将核心语义与具体 binding 更明确地分开。
+
+当前标准体系支持多种 binding，例如：
+
+```text
+JSON-RPC
+gRPC
+HTTP+JSON / REST
+```
+
+重要的不是背这些名字，而是理解：
+
+> **Transport / binding 可以变化，但 Task、Message、Artifact 等互操作语义应保持一致。**
+
+因此不要把 A2A 理解成：
+
+```text
+A2A = JSON-RPC
+```
+
+更准确的是：
+
+```text
+A2A semantic model
+      ↓
+one or more protocol bindings
+      ↓
+network transport
+```
+
+---
+
+#### 6.7.23 Interface Negotiation：不是“能连上就行”
+
+调用方发现 Agent Card 后，需要判断：
+
+```text
+我支持它哪个 interface？
+版本是否兼容？
+认证方式是否可满足？
+输入输出模式是否匹配？
+required extension 是否支持？
+```
+
+因此连接前至少存在一层：
+
+```text
+Discovery
+   ↓
+Compatibility Negotiation
+   ↓
+Connection / Invocation
+```
+
+典型 failure 是：
+
+```text
+Agent 能做这个任务
+但双方没有共同支持的 protocol binding
+```
+
+这属于 interoperability failure，不是 reasoning failure。
+
+---
+
+#### 6.7.24 Version Compatibility 为什么必须显式处理
+
+跨 Agent 系统往往独立升级。
+
+因此版本关系可能变成：
+
+```text
+Client: A2A 1.0
+Server: A2A 1.1
+```
+
+或者：
+
+```text
+Client understands extension X v1
+Server requires extension X v2
+```
+
+如果系统默认：
+
+```text
+"都是 A2A，所以一定兼容"
+```
+
+就会把 protocol family 与具体 compatibility 混在一起。
+
+工程上应把：
+
+- protocol version；
+- binding；
+- required extension；
+- optional extension；
+- input/output mode；
+
+纳入连接决策。
+
+---
+
+#### 6.7.25 Extension：扩展协议，而不是偷偷建立私有协议
+
+A2A 允许 Agent 声明 extension，用于表达 core protocol 之外的附加语义。
+
+Extension 的价值在于：
+
+```text
+Core remains interoperable
+        +
+Domain-specific semantics can evolve
+```
+
+但 extension 也会带来风险：
+
+```text
+extension proliferation
+→ compatibility fragmentation
+→ nominally A2A-compatible but practically incompatible
+```
+
+所以应区分：
+
+```text
+core-required semantics
+optional extension
+required extension
+vendor-private behavior
+```
+
+> **扩展越多，协议名义上的统一并不一定等于真实互操作性更强。**
+
+---
+
+#### 6.7.26 Message：一次交互内容，不等于一个 Task
+
+**Message** 表示 client 与 remote agent 之间的一次通信 turn。
+
+它可以承载：
+
+- instruction；
+- context；
+- question；
+- answer；
+- additional input；
+- status-related information。
+
+但 Message 本身不等于 Task。
+
+例如：
+
+```text
+Client → Remote Agent:
+"请分析这个合同。"
+```
+
+Remote Agent 可能：
+
+```text
+立即返回 Message
+```
+
+也可能：
+
+```text
+创建一个 Task 并异步处理
+```
+
+因此：
+
+> **Message 是 communication unit；Task 是 stateful work unit。**
+
+---
+
+#### 6.7.27 Part：A2A 的内容载体
+
+Message 与 Artifact 都不是只装纯文本。
+
+**Part** 是更细粒度的内容容器，可用于表达：
+
+```text
+text
+structured data
+file reference
+inline binary content
+```
+
+因此 A2A 的内容模型是 modality-independent 的。
+
+这意味着一个任务可以自然承载：
+
+```text
+instruction text
++
+PDF file
++
+JSON parameters
++
+image
+```
+
+而不需要把所有内容强行塞进一个字符串 prompt。
+
+---
+
+#### 6.7.28 Structured Data 为什么比“全塞自然语言”更可靠
+
+假设 Agent A 要把订单信息交给 Agent B。
+
+弱设计：
+
+```text
+"客户张三买了两件 A，地址是……请帮我处理"
+```
+
+更稳定的设计：
+
+```text
+Message
+ ├── TextPart: instruction
+ └── DataPart:
+       order_id
+       customer_id
+       items
+       address
+       constraints
+```
+
+Structured Part 可以降低：
+
+- parsing ambiguity；
+- schema drift；
+- accidental omission；
+- prompt-style dependency。
+
+所以：
+
+> **跨 Agent 协作中，能结构化表达的 contract data 不应依赖自然语言猜测。**
+
+---
+
+#### 6.7.29 Artifact：任务产物，不只是聊天回复
+
+**Artifact** 是 remote agent 在 Task 中产生的正式输出或可消费结果。
+
+例如：
+
+```text
+report.pdf
+analysis.json
+patch.diff
+image.png
+execution_plan.yaml
+```
+
+这与普通 Message 的区别在于：
+
+```text
+Message 主要用于交互
+Artifact 主要用于交付
+```
+
+因此：
+
+> **Message ≠ Artifact**
+
+一个 Agent 可以发很多 progress message，但真正可供 downstream consumption 的可能只有一个最终 artifact。
+
+---
+
+#### 6.7.30 Artifact ≠ Verified Outcome
+
+Artifact 被成功返回，只说明：
+
+```text
+remote agent produced something
+```
+
+不说明：
+
+```text
+内容正确
+格式可用
+版本最新
+来源可信
+满足用户目标
+副作用已经正确发生
+```
+
+例如 Agent 返回：
+
+```text
+"payment_receipt.json"
+```
+
+不能只因为它是 artifact 就认定付款成功。
+
+仍然需要：
+
+- schema validation；
+- provenance；
+- freshness；
+- external verification；
+- business invariant check。
+
+稳定原则仍然是：
+
+> **Returned Artifact ≠ Ground Truth**
+
+---
+
+#### 6.7.31 Task：A2A 最关键的 stateful work abstraction
+
+对于不能立即完成的工作，A2A 使用 **Task** 表达一个可跟踪的工作单元。
+
+Task 通常具有：
+
+```text
+unique task ID
+context association
+current status
+optional history
+artifacts
+metadata
+```
+
+因此 Task 不是一句 prompt，也不是一次 HTTP request。
+
+它更接近：
+
+> **跨 Agent 边界可被持续观察和管理的远程工作实例。**
+
+---
+
+#### 6.7.32 Task ID 为什么重要
+
+如果没有稳定 task identity：
+
+```text
+request timeout
+   ↓
+client 不知道 server 是否已创建任务
+   ↓
+client retry
+   ↓
+server 创建第二个任务
+   ↓
+duplicate work / duplicate side effect
+```
+
+Task ID 让系统能够：
+
+- 查询状态；
+- 关联更新；
+- resubscribe；
+- cancel；
+- deduplicate；
+- trace；
+- audit。
+
+但要注意：
+
+> **有 Task ID 不等于自动获得 exactly-once semantics。**
+
+仍需要调用方与服务端共同设计幂等和重复提交策略。
+
+---
+
+#### 6.7.33 Task State Machine：为什么比一个 success 字段更重要
+
+远程 Agent 的任务不是只有：
+
+```text
+success / failure
+```
+
+而可能处于：
+
+```text
+submitted
+working
+input-required
+auth-required
+completed
+failed
+canceled
+rejected
+unknown
+```
+
+这说明远程执行本质上具有：
+
+- progress；
+- pause；
+- interruption；
+- terminal state；
+- uncertainty。
+
+所以一个生产系统不应只有：
+
+```text
+if response.ok:
+    done
+```
+
+而应显式建模 task lifecycle。
+
+---
+
+#### 6.7.34 submitted ≠ working
+
+`submitted` 表示任务已被接收 / 建立，但不代表已经真正开始执行。
+
+因此：
+
+```text
+Task accepted
+   ≠
+Execution started
+```
+
+这对：
+
+- queue delay；
+- capacity planning；
+- timeout；
+- SLA；
+
+都很重要。
+
+如果系统只统计“提交成功率”，会掩盖大量排队和执行启动失败。
+
+---
+
+#### 6.7.35 working ≠ making progress
+
+Task 状态为 `working`，并不自动意味着它在有效推进。
+
+可能出现：
+
+```text
+working
+  ↓
+waiting on hidden dependency
+  ↓
+working
+  ↓
+loop
+  ↓
+working
+```
+
+所以要区分：
+
+```text
+State = WORKING
+          ≠
+Progress > 0
+```
+
+这与 6.6 的 no-progress / liveness failure 是同一个系统问题在 A2A 边界上的表现。
+
+---
+
+#### 6.7.36 input-required：远程 Agent 需要额外信息
+
+当 remote agent 无法继续时，可以进入需要额外输入的中断状态。
+
+例如：
+
+```text
+Travel Agent:
+"需要确认护照国家和出发日期。"
+```
+
+此时不应该把任务判成 failure。
+
+正确语义是：
+
+```text
+RUNNING
+  ↓
+INPUT_REQUIRED
+  ↓ user/client provides input
+WORKING
+```
+
+因此：
+
+> **Needs More Input ≠ Failed**
+
+---
+
+#### 6.7.37 auth-required：执行中也可能出现新的认证需求
+
+Remote Agent 可能开始处理后发现：
+
+```text
+下一步访问受保护资源需要新的 credential / user consent
+```
+
+因此 `auth-required` 与普通业务输入不同。
+
+它提醒系统：
+
+```text
+Authentication / Authorization
+不是只发生在连接建立前的一次性检查。
+```
+
+Agentic workflows 中 credential scope、consent、step-up auth 都可能随任务推进而变化。
+
+---
+
+#### 6.7.38 completed ≠ End-to-End Success
+
+A2A Task 进入 `completed`，表示 remote agent 认为该 Task 已成功结束。
+
+但上游仍必须判断：
+
+```text
+artifact valid?
+user goal satisfied?
+side effect observed?
+constraints preserved?
+result fresh?
+provenance acceptable?
+```
+
+因此：
+
+> **Remote Completed ≠ Local Acceptance ≠ User Goal Success**
+
+一个可靠 Harness 应有独立 acceptance / verification 阶段。
+
+---
+
+#### 6.7.39 failed、rejected、canceled 必须区分
+
+这些状态都意味着当前任务没有完成，但原因不同：
+
+```text
+failed
+= 执行中发生错误
+
+rejected
+= remote agent 决定不接受 / 不继续该任务
+
+canceled
+= 任务被取消
+```
+
+这会直接影响后续策略：
+
+```text
+failed   → maybe retry / fallback / diagnose
+rejected → reroute / policy review
+canceled → stop / compensate / confirm side effects
+```
+
+如果统一映射成：
+
+```text
+ERROR
+```
+
+就丢失了恢复决策所需的信息。
+
+---
+
+#### 6.7.40 unknown：不确定不是失败
+
+在分布式系统里最危险的误判之一是：
+
+```text
+timeout → failed
+```
+
+实际上可能是：
+
+```text
+request sent
+server processed
+side effect committed
+response lost
+```
+
+此时本地真实状态应更接近：
+
+```text
+UNKNOWN
+```
+
+因此仍然遵守前面反复强调的原则：
+
+> **Unknown ≠ False**
+>
+> **Unknown ≠ Failed**
+
+正确恢复通常是：
+
+```text
+reconcile first
+then decide retry
+```
+
+而不是盲目重复提交。
+
+---
+
+#### 6.7.41 Terminal State ≠ Safe to Forget
+
+Task 到 terminal state 后，系统仍可能需要保留：
+
+- artifact provenance；
+- status history；
+- audit trail；
+- verification result；
+- side-effect evidence；
+- retry lineage；
+- cost；
+- security decisions。
+
+因此：
+
+```text
+Task terminal
+   ≠
+Operational state can be discarded immediately
+```
+
+这和 Chapter 4 的 persistence / durable state 直接相关。
+
+---
+
+#### 6.7.42 Context ID：关联交互，不等于完整共享上下文
+
+A2A 中可以用 context identifier 将相关 Message / Task 逻辑分组。
+
+但这不意味着两个 Agent 自动共享：
+
+- full conversation history；
+- private memory；
+- internal state；
+- hidden reasoning；
+- tool outputs；
+- organization-wide knowledge。
+
+所以：
+
+> **Context ID 是 correlation mechanism，不是 shared-memory magic。**
+
+它解决：
+
+```text
+哪些交互属于同一个连续语境？
+```
+
+而不是：
+
+```text
+双方内部状态是否完全一致？
+```
+
+---
+#### 6.7.43 Stateless Message 与 Stateful Task 应该什么时候用
+
+不是所有 Agent-to-Agent interaction 都需要创建长生命周期 Task。
+
+可以粗略判断：
+
+```text
+Immediate + self-contained response
+→ Message
+
+Long-running / multi-step / resumable / needs tracking
+→ Task
+```
+
+如果所有交互都强制建 Task，会增加：
+
+- persistence；
+- state management；
+- cleanup；
+- tracing；
+- lifecycle complexity。
+
+反过来，如果所有任务都压成一次 request-response，又会失去：
+
+- progress；
+- cancellation；
+- recovery；
+- async tracking；
+- long-running semantics。
+
+因此目标仍是：
+
+> **使用足够表达真实执行语义的最小状态机制。**
+
+---
+
+#### 6.7.44 Streaming：传递增量状态，不代表最终正确
+
+长任务往往需要流式更新：
+
+```text
+submitted
+→ working
+→ artifact chunk 1
+→ artifact chunk 2
+→ completed
+```
+
+Streaming 可以降低：
+
+- perceived latency；
+- polling cost；
+- long-task opacity。
+
+但 streaming 也引入新的 failure surface：
+
+- connection drop；
+- duplicate event；
+- missed event；
+- out-of-order handling；
+- partial artifact；
+- client reconnect；
+- terminal event loss。
+
+所以：
+
+> **Streaming improves visibility, not correctness.**
+
+---
+
+#### 6.7.45 Partial Artifact 为什么不能直接消费
+
+假设 remote agent 正在生成：
+
+```text
+report.json
+```
+
+stream 中已经收到 80%。
+
+下游如果提前消费：
+
+```text
+Parser → Database Write
+```
+
+可能导致：
+
+```text
+partial data
+→ irreversible side effect
+```
+
+因此系统需要知道：
+
+- artifact 是否完整；
+- chunk 是否可重组；
+- 是否收到 completion signal；
+- downstream 是否允许 speculative consumption。
+
+稳定原则：
+
+> **Incremental Availability ≠ Commit Readiness**
+
+---
+
+#### 6.7.46 Resubscription：连接断了，不等于 Task 消失
+
+对于长任务：
+
+```text
+Task still working
+     +
+stream disconnected
+```
+
+这两个事实必须分开。
+
+错误实现：
+
+```text
+stream EOF
+→ mark task failed
+→ create new task
+```
+
+更合理的恢复：
+
+```text
+stream lost
+→ query / resubscribe existing task
+→ reconcile latest state
+→ continue observation
+```
+
+所以：
+
+> **Transport Liveness ≠ Task Liveness**
+
+---
+
+#### 6.7.47 Push / Async Update：断开连接后仍需考虑任务继续执行
+
+异步任务常见场景：
+
+```text
+Client submits
+→ disconnects
+→ Remote Agent continues
+→ later status / result becomes available
+```
+
+这要求调用方区分：
+
+```text
+client session lifecycle
+remote task lifecycle
+```
+
+二者不能绑定成：
+
+```text
+client connection gone
+→ task must stop
+```
+
+否则长期任务会非常脆弱。
+
+---
+
+#### 6.7.48 Cancellation 是协议动作，不是时间倒流
+
+Cancel Task 最容易被误解成：
+
+```text
+取消成功
+= 世界恢复到任务开始前
+```
+
+实际可能是：
+
+```text
+Step 1: email sent
+Step 2: DB updated
+Step 3: user cancels
+```
+
+此时即使 Task 进入 canceled：
+
+```text
+previous side effects may remain
+```
+
+因此：
+
+> **Cancellation ≠ Rollback**
+
+需要额外考虑：
+
+- side-effect boundary；
+- compensating action；
+- partial completion；
+- external reconciliation。
+
+---
+
+#### 6.7.49 Retry 的核心问题不是“再发一次”
+
+远程 Agent interaction 中 retry 的关键是：
+
+```text
+第一次到底发生了什么？
+```
+
+如果答案不确定：
+
+```text
+timeout
+→ retry
+```
+
+可能产生：
+
+```text
+duplicate task
+duplicate work
+duplicate side effect
+```
+
+所以 retry policy 必须考虑：
+
+- idempotency；
+- task identity；
+- deduplication；
+- retry scope；
+- side-effect semantics；
+- reconciliation。
+
+---
+
+#### 6.7.50 Request Retry ≠ Task Retry ≠ Business Retry
+
+这三个层次必须分开：
+
+```text
+Request Retry
+= 网络 / transport 层重新发送
+
+Task Retry
+= 重新执行 remote work unit
+
+Business Retry
+= 重新尝试真实业务动作
+```
+
+它们的风险完全不同。
+
+例如：
+
+```text
+GET task status retry
+```
+
+通常比较安全。
+
+而：
+
+```text
+Create new payment task retry
+```
+
+可能造成真实重复付款。
+
+---
+
+#### 6.7.51 Idempotency：协议可靠性与业务正确性的连接点
+
+如果一个动作可能被重复提交，就需要问：
+
+```text
+重复执行是否产生相同最终效果？
+```
+
+理想情况下可以通过：
+
+- stable request identity；
+- idempotency key；
+- deduplication record；
+- task lookup；
+- conditional write；
+
+降低 duplicate effect。
+
+但：
+
+> **A2A 互操作协议本身不应被误解成自动为所有业务动作提供 exactly-once semantics。**
+
+业务副作用仍需要 runtime / application 层保证。
+
+---
+
+#### 6.7.52 Authentication 与 Authorization 必须分开
+
+Authentication 回答：
+
+```text
+你是谁？
+```
+
+Authorization 回答：
+
+```text
+你被允许做什么？
+```
+
+一个 caller 即使成功认证，也不代表它有权：
+
+- 调所有 skill；
+- 读取所有 artifact；
+- cancel 所有 task；
+- 使用所有 tenant；
+- 触发高风险 side effect。
+
+因此：
+
+> **Authenticated ≠ Authorized**
+
+---
+
+#### 6.7.53 Agent Card 中声明安全需求，不等于把 secret 放进 Card
+
+Agent Card 可以声明：
+
+```text
+需要 OAuth2
+需要 Bearer token
+需要 mTLS
+```
+
+但 Card 不应该成为静态秘密分发器。
+
+正确思路更接近：
+
+```text
+Card describes security scheme
+      ↓
+Client obtains credential through proper auth flow
+      ↓
+Credential sent through security boundary
+```
+
+因此要区分：
+
+```text
+Security Metadata
+      ≠
+Credential Material
+```
+
+---
+
+#### 6.7.54 Agent Card 也可能是敏感资产
+
+能力卡中可能暴露：
+
+- internal endpoint；
+- provider identity；
+- private skills；
+- supported interfaces；
+- organization capability topology。
+
+因此企业环境中不一定应该让所有 Card 公共可见。
+
+可能需要：
+
+```text
+Authenticated Card
+Extended Card
+Registry-level ACL
+Selective Disclosure
+Network Boundary
+```
+
+所以：
+
+> **Discoverability itself is a permission decision.**
+
+---
+
+#### 6.7.55 Card Cache：性能优化也会制造陈旧能力视图
+
+Agent Card 通常变化不频繁，因此缓存很自然。
+
+但 stale Card 可能导致：
+
+```text
+old endpoint
+old auth requirement
+removed skill
+changed interface
+outdated version
+```
+
+因此 caching 需要：
+
+- expiry；
+- validation；
+- ETag / conditional retrieval；
+- failure-triggered refresh。
+
+这和 Chapter 4 的 freshness 原则一致：
+
+> **Cached ≠ Current**
+
+---
+
+#### 6.7.56 Signed Agent Card 能证明什么，不能证明什么
+
+签名主要帮助验证：
+
+```text
+content integrity
+claimed signing identity / authenticity
+```
+
+但不能直接证明：
+
+```text
+Agent is safe
+Agent output is correct
+skill is suitable
+provider is trusted by your policy
+runtime is uncompromised
+```
+
+因此：
+
+```text
+Signature Valid
+      ≠
+Business Trust Granted
+```
+
+Trust 仍然需要本地 policy、identity governance、risk classification 与 verification。
+
+---
+
+#### 6.7.57 Remote Agent 是一个新的 Trust Boundary
+
+一旦把任务交给 remote agent，就意味着：
+
+```text
+你的数据
+你的目标
+你的约束
+你的权限意图
+```
+
+跨越了新的系统边界。
+
+因此必须重新审视：
+
+- data classification；
+- least privilege；
+- tenant isolation；
+- credential scope；
+- allowed side effects；
+- output trust；
+- provenance；
+- retention；
+- auditability。
+
+不能因为“对方也是 Agent”就降低安全要求。
+
+---
+
+#### 6.7.58 Prompt Injection 可以跨 Agent 传播
+
+典型链路：
+
+```text
+Web content
+  ↓
+Agent B ingests malicious instruction
+  ↓
+Agent B artifact / message
+  ↓
+Agent A treats it as trusted context
+  ↓
+Agent A performs unsafe action
+```
+
+因此跨 Agent message 必须继承 Chapter 3 / 4 的 Observation 边界：
+
+> **Remote Agent Output ≠ Trusted Instruction**
+
+需要区分：
+
+- data；
+- instruction；
+- authority；
+- provenance；
+- trust level。
+
+---
+
+#### 6.7.59 Remote Agent 的“建议”不能自动升级成权限
+
+例如 remote agent 返回：
+
+```text
+"下一步请执行 delete_account(user=123)"
+```
+
+调用方不能因为它来自一个 authenticated agent 就直接执行。
+
+仍需本地 Harness 判断：
+
+```text
+Is this action allowed?
+Does user intent authorize it?
+Is approval required?
+Is target correct?
+Can it be verified?
+```
+
+因此：
+
+> **Delegated Reasoning ≠ Delegated Authority**
+
+---
+
+#### 6.7.60 Capability Confusion：描述相似，不等于语义相同
+
+两个 Agent 都可能声明：
+
+```text
+skill = "book travel"
+```
+
+但一个可能：
+
+```text
+只生成 itinerary
+```
+
+另一个可能：
+
+```text
+真实下单并扣款
+```
+
+因此 routing 不能只看 lexical similarity。
+
+需要关注：
+
+- preconditions；
+- effect semantics；
+- authorization scope；
+- output contract；
+- success criteria；
+- side-effect level。
+
+这和 Tool Selection 中的 capability semantics 是同一个问题。
+
+---
+
+#### 6.7.61 Semantic Interoperability 比 Syntax Interoperability 更难
+
+A2A 可以让两个系统都理解：
+
+```text
+Task
+Message
+Artifact
+```
+
+但它们对业务语义的理解仍可能不同。
+
+例如：
+
+```text
+"customer"
+"approved"
+"completed"
+"high priority"
+```
+
+在两个组织中可能含义不同。
+
+因此：
+
+> **Schema Compatibility ≠ Semantic Compatibility**
+
+真正跨组织时还需要：
+
+- shared ontology；
+- domain contract；
+- explicit constraints；
+- test cases；
+- conformance suite。
+
+---
+
+#### 6.7.62 Protocol Success ≠ Task Success
+
+协议层成功可能只是：
+
+```text
+HTTP success
+message accepted
+task created
+```
+
+任务层成功则是：
+
+```text
+remote agent achieved delegated objective
+```
+
+业务层成功还要继续问：
+
+```text
+user's actual goal satisfied?
+```
+
+因此至少分三层：
+
+```text
+Transport / Protocol Success
+          ↓
+Remote Task Success
+          ↓
+End-to-End Goal Success
+```
+
+每一层都需要独立指标。
+
+---
+
+#### 6.7.63 A2A Failure Taxonomy：先定位失败层
+
+一次 remote-agent failure 可以来自：
+
+```text
+1. Discovery Failure
+2. Capability Resolution Failure
+3. Trust / Policy Failure
+4. Authentication Failure
+5. Authorization Failure
+6. Compatibility Failure
+7. Transport Failure
+8. Message Validation Failure
+9. Task Creation Failure
+10. Remote Execution Failure
+11. State Synchronization Failure
+12. Artifact Failure
+13. Verification Failure
+14. Coordination Failure
+15. End-to-End Goal Failure
+```
+
+如果不做 failure localization，最后往往只得到：
+
+```text
+"A2A 不稳定"
+```
+
+这种结论几乎没有工程价值。
+
+---
+
+#### 6.7.64 Discovery Failure
+
+可能包括：
+
+```text
+Agent Card 找不到
+registry recall 不足
+Card 被权限过滤
+Card cache stale
+skill description 不可检索
+```
+
+评测时应该区分：
+
+```text
+Agent exists
+        ↓
+Agent discoverable
+        ↓
+retriever recalls Agent
+        ↓
+selector chooses Agent
+```
+
+这和 Tool Discovery 的 oracle decomposition 完全同构。
+
+---
+
+#### 6.7.65 Capability Resolution Failure
+
+Agent 被发现了，但系统错误判断其能力。
+
+例如：
+
+```text
+Task requires actual refund
+Agent only supports refund explanation
+```
+
+表面上 skill 文本相似，实际 effect contract 不匹配。
+
+因此可以评估：
+
+- capability precision；
+- capability recall；
+- effect-level compatibility；
+- required precondition coverage。
+
+---
+
+#### 6.7.66 Authentication / Authorization Failure
+
+典型问题：
+
+```text
+credential expired
+wrong audience
+insufficient scope
+wrong tenant
+consent missing
+policy denies high-risk action
+```
+
+不要统一归入：
+
+```text
+remote agent unavailable
+```
+
+因为恢复策略完全不同。
+
+---
+
+#### 6.7.67 Compatibility Failure
+
+即使双方都支持 A2A，也可能因为：
+
+- protocol version；
+- binding；
+- extension；
+- input mode；
+- output mode；
+- media type；
+
+而无法正确交互。
+
+所以互操作测试必须覆盖：
+
+```text
+Client × Server × Version × Binding × Extension
+```
+
+而不能只验证一个 happy path。
+
+---
+
+#### 6.7.68 Task State Desynchronization
+
+Client 认为：
+
+```text
+Task = working
+```
+
+Remote side 已经：
+
+```text
+Task = completed
+```
+
+或者反过来。
+
+原因可能是：
+
+- lost event；
+- stale cache；
+- stream disconnect；
+- delayed update；
+- race condition。
+
+因此状态同步需要：
+
+```text
+correlation
+latest-state reconciliation
+timestamp / version awareness
+terminal-state confirmation
+```
+
+---
+
+#### 6.7.69 Duplicate Submission
+
+典型链路：
+
+```text
+send message
+→ timeout
+→ client assumes failure
+→ retry as new task
+→ both tasks execute
+```
+
+如果任务只是写报告，可能浪费计算。
+
+如果任务是：
+
+```text
+book flight
+send email
+charge account
+```
+
+就可能造成真实 damage。
+
+所以必须分别统计：
+
+```text
+Duplicate Task Rate
+Duplicate Work Rate
+Duplicate Side-effect Rate
+```
+
+---
+
+#### 6.7.70 Cancellation Race
+
+可能出现：
+
+```text
+Client: cancel task
+Remote: commits side effect
+Server: marks canceled
+```
+
+此时：
+
+```text
+status = canceled
+```
+
+并不能回答：
+
+```text
+side effect happened or not?
+```
+
+因此 cancellation correctness 必须结合 effect reconciliation，而不是只看 terminal state。
+
+---
+#### 6.7.71 Artifact Failure
+
+Artifact failure 不只有“文件没返回”。
+
+还包括：
+
+```text
+missing artifact
+partial artifact
+schema-invalid artifact
+wrong artifact version
+stale artifact
+corrupted artifact
+untrusted artifact
+artifact belongs to wrong task
+artifact contradicts completion state
+```
+
+因此 Artifact evaluation 应至少检查：
+
+- presence；
+- completeness；
+- validity；
+- provenance；
+- task association；
+- semantic correctness。
+
+---
+
+#### 6.7.72 False Completion：最危险的 remote success
+
+最危险的状态之一不是显式 failure，而是：
+
+```text
+Task = completed
+Artifact = returned
+But real objective = not achieved
+```
+
+例如：
+
+```text
+"ticket created"
+```
+
+实际上只是生成了一段模拟 ticket text。
+
+这就是：
+
+> **False Success / False Completion**
+
+它要求上游做 outcome verification，而不是只相信 remote status。
+
+---
+
+#### 6.7.73 Remote Status ≠ Ground Truth
+
+Remote Agent 的 status 是对方系统提供的 observation。
+
+它可能：
+
+- 正确；
+- stale；
+- delayed；
+- buggy；
+- overly optimistic；
+- semantically different from local definition。
+
+所以延续 Chapter 3 的原则：
+
+> **Tool Result ≠ Observation ≠ Ground Truth**
+
+在 A2A 中对应为：
+
+> **Remote Status / Artifact ≠ Verified Environment State**
+
+---
+
+#### 6.7.74 Recovery 的第一步通常是 Reconciliation
+
+遇到：
+
+```text
+timeout
+stream drop
+unknown state
+partial response
+```
+
+不应首先问：
+
+```text
+"要不要 retry？"
+```
+
+而应先问：
+
+```text
+"远端当前真实 task state 是什么？"
+```
+
+因此推荐恢复链路：
+
+```text
+Failure / Ambiguity
+      ↓
+Reconcile Existing Task
+      ↓
+Recover Latest State / Artifact
+      ↓
+Check Side Effects
+      ↓
+Then choose:
+   resume / retry / cancel / compensate / reroute / escalate
+```
+
+---
+
+#### 6.7.75 Retry、Resume、Reroute、Compensate 是四种不同恢复动作
+
+**Retry**：重新尝试当前操作。
+
+**Resume**：继续同一个已有 Task。
+
+**Reroute**：把目标交给另一个 Agent。
+
+**Compensate**：对已经发生的副作用执行补偿。
+
+不能混成：
+
+```text
+失败了 → 再来一次
+```
+
+因为跨 Agent 长任务常常已经改变外部世界。
+
+---
+
+#### 6.7.76 Reroute 前必须知道原任务是否仍活着
+
+危险模式：
+
+```text
+Agent B timeout
+→ immediately delegate same task to Agent C
+→ B recovers and completes
+→ C also completes
+```
+
+最终可能出现 double effect。
+
+因此 reroute 前需要明确：
+
+```text
+Can B be canceled?
+Was B already committed?
+Is task idempotent?
+Can results coexist?
+```
+
+这本质上仍是 Coordination Failure 的一部分。
+
+---
+
+#### 6.7.77 A2A 与 6.6 Coordination Failure 的关系
+
+A2A 可以让任务跨 Agent 边界更标准地传播，但它不会自动维持全局 invariant。
+
+例如：
+
+```text
+Supervisor
+   ├── A2A → Agent B
+   └── A2A → Agent C
+```
+
+协议可能全部成功，但仍可能出现：
+
+- duplicate assignment；
+- conflicting writes；
+- dependency violation；
+- stale ownership；
+- premature termination；
+- split-brain decision。
+
+所以：
+
+> **A2A standardizes interaction; Coordination logic preserves global correctness.**
+
+---
+
+#### 6.7.78 A2A 与 Shared / Private Context 的关系
+
+A2A 不应该被理解成：
+
+```text
+"把两个 Agent 的全部 Context 合并"
+```
+
+更合理的是：
+
+```text
+Private State A
+     ↓ selective projection
+A2A Message / Task
+     ↓
+Private State B
+```
+
+因此跨 Agent context sharing 仍遵循 6.5 的原则：
+
+> **Minimal Sufficient Visibility**
+
+只传当前任务真正需要的：
+
+- goal；
+- constraints；
+- necessary evidence；
+- correlation IDs；
+- output contract。
+
+而不是把全部 history、memory、secret 都发送过去。
+
+---
+
+#### 6.7.79 A2A 与 Capability Discovery 的关系
+
+第 5 章已经建立：
+
+```text
+Capability Universe
+→ Discovery
+→ Candidate Action Space
+→ Selection
+```
+
+A2A 将其中一个 capability category 扩展成：
+
+```text
+Remote Agents
+```
+
+因此完整路由可以是：
+
+```text
+Current Goal / State
+       ↓
+Need local tool, skill, workflow, or remote agent?
+       ↓
+Capability Discovery
+       ↓
+Candidate Tools / Skills / Agents
+       ↓
+Policy + Trust + Cost + Risk
+       ↓
+Selection
+       ↓
+Local execution or A2A delegation
+```
+
+A2A 不应绕过统一 capability governance。
+
+---
+
+#### 6.7.80 Agent Registry 不应直接变成模型的无限菜单
+
+随着 remote agents 增加：
+
+```text
+10 agents
+100 agents
+10,000 agents
+```
+
+把所有 Agent Card 直接放进 prompt 会导致：
+
+- context explosion；
+- selection confusion；
+- security exposure；
+- irrelevant capability noise；
+- stale descriptions。
+
+因此应该复用：
+
+> **Minimal Sufficient Capability Exposure**
+
+即先通过 registry / retriever / policy 缩小 candidate set，再让模型做最终选择。
+
+---
+
+#### 6.7.81 最小生产级 A2A Client 应拥有什么
+
+一个可靠 client 不只是：
+
+```text
+send_message()
+```
+
+至少需要：
+
+```text
+Agent Discovery
+Capability / Interface Resolution
+Authentication
+Authorization / Policy Check
+Task Correlation
+State Tracking
+Timeout Handling
+Retry / Reconciliation
+Artifact Validation
+Outcome Verification
+Tracing / Audit
+Cost / Latency Accounting
+```
+
+因此 A2A client 本身最终仍会落入 Chapter 7 Harness 的治理范围。
+
+---
+
+#### 6.7.82 最小生产级 A2A Server 应拥有什么
+
+Remote side 至少需要清晰处理：
+
+- Agent Card lifecycle；
+- interface/version declaration；
+- authentication；
+- authorization；
+- message validation；
+- task identity；
+- task state transitions；
+- cancellation；
+- streaming / async update；
+- artifact publication；
+- audit；
+- isolation；
+- failure semantics。
+
+否则只是：
+
+```text
+"套了一个 A2A endpoint"
+```
+
+而不是可靠 remote-agent service。
+
+---
+
+#### 6.7.83 Deterministic Shell 仍然适用于 A2A
+
+即使 remote agent 内部高度自治，跨边界治理最好尽可能确定性：
+
+```text
+Model decides whether delegation is useful
+      ↓
+Deterministic policy checks authorization
+      ↓
+Deterministic protocol client submits
+      ↓
+Remote agent executes autonomously
+      ↓
+Deterministic state machine tracks status
+      ↓
+Verifier evaluates artifact / outcome
+```
+
+所以仍然遵循：
+
+> **把不确定性留给语义决策，把协议、权限、状态机和副作用保护尽可能留给确定性系统。**
+
+---
+
+#### 6.7.84 Human Approval 应该放在哪里
+
+高风险 A2A delegation 可能需要人工批准。
+
+常见 gate：
+
+```text
+Before delegation
+→ 是否允许把敏感数据交给 remote agent？
+
+Before high-risk remote action
+→ 是否允许产生真实副作用？
+
+Before accepting result
+→ 是否允许把结果提交到下游关键系统？
+```
+
+Human approval 不是简单插一个聊天框，而是：
+
+```text
+Policy-defined state transition
+```
+
+必须能被 audit。
+
+---
+
+#### 6.7.85 Observability：需要跨 Agent 的 causal trace
+
+如果一次任务经过：
+
+```text
+Agent A
+  ↓ A2A
+Agent B
+  ↓ Tool
+Database
+  ↓
+Agent B
+  ↓ A2A
+Agent A
+```
+
+仅看单个服务日志无法解释完整 failure chain。
+
+至少需要关联：
+
+- parent goal / run ID；
+- delegation ID；
+- task ID；
+- message ID；
+- context ID；
+- remote trace / span；
+- tool calls；
+- artifact IDs；
+- verification result。
+
+目标不是记录所有内部思维，而是恢复：
+
+> **谁在什么状态下，把什么任务交给谁，发生了什么外部动作，返回了什么，最终为什么成功或失败。**
+
+---
+
+#### 6.7.86 最小 Trace 结构
+
+可以抽象为：
+
+```text
+Run R
+ └── Delegation D1
+      ├── discover Agent B
+      ├── select interface
+      ├── submit Message M1
+      ├── Task T1 created
+      ├── state: submitted
+      ├── state: working
+      ├── Artifact A1
+      ├── state: completed
+      ├── verify A1
+      └── accept / reject result
+```
+
+这比仅保存：
+
+```text
+"Agent B returned success"
+```
+
+有高得多的诊断价值。
+
+---
+
+#### 6.7.87 A2A Evaluation 不应只做 connectivity test
+
+最弱的评测是：
+
+```text
+Can client connect to server?
+```
+
+但生产级互操作还需要评估：
+
+```text
+Discovery
+Compatibility
+Routing
+Authentication
+Task semantics
+State synchronization
+Artifact integrity
+Recovery
+Security
+End-to-end correctness
+```
+
+因此 A2A evaluation 应该是 protocol + behavior + outcome 三层。
+
+---
+
+#### 6.7.88 Discovery 指标
+
+可以评估：
+
+```text
+Agent Discovery Recall
+Agent Discovery Precision
+Relevant Agent Recall@K
+Stale Card Rate
+Unauthorized Exposure Rate
+```
+
+其中最关键的是：
+
+> **如果正确 Agent 没进入 candidate set，后面的 selector 不可能修复。**
+
+因此 Discovery Recall 仍然是 downstream selection 的上界之一。
+
+---
+
+#### 6.7.89 Selection / Routing 指标
+
+在 candidate set 已包含正确 Agent 后，可以评估：
+
+```text
+Agent Selection Accuracy
+Top-k Routing Accuracy
+Wrong-Agent Delegation Rate
+Unnecessary Remote Delegation Rate
+Abstention Accuracy
+```
+
+对于高风险系统，还应看：
+
+```text
+Risk–Coverage
+```
+
+即系统在不同 delegation coverage 下的错误率与收益。
+
+---
+
+#### 6.7.90 Interoperability Matrix
+
+真正验证协议兼容，应覆盖：
+
+```text
+Client implementation
+× Server implementation
+× protocol version
+× protocol binding
+× security scheme
+× extension set
+```
+
+可以形成矩阵：
+
+| Client | Server | Binding | Version | Auth | Result |
+|---|---|---|---|---|---|
+| C1 | S1 | HTTP+JSON | 1.x | OAuth | PASS |
+| C1 | S2 | gRPC | 1.x | mTLS | PASS |
+| C2 | S1 | HTTP+JSON | 1.x | OAuth | FAIL |
+
+这样才能发现真正的 cross-implementation failure。
+
+---
+
+#### 6.7.91 Task Lifecycle 指标
+
+值得长期保留的指标包括：
+
+```text
+Task Acceptance Rate
+Task Completion Rate
+Task Failure Rate
+Task Rejection Rate
+Cancellation Success Rate
+Input-required Rate
+Auth-required Rate
+Unknown-state Rate
+Median / P95 Task Duration
+State Staleness Rate
+```
+
+但这些都不能单独替代 end-to-end correctness。
+
+---
+
+#### 6.7.92 Reliability 指标
+
+对于 fault-prone distributed execution，可额外统计：
+
+```text
+Duplicate Task Rate
+Duplicate Effect Rate
+Lost Update Rate
+Recovery Success Rate
+Resubscription Success Rate
+Retry Amplification
+False Completion Rate
+Artifact Corruption Rate
+```
+
+这里尤其应该保留：
+
+> **Duplicate Work 与 Duplicate Effect 分开。**
+
+前者主要浪费资源，后者可能真正破坏环境。
+
+---
+
+#### 6.7.93 Cost / Latency 指标
+
+Remote delegation 不是免费的。
+
+总成本可能包括：
+
+```text
+Discovery latency
+Authentication latency
+Network latency
+Remote inference cost
+Remote tool cost
+Queue delay
+Streaming overhead
+Verification cost
+Retry cost
+```
+
+因此比较：
+
+```text
+Local execution
+vs
+Remote Agent delegation
+```
+
+应看 Pareto trade-off：
+
+```text
+Quality × Reliability × Cost × Latency
+```
+
+而不是只问“多 Agent 更强吗”。
+
+---
+
+#### 6.7.94 Fault Injection：A2A 特别适合做系统性故障注入
+
+可以主动注入：
+
+```text
+stale Agent Card
+wrong protocol version
+expired credential
+stream disconnect
+lost terminal event
+delayed artifact
+duplicate delivery
+remote timeout
+cancellation race
+partial artifact
+```
+
+然后观察：
+
+```text
+Does system detect?
+Does it reconcile?
+Does it retry safely?
+Does it avoid duplicate effects?
+Does it escalate correctly?
+```
+
+这比只跑 happy-path benchmark 更接近真实可靠性。
+
+---
+
+#### 6.7.95 Oracle Decomposition：到底是哪一层限制了表现
+
+当 A2A 系统成功率不高时，可以构造 oracle：
+
+```text
+Oracle Discovery
+Oracle Agent Selection
+Oracle Compatibility
+Oracle Task Execution
+Oracle Artifact Verification
+```
+
+例如：
+
+```text
+real system = 68%
+oracle discovery = 71%
+oracle routing = 82%
+oracle remote execution = 91%
+```
+
+就可以判断主要瓶颈在哪一层。
+
+避免把所有失败都归因于模型“不会合作”。
+
+---
+
+#### 6.7.96 一个完整示例：Research Agent 委派 Data Agent
+
+用户要求：
+
+```text
+分析公司过去四季度营收，并给出趋势解释。
+```
+
+Research Agent 发现自己没有内部财务库权限。
+
+可能流程：
+
+```text
+Research Agent
+   ↓ discover
+Finance Data Agent Card
+   ↓ skill / policy check
+skill = quarterly_financial_data
+   ↓ auth
+obtain scoped credential
+   ↓ A2A message
+request company + periods + fields
+   ↓
+Finance Data Agent
+   ↓
+Task T42 = submitted
+   ↓
+working
+   ↓
+Artifact: financials.json
+   ↓
+completed
+   ↓
+Research Agent validates schema + periods + provenance
+   ↓
+uses data for analysis
+   ↓
+final answer
+```
+
+这里 A2A 负责的是：
+
+```text
+remote agent boundary
+```
+
+真正最终答案质量仍取决于：
+
+```text
+discovery + selection + finance data correctness + verification + research reasoning
+```
+
+---
+
+#### 6.7.97 同一个例子里可能出现哪些失败
+
+可以沿链路逐层定位：
+
+```text
+1. Finance Agent 未被 discover
+2. 发现了但选错另一个 Agent
+3. credential scope 不够
+4. interface version 不兼容
+5. task 被创建但排队过久
+6. stream 断开
+7. artifact 少一个季度
+8. task 标记 completed
+9. Research Agent 未校验 artifact
+10. 最终分析基于缺失数据
+```
+
+如果最后只标：
+
+```text
+Answer Wrong
+```
+
+几乎无法指导改进。
+
+---
+
+#### 6.7.98 什么时候根本不需要 A2A
+
+不要把 A2A 当成 Agent 系统的默认必选组件。
+
+如果：
+
+```text
+单进程内部 worker
+同一框架中的简单 subagent
+固定、稳定、低延迟内部调用
+普通工具能力即可表达
+```
+
+直接 function / internal RPC / workflow 可能更简单。
+
+使用 A2A 的合理条件通常是：
+
+```text
+真正存在独立 agent boundary
++
+需要可移植 interoperability contract
+```
+
+这与整本书的原则一致：
+
+> **不要为了 agentic form 引入不必要的系统复杂度。**
+
+---
+
+#### 6.7.99 A2A 的 Complexity Tax
+
+引入 remote Agent 会增加：
+
+- network boundary；
+- failure modes；
+- auth；
+- task state；
+- tracing；
+- cost attribution；
+- version compatibility；
+- data governance；
+- coordination；
+- recovery。
+
+所以必须证明：
+
+```text
+remote-agent autonomy / specialization / ownership benefit
+>
+integration + coordination + reliability cost
+```
+
+否则直接使用 Tool / Workflow 可能更好。
+
+---
+
+#### 6.7.100 2026 的关键变化：A2A 已从早期草案走向稳定协议栈
+
+截至 2026 年，A2A 的重要演进不是“又多了一个 Agent 框架”，而是互操作协议逐渐成熟：
+
+- v1.0 被定位为稳定、production-ready 的主版本；
+- v1.x 更明确区分 semantic model 与 protocol bindings；
+- Agent Card 使用更明确的 interface declaration；
+- 标准 binding 不再只围绕单一 JSON-RPC 形态；
+- compatibility / version negotiation 更成为一等问题；
+- 社区继续推进 v1.1、BiDi streaming、multi-turn / elicitation、validation 与 TCK 等方向。
+
+因此学习 A2A 时不要把早期某个 SDK 代码片段当成长期定义。
+
+应该抓住稳定核心：
+
+> **Discovery + Contract + Task Lifecycle + Message / Artifact + Security + Interoperability**
+
+---
+
+#### 6.7.101 不要死记某个 transport 细节
+
+协议会继续演化。
+
+长期稳定的知识优先级应是：
+
+```text
+第一层：为什么需要 Agent interoperability
+第二层：Agent Card / Message / Task / Artifact 语义
+第三层：discovery / trust / task lifecycle / recovery
+第四层：protocol binding / SDK / concrete endpoint
+```
+
+面试和工程中最有价值的是前三层。
+
+第四层需要使用时查当前 specification。
+
+---
+
+#### 6.7.102 A2A 的核心设计哲学
+
+可以压缩成六句话：
+
+1. **Agent 可以互操作，而不需要暴露内部实现。**
+2. **能力发现必须先于远程委派。**
+3. **长任务需要显式 lifecycle，而不是假装一次 RPC 就结束。**
+4. **Message 用于交互，Artifact 用于交付。**
+5. **协议成功不等于任务成功，更不等于用户目标成功。**
+6. **跨 Agent 边界必须重新建立 trust、policy、verification 与 observability。**
+
+---
+
+#### 6.7.103 A2A 面试最常见的一阶问题
+
+**Q：A2A 是什么？**
+
+高质量回答：
+
+> A2A 是面向独立 Agent 系统之间通信与互操作的开放协议。它通过 Agent Card 描述能力和连接方式，通过 Message / Part 交换信息，通过 stateful Task 管理长任务，并通过 Artifact 交付结果。它标准化跨 Agent 的交互边界，但不替代 Agent 内部推理、delegation policy、coordination、trust 或 outcome verification。
+
+---
+
+#### 6.7.104 二阶追问：A2A 和 MCP 有什么区别
+
+不要只回答：
+
+```text
+MCP 连工具，A2A 连 Agent
+```
+
+应该继续解释：
+
+```text
+MCP 主要解决 Host / Agent 如何以标准方式连接 Tool、Resource 等 capability；
+A2A 主要解决独立 agentic application 如何发现对方、交换消息、委派与跟踪 stateful task、接收 artifact。
+```
+
+最后补一句：
+
+> 两者可以组合：Agent B 可以通过 A2A 被 Agent A 调用，同时 Agent B 内部再通过 MCP 使用工具。
+
+---
+
+#### 6.7.105 二阶追问：为什么不能直接 REST API
+
+答案不是：
+
+```text
+REST 不行
+```
+
+而是：
+
+> 普通 REST 完全可以实现两个系统之间的连接；A2A 的价值是把 Agent 特有的 discovery、capability description、task lifecycle、message/artifact semantics、streaming/async 与 interoperability contract 标准化，从而减少每一对 Agent 都自定义协议的成本。
+
+因此：
+
+```text
+A2A is not magic transport
+A2A is standardized agent interaction semantics
+```
+
+---
+
+#### 6.7.106 三阶追问：Agent Card 能不能用来做 routing
+
+可以，但不能直接等同。
+
+合理流程是：
+
+```text
+Agent Card
+→ candidate capability representation
+→ retrieval / filter
+→ policy / trust / compatibility
+→ routing / selection
+```
+
+Card 是 routing evidence，不是 routing decision。
+
+---
+
+#### 6.7.107 三阶追问：Task completed 以后还要做什么
+
+至少回答：
+
+```text
+validate artifact
+verify business outcome
+check side effects
+update local state
+record provenance / trace
+```
+
+关键一句：
+
+> **Remote `completed` 是对端状态，不是调用方的最终 acceptance decision。**
+
+---
+
+#### 6.7.108 三阶追问：如何避免 timeout 后重复执行
+
+高质量答案应包含：
+
+```text
+stable task identity
+reconciliation before retry
+idempotency / deduplication
+side-effect-aware retry policy
+resume existing task when possible
+```
+
+而不是只说：
+
+```text
+exponential backoff
+```
+
+Backoff 解决请求压力，不解决重复副作用。
+
+---
+
+#### 6.7.109 三阶追问：如何评估 A2A 系统
+
+应该分层：
+
+```text
+Discovery
+→ relevant Agent recall
+
+Routing
+→ selection accuracy
+
+Interoperability
+→ client/server/version/binding compatibility
+
+Task Lifecycle
+→ completion / stale state / unknown state
+
+Reliability
+→ duplicate effect / recovery
+
+Outcome
+→ end-to-end goal correctness
+
+Efficiency
+→ cost / latency / critical path
+```
+
+这比“接口调通率”完整得多。
+
+---
+
+#### 6.7.110 一个稳定的系统边界图
+
+最终把 Chapter 3–6 连接起来：
+
+```text
+                         ┌─────────────────────┐
+                         │      Agent A        │
+                         │ Decision / Harness  │
+                         └───────┬───────┬─────┘
+                                 │       │
+                     MCP / Tool  │       │ A2A
+                                 ↓       ↓
+                    ┌──────────────┐  ┌─────────────────────┐
+                    │ Capability   │  │      Agent B        │
+                    │ Tool / Data  │  │ Decision / Harness  │
+                    └──────────────┘  └──────────┬──────────┘
+                                                │
+                                     MCP / Tool │
+                                                ↓
+                                      ┌─────────────────┐
+                                      │ Capability /    │
+                                      │ External System │
+                                      └─────────────────┘
+```
+
+其中：
+
+```text
+Tool Calling
+= model-facing action expression
+
+MCP
+= capability interoperability
+
+A2A
+= agent interoperability
+
+Harness
+= local policy / control / verification layer
+
+Runtime
+= actual execution layer
+```
+
+---
+
+#### 6.7.111 Chapter 6 的完整逻辑链
+
+到这里，Multi-Agent & Agent Interoperability 可以形成完整闭环：
+
+```text
+6.1 Why Multi-Agent?
+→ 什么时候值得引入多个 Agent
+
+6.2 Roles & Topologies
+→ 多个 Agent 如何组织
+
+6.3 Delegation
+→ 工作如何被交给别的 Agent
+
+6.4 Agent Communication
+→ 信息如何传递
+
+6.5 Shared / Private Context
+→ 谁能看到、相信、修改什么状态
+
+6.6 Coordination Failure
+→ 多个局部正确单元为什么仍会破坏全局正确性
+
+6.7 A2A
+→ 独立 Agent 系统如何跨实现 / 组织边界标准化互操作
+```
+
+因此 Chapter 6 不是在鼓励“Agent 越多越好”，而是在回答：
+
+> **当系统确实需要多个自治执行单元时，如何组织、委派、通信、控制可见性、维持全局一致性，并在跨系统边界上实现可靠互操作。**
+
+---
+
+#### 6.7.112 Chapter 6 最终原则：Autonomy 必须配套 Contract
+
+Agent 越自治，系统越不能只依赖“大家自己理解”。
+
+需要越来越清晰的：
+
+```text
+Capability Contract
+Delegation Contract
+Communication Contract
+State Contract
+Ownership Contract
+Effect Contract
+Interoperability Contract
+```
+
+因此：
+
+> **Autonomy without Contract produces ambiguity; Contract without verification produces false confidence.**
+
+---
+
+#### 6.7.113 Chapter 6 最终原则：Interoperability ≠ Shared Implementation
+
+真正的 interoperability 不是要求：
+
+```text
+大家使用同一个框架
+同一个模型
+同一个 memory
+同一个 tool stack
+```
+
+而是：
+
+```text
+内部实现可以不同
+但跨边界契约可以被共同理解
+```
+
+这正是 A2A 的长期价值。
+
+---
+
+#### 6.7.114 Chapter 6 最终原则：Local Autonomy + Global Invariants
+
+Multi-Agent 系统不是让每个 Agent 无限制自由行动。
+
+更准确的是：
+
+```text
+Local autonomy
+within
+Global invariants
+```
+
+A2A 扩大了可连接的自治单元范围，但全局 invariant 仍必须由 Harness、policy、runtime、coordination 与 verification 共同保护。
+
+---
+
+#### 6.7.115 Chapter 6 最终原则：Minimal Necessary Coordination
+
+跨 Agent 边界越多，同步所有信息的代价越高。
+
+因此仍然遵循 6.6 已建立的原则：
+
+> **只协调保护关键 invariant 所必需的状态、事件与决策。**
+
+不要因为使用 A2A 就把所有 Agent 变成全局共享状态系统。
+
+---
+
+#### 6.7.116 Chapter 6 最终原则：Minimal Sufficient Visibility
+
+Remote Agent 只应看到完成委派任务真正需要的信息。
+
+稳定目标：
+
+```text
+enough context to succeed
++
+minimum unnecessary exposure
+```
+
+这同时改善：
+
+- privacy；
+- security；
+- context efficiency；
+- semantic focus；
+- blast radius。
+
+---
+
+#### 6.7.117 Chapter 6 最终原则：Verify Across Boundaries
+
+系统边界越远，越不能把对端状态直接当成本地事实。
+
+因此：
+
+> **跨 Agent 边界的每一次关键结果，都应该有与风险相匹配的验证强度。**
+
+例如：
+
+```text
+low-risk summary
+→ lightweight schema / citation check
+
+payment / deletion / deployment
+→ strong external outcome verification
+```
+
+---
+
+#### 6.7.118 最终一句话
+
+如果只记住 A2A 一句话，可以记：
+
+> **A2A 让独立、可能彼此 opaque 的 Agent 通过标准契约发现彼此、交换消息、管理任务和交付产物；它解决互操作边界，但真正的可靠 Agent 系统仍必须在协议之外处理选择、权限、协调、恢复与验证。**
+
+---
+
+#### 6.7.119 参考资料
+
+1. A2A Protocol. *Specification v1.x*. 关于 Agent Card、Agent Interface、Message、Part、Task、Artifact、security scheme、protocol binding 与 interoperability 的规范定义。
+2. A2A Protocol. *Core Concepts*. 关于 Agent Card、Task、Message、Part、Artifact 与 context 的核心语义。
+3. A2A Protocol. *What is A2A?*. 关于 discovery、authentication、SendMessage / SendStreamingMessage 与完整请求生命周期。
+4. A2A Protocol. *Agent Discovery*. 关于 well-known URI、registry / catalog、direct configuration、Card security 与 caching。
+5. A2A Protocol. *Life of a Task*. 关于 stateless Message、stateful Task、contextId、interrupted / terminal state 与长任务生命周期。
+6. A2A Protocol. *Streaming & Asynchronous Operations*. 关于 streaming、artifact updates、断线与 resubscription 等异步执行语义。
+7. A2A Protocol. *What's New in v1.0*. 关于 v1.0 的 interface declaration、binding 与数据模型演进。
+8. A2A Protocol. *Roadmap*（2026-09）. 关于 v1.1、BiDi Streaming、Elicitation / Multi-Turn Workflows、validation 与 TCK 的后续方向。
+9. A2A Protocol / Agentic AI Foundation. *A New Chapter for A2A: Joining the Agentic AI Foundation*. 关于 A2A 的开放治理与跨框架互操作定位。
+10. OpenTelemetry. *Tracing Concepts and Semantic Conventions*. 关于跨服务 trace / span / correlation 与 distributed observability。
+11. OWASP. *LLM / Agentic AI Security Guidance*. 关于 excessive agency、prompt injection、跨 Agent trust boundary 与高风险副作用控制。
 
 概念边界：
 
 ```text
-MCP：Agent ↔ Capability / Data / Tool
-A2A：Agent ↔ Agent
+Tool
+= primitive capability
+
+Tool Calling
+= model-facing action expression
+
+MCP
+= Agent / Host ↔ Capability / Data / Tool interoperability
+
+A2A
+= Client / Agent ↔ Remote Agent interoperability
+
+Multi-Agent
+= system architecture with multiple autonomous decision units
+
+Delegation
+= policy decision to transfer responsibility for work
+
+Coordination
+= mechanisms that preserve global invariants across those units
+
+Harness
+= local control plane that decides what may happen and verifies what happened
+```
+
+最终必须保持：
+
+```text
+A2A ≠ Multi-Agent
+A2A ≠ Delegation Policy
+A2A ≠ Tool Calling
+A2A ≠ MCP
+Agent Card ≠ Trust Certificate
+Discovery ≠ Selection
+Task Completed ≠ User Goal Satisfied
+Artifact Returned ≠ Outcome Verified
+Protocol Success ≠ Task Success
+Remote Status ≠ Ground Truth
 ```
 
 ---
@@ -109071,7 +112634,7 @@ Model
 | II | 3. Tool Use & Action | 已完成：3.1–3.9 |
 | II | 4. Context, Memory & Retrieval | 已完成：4.1–4.6 |
 | II | 5. Capability Extension & Protocols | 已完成：5.1–5.4 |
-| II | 6. Multi-Agent & Agent Interoperability | 进行中：6.1–6.6 已完成；下一节 6.7 A2A |
+| II | 6. Multi-Agent & Agent Interoperability | 已完成：6.1–6.7；下一章 7. Agent Harness |
 | III | 7. Agent Harness | 待写 |
 | III | 8. Runtime & Infrastructure | 待写 |
 | III | 9. Observability & Evaluation | 待写 |
