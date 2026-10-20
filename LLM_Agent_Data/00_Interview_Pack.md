@@ -185,6 +185,8 @@ Eval / Verifier / Code Agent
 → C5
 ```
 
+这里的 C1 / C3 / C4 / C5 是 **Canonical Teaching Case / Practical Study**，适合练习“怎么把问题讲完整”，不等于个人项目经历。面试官如果追问“你实际做过什么”，必须切换到自己的 My Project / Frozen Result；尤其 C4 只能帮助组织 reasoning-intervention 结构，不能直接当作 RoTFuse / K17 的实验证据。
+
 不要准备十个浅案例。
 
 目标是任何案例都能讲到：
