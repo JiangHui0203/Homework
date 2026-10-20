@@ -1,0 +1,66 @@
+name: Apply Agent Chapter 6.4 Communication
+
+on:
+  push:
+    branches:
+      - agent-ch6-4-communication-20261020
+
+permissions:
+  contents: write
+
+jobs:
+  apply-section:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent-ch6-4-communication-20261020
+          fetch-depth: 0
+
+      - name: Replace 6.4 placeholder with staged section
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          target = Path('Agent_Knowledge_System.md')
+          staged = Path('.agent-work/ch6_4_communication.md')
+          text = target.read_text(encoding='utf-8')
+          section = staged.read_text(encoding='utf-8').rstrip()
+
+          needle = '### 6.4 Communication\n### 6.5 Shared / Private Context'
+          if text.count(needle) != 1:
+              raise SystemExit(f'expected exactly one 6.4 placeholder, found {text.count(needle)}')
+
+          replacement = section + '\n\n### 6.5 Shared / Private Context'
+          updated = text.replace(needle, replacement, 1)
+          target.write_text(updated, encoding='utf-8')
+
+          if updated.count('### 6.4 Communication') != 1:
+              raise SystemExit('6.4 heading count is not exactly one after replacement')
+          if updated.count('### 6.5 Shared / Private Context') != 1:
+              raise SystemExit('6.5 heading count is not exactly one after replacement')
+          if '#### 6.4.153 参考资料' not in updated:
+              raise SystemExit('6.4 terminal subsection missing')
+          PY
+
+      - name: Remove temporary staging files
+        shell: bash
+        run: |
+          rm -f .agent-work/ch6_4_communication.md
+          rmdir .agent-work 2>/dev/null || true
+          rm -f .github/workflows/apply-agent-ch6-4-communication.yml
+
+      - name: Validate and commit only final document change
+        shell: bash
+        run: |
+          git diff --check
+          test "$(git status --short | wc -l)" -ge 1
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "docs: complete Agent 6.4 Communication [skip ci]"
+          git push origin HEAD:agent-ch6-4-communication-20261020
