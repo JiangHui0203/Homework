@@ -1014,6 +1014,8 @@ A1 → A2 → A3 → A4 → System Fix
 
 # 10. 五类典型启动路径
 
+> Provenance boundary：本节的 C1 / C3 / C4 / C5 都是 **S3 Canonical Teaching Case / routing anchor**，用于说明“某类真实项目可以怎样进入系统”，不是该项目本身的 evidence。真实项目的 symptom、trajectory、population、result 与 cost 必须回到自己的 A1/A3/A7/A8 或 S2 Internal Research artifacts；Case Study 不能替代项目证据。
+
 ## Path A — Production Agent Failure
 
 ```text
@@ -1049,6 +1051,8 @@ Offline Oracle / Future Label
 Candidate Exists
 ≠ Candidate Selectable
 ```
+
+这里的 `C4` 只提供 teaching schema；如果讨论真实 RoTFuse / K17 threshold、population、Rescue / Harmful / Net 或成本，必须回到对应 frozen config / protocol / result artifact，不能引用 C4 Walkthrough 作为结果来源。
 
 ## Path C — Eval / Verifier / Human Gold
 
