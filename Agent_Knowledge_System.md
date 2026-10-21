@@ -114846,6 +114846,2638 @@ Harness = Agent SDK
 ---
 
 ### 7.2 Agent Loop Policy
+
+7.1 已经回答了：**Harness 是什么，以及它为什么是 Agent 的运行时控制层。**
+
+7.2 不再重复 Harness 的定义，而是进一步回答一个更具体的问题：
+
+> **一次 Agent run 到底怎样被持续驱动？什么时候应该再次调用模型，什么时候应该执行确定性逻辑、等待事件、验证结果、探索分支，什么时候必须停止？**
+
+Chapter 2.2 已经从 Agent 基础机制角度解释过：
+
+```text
+State → Decision → Action → Observation → State Update
+```
+
+这一节讨论的不是这个闭环“长什么样”，而是：
+
+> **谁拥有这个闭环的推进权，以及每一次状态转移应该依据什么 policy 发生。**
+
+---
+
+#### 7.2.1 Agent Loop Policy 到底是什么
+
+**Agent Loop Policy** 是 Harness 中负责控制 Agent run 生命周期与状态转移的策略层。
+
+它决定：
+
+```text
+当前 run 处于什么状态？
+现在是否需要新的 model decision？
+已有 action 是否应该先执行？
+是否必须等待外部事件？
+当前结果是否需要 verification？
+是否需要探索替代 branch？
+失败后是 retry、recover、escalate 还是 stop？
+当前是否仍在取得 progress？
+是否已经达到 terminal state？
+```
+
+最短定义可以写成：
+
+> **Loop Policy 决定 Agent run 的下一次合法状态转移。**
+
+因此：
+
+```text
+Agent Loop
+= 运行中的反馈闭环
+
+Loop Policy
+= 控制这个闭环何时、为何、向哪里推进的规则
+```
+
+---
+
+#### 7.2.2 Agent Loop ≠ Agent Loop Policy
+
+这是 Chapter 2.2 与 7.2 的核心边界。
+
+Chapter 2.2 主要回答：
+
+```text
+一个 Agent loop 由哪些基本元素组成？
+State / Observation / Decision / Action 如何流动？
+```
+
+7.2 主要回答：
+
+```text
+当前 state 下，下一步允许发生什么？
+是否真的需要再调用一次模型？
+何时应该 suspend，而不是继续循环？
+何时应该验证、分支或终止？
+怎样防止循环失控？
+```
+
+所以可以记成：
+
+```text
+Chapter 2.2 = loop mechanics
+Chapter 7.2 = loop control policy
+```
+
+---
+
+#### 7.2.3 一次 Agent run 的真正 Driver 是谁
+
+直觉上很容易把 Agent 理解成：
+
+```text
+LLM 想一步
+→ 调一个 Tool
+→ 再想一步
+→ 再调一个 Tool
+→ ...
+```
+
+但生产系统不能把整个 run 的推进权完全交给模型。
+
+更准确的结构是：
+
+```text
+Harness / Runner / Orchestrator
+        ↓
+inspect current state
+        ↓
+decide legal transition
+        ↓
+possibly call model
+        ↓
+possibly execute action
+        ↓
+update state
+        ↓
+repeat transition policy
+```
+
+因此：
+
+> **Model 可以提出下一步，但 Harness 才是 Agent run 的 driver。**
+
+模型可以说：
+
+```text
+我还需要继续搜索。
+```
+
+Loop Policy 仍然可以判断：
+
+```text
+budget exhausted
+same query repeated
+sufficient evidence already collected
+waiting for unavailable dependency
+risk threshold exceeded
+```
+
+并拒绝继续。
+
+---
+
+#### 7.2.4 Model Call 不是 Agent Loop 的“时钟”
+
+一种常见但危险的实现是：
+
+```python
+while not done:
+    response = call_model(state)
+```
+
+这相当于默认：
+
+> **只要任务还没结束，就应该再调用一次模型。**
+
+但很多状态转移根本不需要模型：
+
+```text
+等待异步任务完成
+检查固定 schema
+执行 deterministic retry
+读取已经完成的 tool result
+检查 deadline
+进行权限 gate
+做 idempotency reconciliation
+验证文件是否存在
+更新结构化计数器
+触发固定 fallback
+```
+
+因此更准确的原则是：
+
+> **Model Call 是一种昂贵的、语义型 transition，而不是 Loop 每一拍都必然发生的 heartbeat。**
+
+---
+
+#### 7.2.5 Loop Policy 的三个核心问题
+
+可以把整节压缩成三个问题。
+
+##### 问题一：当前应该推进吗？
+
+```text
+CONTINUE
+WAIT
+SUSPEND
+STOP
+```
+
+##### 问题二：如果推进，由谁推进？
+
+```text
+Model
+Deterministic Logic
+Tool / Runtime
+Verifier
+Human
+Subagent
+External Event
+```
+
+##### 问题三：推进到哪里？
+
+```text
+next action
+verification
+branch
+recovery
+approval
+terminal state
+```
+
+因此 Loop Policy 并不是简单的：
+
+```text
+continue = true / false
+```
+
+而是一个**状态转移选择器**。
+
+---
+
+#### 7.2.6 最小 Agent Loop State Machine
+
+可以先建立一张最小状态机：
+
+```text
+                         ┌──────────────┐
+                         │    READY     │
+                         └──────┬───────┘
+                                ↓
+                       ┌────────────────┐
+                       │ MODEL_DECISION │
+                       └───────┬────────┘
+                               ↓
+                       ┌────────────────┐
+                       │ ACTION_PROPOSED│
+                       └───────┬────────┘
+                               ↓
+                    validate / approve / route
+                               ↓
+                       ┌────────────────┐
+                       │   EXECUTING    │
+                       └───────┬────────┘
+                               ↓
+                       ┌────────────────┐
+                       │  OBSERVATION   │
+                       └───────┬────────┘
+                               ↓
+                       ┌────────────────┐
+                       │  STATE_UPDATE  │
+                       └───────┬────────┘
+                               ↓
+                    ┌──────────────────────┐
+                    │ TRANSITION_DECISION  │
+                    └──────────┬───────────┘
+          ┌──────────┬─────────┼─────────┬──────────┬─────────┐
+          ↓          ↓         ↓         ↓          ↓         ↓
+      CONTINUE     VERIFY     WAIT     BRANCH    RECOVER     STOP
+          │          │         │         │          │
+          └──────────┴─────────┴─────────┴──────────┘
+                              ↓
+                         next state
+```
+
+真实系统通常会更复杂，但这张图已经表达了一个重要原则：
+
+> **“下一次调用模型”只是众多 transition 中的一种。**
+
+---
+
+#### 7.2.7 Running、Waiting、Terminal 是三类根本不同的状态
+
+从生命周期角度，一个 run 至少要区分三大类状态。
+
+##### Running
+
+系统目前可以主动推进：
+
+```text
+READY
+DECIDING
+EXECUTING
+VERIFYING
+RECOVERING
+```
+
+##### Waiting / Suspended
+
+系统当前缺少外部条件：
+
+```text
+WAITING_FOR_USER
+WAITING_FOR_APPROVAL
+WAITING_FOR_TOOL
+WAITING_FOR_SUBAGENT
+WAITING_FOR_EVENT
+WAITING_UNTIL_TIME
+```
+
+##### Terminal
+
+当前 run 已不再继续：
+
+```text
+SUCCEEDED
+FAILED
+BLOCKED
+CANCELLED
+TIMED_OUT
+BUDGET_EXHAUSTED
+```
+
+最大的工程错误之一，就是把：
+
+```text
+WAITING
+```
+
+误当成：
+
+```text
+还没完成，所以继续 call model
+```
+
+---
+
+#### 7.2.8 Loop Policy 本质上是 Transition Policy
+
+可以把它抽象成：
+
+$$
+T_t = \Pi_{loop}(S_t, O_t, E_t, B_t, P_t)
+$$
+
+其中：
+
+- $S_t$：当前 durable / working state；
+- $O_t$：最新 observation；
+- $E_t$：当前可用 event；
+- $B_t$：剩余 budget；
+- $P_t$：权限、风险与系统 policy；
+- $T_t$：下一次 transition。
+
+$T_t$ 可以是：
+
+```text
+CALL_MODEL
+EXECUTE_ACTION
+VERIFY
+WAIT
+RESUME
+BRANCH
+RETRY
+RECOVER
+ESCALATE
+STOP
+```
+
+这里最重要的变化是：
+
+> **Loop Policy 的输出不是“自然语言答案”，而是下一次运行时 transition。**
+
+---
+
+#### 7.2.9 什么情况下应该再次调用模型
+
+Model Call 应该发生在**需要新的语义决策**时。
+
+常见触发条件包括：
+
+1. 新 observation 改变了当前决策条件；
+2. 上一个 action 已完成，需要决定下一步；
+3. 当前存在多个非确定性行动方案，需要语义判断；
+4. verifier 给出新的失败证据，需要决定如何修正；
+5. 用户提供了新的信息或约束；
+6. approval 返回后，需要重新规划剩余路径；
+7. branch 汇合后，需要综合多个结果；
+8. 当前 plan 已失效，需要 semantic replanning；
+9. 一个外部 event 改变了可行动状态。
+
+可以记成：
+
+```text
+new decision-relevant information
+        ↓
+semantic choice required
+        ↓
+CALL_MODEL
+```
+
+不是每个新字节、每个日志事件都值得一次 model call。
+
+---
+
+#### 7.2.10 什么情况下不应该调用模型
+
+下面这些情况通常优先由系统直接处理。
+
+##### Deterministic validation
+
+```text
+JSON schema valid?
+file exists?
+HTTP status == 200?
+checksum matches?
+required field present?
+```
+
+##### Mechanical retry
+
+```text
+429 + Retry-After
+transient network timeout
+known retryable database error
+```
+
+##### Fixed policy gate
+
+```text
+permission denied
+budget exhausted
+approval required
+capability unavailable
+```
+
+##### Passive waiting
+
+```text
+job still running
+user has not replied
+approval has not arrived
+scheduled time not reached
+```
+
+##### Deterministic completion check
+
+```text
+tests passed
+artifact exists
+record state == submitted
+expected count == actual count
+```
+
+原则是：
+
+> **能由可靠程序逻辑直接判断的 transition，不要为了“Agent 感”而强行再问一次模型。**
+
+---
+
+#### 7.2.11 Semantic Transition 与 Deterministic Transition 要分开
+
+一个成熟 Loop 应该同时存在两类 transition。
+
+##### Semantic Transition
+
+需要模型判断：
+
+```text
+下一步应该搜索哪个方向？
+两个证据冲突时更相信谁？
+当前失败是否需要换策略？
+怎样改写查询才能获得缺失信息？
+```
+
+##### Deterministic Transition
+
+系统规则已经足够：
+
+```text
+超过 retry_limit → STOP / RECOVER
+审批未完成 → WAIT
+测试失败 → VERIFY_FAILED
+任务到期 → TIMEOUT
+```
+
+因此：
+
+```text
+Loop Intelligence
+≠
+全部交给 LLM
+```
+
+更合理的是：
+
+```text
+Semantic uncertainty → Model
+Mechanical certainty → Code / Policy
+```
+
+---
+
+#### 7.2.12 Action–Observation Loop 真正怎样推进
+
+生产级闭环不应写成：
+
+```text
+Model → Tool → Model
+```
+
+而更接近：
+
+```text
+Current State
+    ↓
+Context Construction
+    ↓
+Model Decision
+    ↓
+Action Intent
+    ↓
+Validation / Permission / Approval
+    ↓
+Execution
+    ↓
+Raw Result
+    ↓
+Observation Construction
+    ↓
+State Update
+    ↓
+Progress / Verification Check
+    ↓
+Transition Policy
+    ↓
+next state
+```
+
+这里每个箭头都可能失败、等待、暂停或产生新的 policy decision。
+
+所以：
+
+> **Agent Loop 不是“LLM 与 Tool 对话”，而是 Harness 管理的一串显式状态转移。**
+
+---
+
+#### 7.2.13 Tool Result ≠ Observation ≠ Next Prompt
+
+7.1 已经说明 Raw Result 与 Observation 要区分。
+
+到了 Loop Policy 层，还要再多区分一步：
+
+```text
+Tool Result
+    ↓
+Observation Construction
+    ↓
+State Update
+    ↓
+Transition Decision
+    ↓
+possibly Build Next Context
+```
+
+因此 Tool 返回：
+
+```text
+job_id = 8472
+status = accepted
+```
+
+不能立刻机械变成：
+
+```text
+Assistant, here is the tool result. What next?
+```
+
+Loop Policy 应先判断：
+
+```text
+这是完成结果还是仅表示已接收？
+是否需要等待？
+是否需要 poll？
+是否已经存在 callback / webhook？
+是否应该把 job_id 存入 durable state？
+```
+
+---
+
+#### 7.2.14 Fresh Observation 才能闭合反馈回路
+
+Action 发生后，如果环境可能变化，就不能只依据旧 State 推理。
+
+例如：
+
+```text
+Agent: deploy service
+Runtime: command returned 0
+```
+
+Loop Policy 不应自动推断：
+
+```text
+service healthy
+```
+
+还可能需要：
+
+```text
+health check
+read deployment status
+verify endpoint
+inspect logs
+```
+
+因此：
+
+> **执行完成只是 transition 完成；任务进展需要新的 observation 证明。**
+
+这也是为什么 Loop Policy 与 Verification Policy 紧密连接，但二者不能混成一个概念。
+
+---
+
+#### 7.2.15 Pending Action 必须是一等状态
+
+如果 Tool 调用是异步的，Harness 需要显式保存：
+
+```text
+pending_action_id
+action_type
+submitted_at
+expected_completion_signal
+poll_policy / callback
+retry_count
+idempotency_key
+owner
+```
+
+否则下一轮模型很容易：
+
+- 忘记已有任务正在执行；
+- 重复提交相同 action；
+- 错把“submitted”当“completed”；
+- 对同一副作用执行两次；
+- 在结果尚未产生时凭空继续推理。
+
+因此：
+
+> **Pending ≠ Unknown；Pending 是一种需要被 Harness 明确建模的运行状态。**
+
+---
+
+#### 7.2.16 Async Action 之后不应该自动 Re-call Model
+
+假设 Agent 提交一个需要 20 分钟的任务：
+
+```text
+start_training_job()
+```
+
+错误做法是：
+
+```text
+submit
+→ call model
+→ model asks status
+→ poll
+→ call model
+→ model asks status
+→ poll
+→ ...
+```
+
+更合理的做法是：
+
+```text
+submit
+→ persist pending state
+→ WAIT
+→ external completion event / scheduled poll
+→ receive fresh observation
+→ resume
+→ only then decide whether model is needed
+```
+
+这就是：
+
+> **event-driven Agent loop，而不是 token-driven busy loop。**
+
+---
+
+#### 7.2.17 CONTINUE 到底意味着什么
+
+`CONTINUE` 不应该表示：
+
+```text
+任务还没完成，所以再来一轮。
+```
+
+更严格的定义是：
+
+> **当前已经拥有足够的新状态，并且存在一个可立即执行、仍有价值的下一 transition。**
+
+例如：
+
+```text
+search result arrived
+→ evidence gap remains
+→ next semantic query needs decision
+→ CONTINUE → CALL_MODEL
+```
+
+或者：
+
+```text
+model proposed safe tool action
+→ validation passed
+→ CONTINUE → EXECUTE_ACTION
+```
+
+因此 CONTINUE 后面仍然要带 transition type。
+
+---
+
+#### 7.2.18 WAIT 到底意味着什么
+
+`WAIT` 表示：
+
+> **当前任务并未结束，但主动计算已经不能产生有效新信息；下一次合法进展依赖外部事件或时间。**
+
+典型情况：
+
+```text
+等待用户补充信息
+等待审批
+等待异步任务完成
+等待远端系统状态变化
+等待定时窗口
+等待另一个 agent / worker 返回
+```
+
+WAIT 的核心不是“慢”，而是：
+
+```text
+progress dependency is external
+```
+
+因此：
+
+> **等待不是失败，也不是思考不足。**
+
+---
+
+#### 7.2.19 WAIT 与 SUSPEND 的区别
+
+可以做一个工作定义：
+
+```text
+WAIT
+= 逻辑状态：当前缺少外部 event
+
+SUSPEND
+= 运行时动作：把 active execution 释放掉，并保存可恢复状态
+```
+
+例如：
+
+```text
+state = WAITING_FOR_APPROVAL
+runtime action = checkpoint + suspend
+```
+
+审批到达后：
+
+```text
+external event
+→ load checkpoint
+→ reconcile state
+→ RESUME
+```
+
+这为 Chapter 8 的 durable execution 留出了清晰接口。
+
+---
+
+#### 7.2.20 Agent 应该是 Event-driven，而不是 Busy-loop
+
+更成熟的 Loop 心智模型是：
+
+```python
+while run_is_active:
+    state = load_state()
+
+    if terminal(state):
+        stop()
+
+    elif waiting_for_event(state):
+        suspend()
+
+    elif deterministic_transition_available(state):
+        apply_transition()
+
+    elif verification_required(state):
+        verify()
+
+    elif semantic_decision_required(state):
+        call_model()
+
+    else:
+        fail_closed_or_escalate()
+```
+
+这里最关键的是：
+
+```text
+while run_is_active
+```
+
+并不等于：
+
+```text
+while True: call_model()
+```
+
+---
+
+#### 7.2.21 Resume 不是简单把旧 Prompt 再发一次
+
+一个被 suspend 的 Agent 恢复时，需要先做：
+
+```text
+load durable state
+        ↓
+consume triggering event
+        ↓
+reconcile pending actions
+        ↓
+refresh stale observations
+        ↓
+re-check permission / budget / deadline
+        ↓
+reconstruct current working context
+        ↓
+choose next transition
+```
+
+所以：
+
+> **Resume 是状态恢复过程，不是消息重放。**
+
+否则很容易出现：
+
+- 重复执行已完成 action；
+- 使用过期权限；
+- 忽略等待期间发生的环境变化；
+- 丢失用户后来追加的约束。
+
+---
+
+#### 7.2.22 VERIFY 为什么是独立 Transition
+
+很多 Agent 会犯一个错误：
+
+```text
+Action completed
+→ Model says looks good
+→ STOP
+```
+
+更合理的是：
+
+```text
+Action completed
+→ VERIFY
+→ completion evidence sufficient?
+    ├─ yes → candidate for STOP
+    └─ no  → CONTINUE / RECOVER / BRANCH
+```
+
+VERIFY 可以由：
+
+```text
+deterministic checker
+test suite
+schema validator
+query-back
+read-after-write
+independent model / evaluator
+human review
+```
+
+完成。
+
+因此：
+
+> **Verify 是 Loop 中改变“是否可以结束”判断的状态转移，不等于普通反思。**
+
+#### 7.2.23 BRANCH 到底什么时候出现
+
+`BRANCH` 表示：
+
+> **当前不应只沿一条 continuation 继续，而应该显式保留多个候选路径。**
+
+常见触发条件包括：
+
+- 高不确定性且错误代价高；
+- 多个假设都合理，需要分别验证；
+- 不同搜索方向可以并行探索；
+- 一个 plan 出现风险，需要保留 fallback；
+- 多个 subagent 可以独立处理互不依赖的子问题。
+
+但 Branch 不是免费的。
+
+它会增加：
+
+```text
+model calls
+tool calls
+state copies
+merge complexity
+verification cost
+side-effect risk
+```
+
+所以 Loop Policy 需要决定的不是“能不能 branch”，而是：
+
+```text
+branch value > branch cost ?
+```
+
+---
+
+#### 7.2.24 Branch 之后必须有 Merge / Selection Policy
+
+只会分支，不会收束，会把 Agent 变成搜索树生成器。
+
+一个完整 branch lifecycle 应该是：
+
+```text
+fork
+  ├─ branch A
+  ├─ branch B
+  └─ branch C
+        ↓
+collect comparable evidence
+        ↓
+verify / score / reconcile
+        ↓
+select / merge / keep multiple
+        ↓
+commit accepted state
+```
+
+关键原则是：
+
+> **Branch State 不应在未经 reconciliation 的情况下直接污染 authoritative state。**
+
+例如三个候选都修改同一个文件时，不能把三个副作用直接执行一遍，再让模型决定哪个更好。
+
+通常应该先：
+
+```text
+branch in isolated / speculative state
+→ evaluate
+→ commit selected effect
+```
+
+---
+
+#### 7.2.25 Loop Policy 与 Planning Policy 的边界
+
+Planning Policy 回答：
+
+```text
+怎样形成未来行动结构？
+什么时候生成 plan？
+什么时候 replan？
+```
+
+Loop Policy 回答：
+
+```text
+现在这个 run 应该进入哪个状态？
+是否该执行 plan 的下一步？
+是否该暂停、验证、重新决策或停止？
+```
+
+因此：
+
+```text
+Plan
+= 对未来路径的表示
+
+Loop Policy
+= 对当前 transition 的控制
+```
+
+即使 Agent 已有完整 plan：
+
+```text
+Step 1 → Step 2 → Step 3 → Step 4
+```
+
+Loop Policy 仍需要在每一步检查：
+
+```text
+observation 是否符合预期？
+plan 是否仍有效？
+是否需要 WAIT？
+是否需要 VERIFY？
+是否应该 STOP？
+```
+
+---
+
+#### 7.2.26 Loop Policy 与 Termination Policy 的边界
+
+7.10 会专门讨论 Termination Policy，因此 7.2 只保留接口。
+
+Loop Policy 需要知道：
+
+```text
+当前是否进入 terminal candidate？
+是否需要 completion verification？
+哪个 terminal state 应被设置？
+```
+
+但更细的：
+
+```text
+什么算 semantic completion？
+成功条件怎样定义？
+partial success 怎么表达？
+blocked 与 failed 如何区分？
+```
+
+属于 7.10。
+
+因此这里先记住：
+
+> **Loop Policy 决定何时走向终止；Termination Policy 定义什么条件允许终止。**
+
+---
+
+#### 7.2.27 Loop Policy 与 Recovery Policy 的边界
+
+7.11 会讨论：
+
+```text
+失败后从哪里恢复？
+如何 checkpoint？
+如何 fallback？
+如何 compensation？
+如何处理 partial side effect？
+```
+
+7.2 只回答：
+
+```text
+当前 failure 是否还能在正常 loop 内处理？
+还是应该 transition 到 RECOVERING？
+```
+
+可以记成：
+
+```text
+Loop Policy
+    ↓
+RECOVER transition
+    ↓
+Recovery Policy
+    ↓
+recovered state / terminal failure
+    ↓
+Loop Policy resumes
+```
+
+---
+
+#### 7.2.28 Transition 应该有优先级
+
+如果同一时刻满足多个条件，不能随便选择。
+
+一个常见的高层优先级可以是：
+
+```text
+1. cancellation / hard safety stop
+2. terminal failure / hard budget limit
+3. pending approval / permission gate
+4. unresolved side-effect reconciliation
+5. required verification
+6. external wait dependency
+7. deterministic transition
+8. semantic model decision
+9. optional optimization / branching
+```
+
+为什么安全停止要高于“继续完成任务”？
+
+因为：
+
+```text
+Goal Pursuit
+<
+System Invariants
+```
+
+为什么 pending side effect 要高于重新规划？
+
+因为如果不知道前一个 action 是否已经发生，再规划很可能产生重复副作用。
+
+---
+
+#### 7.2.29 Loop Invariant 是什么
+
+**Loop Invariant** 是在整个 run 中始终必须成立的条件。
+
+例如：
+
+```text
+每个 side-effecting action 都有唯一 action_id
+未通过 approval 的 action 不得执行
+pending action 未 reconcile 前不得重复提交
+current state 必须可持久化
+每个 transition 都记录 reason
+terminal state 不能重新偷偷进入 running
+```
+
+它们与 Goal 不同。
+
+Goal 是：
+
+```text
+我要完成什么？
+```
+
+Invariant 是：
+
+```text
+无论怎样完成，都不能破坏什么？
+```
+
+因此可靠的 Loop 不是只优化：
+
+```text
+finish the task
+```
+
+还要保证：
+
+```text
+preserve invariants while making progress
+```
+
+---
+
+#### 7.2.30 Iteration ≠ Progress
+
+Agent 运行了 50 轮，不代表取得了 50 轮进展。
+
+可能只是：
+
+```text
+search A
+→ reformulate A
+→ search A again
+→ summarize same evidence
+→ reconsider same plan
+→ search A again
+```
+
+因此：
+
+> **Iteration 是计算发生；Progress 是任务状态发生了有意义的改善。**
+
+Loop Policy 必须把两者分开。
+
+否则最简单的防死循环方法只能是：
+
+```text
+max_steps = 20
+```
+
+但它只能限制损失，不能识别“第 6 步以后其实已经没有进展”。
+
+---
+
+#### 7.2.31 什么叫 Progress
+
+Progress 应尽量绑定**任务状态变化**，而不是语言长度。
+
+可能的 Progress Evidence 包括：
+
+```text
+一个未解决子目标被关闭
+一个关键未知量被确定
+一个 blocker 被解除
+新的独立证据被获得
+一个 artifact 从 invalid → valid
+测试失败数减少
+覆盖率增加
+计划中的 milestone 被满足
+风险降低
+用户所需交付物更接近验收标准
+```
+
+因此可以抽象：
+
+$$
+\Delta P_t = P(S_{t+1}) - P(S_t)
+$$
+
+这里的 $P$ 不一定是单个数，但系统至少应该能回答：
+
+> **这一轮具体改变了什么？**
+
+---
+
+#### 7.2.32 Progress Signal 可以是结构化的
+
+与其让模型每轮自评：
+
+```text
+我觉得取得了进展。
+```
+
+更好的做法可能是维护：
+
+```json
+{
+  "open_subgoals": 3,
+  "resolved_subgoals": 5,
+  "failed_tests": 2,
+  "verified_claims": 8,
+  "unresolved_blockers": 1,
+  "last_novel_observation_at": 14
+}
+```
+
+不同任务的 progress schema 不同，但原则一致：
+
+> **能够从 Environment / State 推导的进展，优先结构化，不要全部交给模型自述。**
+
+---
+
+#### 7.2.33 No-progress Detection 比 Max Steps 更重要
+
+一个基本 anti-loop policy 可以同时维护：
+
+```text
+max_turns
+max_tool_calls
+max_wall_time
+max_cost
+no_progress_window
+same_state_window
+same_action_window
+```
+
+例如：
+
+```text
+最近 5 个 transition：
+- 没有关闭任何 subgoal
+- 没有获得新的 observation
+- 没有改变 accepted artifact
+- 反复执行同类搜索
+```
+
+此时即使还没达到 `max_turns`，也应该触发：
+
+```text
+replan
+branch
+escalate
+ask user
+stop as blocked
+```
+
+---
+
+#### 7.2.34 Repeated Action Detection
+
+最直观的死循环是：
+
+```text
+search("X")
+search("X")
+search("X")
+```
+
+但实际判断不能只比较字符串。
+
+下面这些也可能语义重复：
+
+```text
+search("OpenAI agent loop")
+search("agent loop OpenAI")
+search("OpenAI runner agent cycle")
+```
+
+因此 repeated action 可以分层：
+
+```text
+Exact Repeat
+Parameter-equivalent Repeat
+Semantic Repeat
+Effect-equivalent Repeat
+```
+
+如果重复行为没有带来新的 observation，Loop Policy 应提高继续成本。
+
+---
+
+#### 7.2.35 Repeated State Detection
+
+比重复 action 更一般的是：
+
+```text
+S_t ≈ S_{t-k}
+```
+
+也就是系统绕了一圈又回到同一任务状态。
+
+例如：
+
+```text
+Plan A
+→ Tool fail
+→ Plan B
+→ Tool fail
+→ fallback
+→ again Plan A
+```
+
+如果没有新证据，只是回到了同一个 unresolved state，这是一种 loop cycle。
+
+因此可以维护：
+
+```text
+state fingerprint
+open-goal signature
+pending-action signature
+artifact hash
+known-facts digest
+```
+
+用来检测是否真正跨越了新的状态边界。
+
+---
+
+#### 7.2.36 Oscillation 是另一种 Loop Failure
+
+有些 Agent 不会原地重复，而是在两个状态之间摇摆：
+
+```text
+A → B → A → B → A
+```
+
+例如：
+
+```text
+“应该重构”
+→ 重构
+→ “还是原方案更简单”
+→ 回滚
+→ “重构似乎更好”
+→ 再重构
+```
+
+或者：
+
+```text
+Search web
+→ Trust local docs
+→ Search web
+→ Trust local docs
+```
+
+这叫 **oscillation**。
+
+Loop Policy 需要在检测到反复翻转时要求：
+
+```text
+新证据是什么？
+切换的判据是什么？
+是否应该冻结一个决策？
+是否需要独立 verifier？
+```
+
+---
+
+#### 7.2.37 Overthinking 也是 Loop Failure
+
+无限循环不一定包含 Tool。
+
+还可能是：
+
+```text
+Think
+→ reconsider
+→ critique
+→ rethink
+→ rewrite plan
+→ critique again
+```
+
+状态没有获得新的外部证据，也没有提交任何可验证变化。
+
+这可以叫：
+
+```text
+semantic loop
+reasoning loop
+reflection loop
+```
+
+因此：
+
+> **更多思考不是天然的 progress。**
+
+Loop Policy 应要求后续 deliberation 具备明确的信息价值：
+
+```text
+解决新的不确定性？
+比较新的候选？
+吸收新的 observation？
+修复 verifier 指出的具体问题？
+```
+
+如果都没有，继续 reasoning 很可能只是无效计算。
+
+---
+
+#### 7.2.38 Productive Deliberation 与 Redundant Reflection
+
+可以用下面的边界理解。
+
+##### Productive Deliberation
+
+```text
+new evidence → reconsider
+new constraint → replan
+verifier failure → diagnose
+multiple candidates → compare
+high-risk decision → second check
+```
+
+##### Redundant Reflection
+
+```text
+same state → same question → another paraphrased answer
+no new evidence → repeated self-critique
+already verified → keep doubting without criterion
+```
+
+所以 Reflection Policy 不应该是：
+
+```text
+after every step, reflect once
+```
+
+而应该是：
+
+```text
+reflect when expected value of reconsideration is positive
+```
+
+---
+
+#### 7.2.39 Retry ≠ Re-decide
+
+Tool 超时后，系统可以：
+
+```text
+retry same request
+```
+
+这和：
+
+```text
+ask model what to do next
+```
+
+是两件事。
+
+如果错误属于：
+
+```text
+known transient failure
+```
+
+则优先：
+
+```text
+system retry policy
+```
+
+如果错误属于：
+
+```text
+semantic failure
+invalid assumption
+wrong tool choice
+non-retryable response
+```
+
+才更可能需要：
+
+```text
+model re-decision
+```
+
+因此：
+
+> **不要把所有异常都升级成新的 LLM turn。**
+
+---
+
+#### 7.2.40 Retry 必须有 Ceiling
+
+没有 ceiling 的 retry 只是另一种无限循环。
+
+至少需要：
+
+```text
+attempt_count
+retryable_error_class
+backoff_policy
+deadline
+max_attempts
+fallback
+exhaustion_transition
+```
+
+例如：
+
+```text
+attempt 1 → retry
+attempt 2 → retry with backoff
+attempt 3 → fallback provider
+fallback fail → RECOVER / BLOCKED
+```
+
+而不是：
+
+```text
+while error:
+    retry()
+```
+
+---
+
+#### 7.2.41 Loop Budget 不是只有 max_turns
+
+`max_turns` 很重要，但只是最粗粒度的 guard。
+
+一个 Agent run 可能同时拥有：
+
+```text
+model_call_budget
+token_budget
+tool_call_budget
+search_budget
+retry_budget
+branch_budget
+wall_clock_budget
+monetary_budget
+side_effect_budget
+human_interrupt_budget
+context_budget
+```
+
+不同资源不能简单等价。
+
+一次：
+
+```text
+read_file
+```
+
+和一次：
+
+```text
+send_payment
+```
+
+即使都算一个 Tool Call，风险完全不同。
+
+---
+
+#### 7.2.42 Hard Budget 与 Soft Budget
+
+##### Hard Budget
+
+触发后必须阻断：
+
+```text
+absolute cost limit
+security threshold
+deadline
+max recursive depth
+regulatory restriction
+```
+
+##### Soft Budget
+
+触发后提高继续门槛：
+
+```text
+搜索已很多次
+上下文开始膨胀
+边际信息增益下降
+分支数量过多
+```
+
+Soft Budget 后可以要求：
+
+```text
+higher expected value to continue
+```
+
+所以：
+
+> **预算不只是“还有多少”，还可以影响 Loop 的决策门槛。**
+
+---
+
+#### 7.2.43 Budget 应该与 Risk 联动
+
+低风险 read-only task 可以允许更多自治探索。
+
+高风险 side effect task 应更保守。
+
+例如：
+
+```text
+Web Research
+    → higher search / branch budget
+
+Delete Production Data
+    → minimal autonomous retries
+    → stronger verification
+    → approval before effect
+```
+
+因此更准确的是：
+
+$$
+ContinueThreshold = f(Cost, Risk, Uncertainty, ExpectedGain)
+$$
+
+即：
+
+> **高风险场景下，“再试一次”的门槛应高于低风险场景。**
+
+---
+
+#### 7.2.44 Turn、Step、Transition 不应混用做预算
+
+不同框架里 `turn` 的定义可能不同。
+
+例如某些 Runner 把：
+
+```text
+一次 LLM invocation
+```
+
+算作一个 turn；而一次 turn 内可能包含多个 Tool Call。
+
+所以生产系统最好分别记录：
+
+```text
+model_invocations
+loop_transitions
+actions_executed
+tool_calls
+retries
+branches
+```
+
+否则：
+
+```text
+max_turns = 10
+```
+
+看起来简单，但你并不知道这 10 turn 实际对应多少外部行为。
+
+#### 7.2.45 一个系统里可能同时存在多层 Loop
+
+真实 Agent 系统经常不是一个平面循环。
+
+可能同时存在：
+
+```text
+Application Loop
+    ↓
+Workflow Loop
+    ↓
+Agent Run Loop
+    ↓
+Planning / Verification Sub-loop
+    ↓
+Tool Retry Loop
+    ↓
+Model Decoding Loop
+```
+
+这些 Loop 的 owner、state 和 stop condition 不同。
+
+例如：
+
+```text
+Tool Retry Loop exhausted
+```
+
+不一定意味着：
+
+```text
+Agent Run failed
+```
+
+Agent 可能换 Tool。
+
+同样：
+
+```text
+Agent Run completed
+```
+
+也不一定意味着：
+
+```text
+Application Workflow completed
+```
+
+外层可能还有审批或交付步骤。
+
+---
+
+#### 7.2.46 Nested Loop 必须有明确 Owner
+
+如果多个层级都以为“自己应该继续”，很容易出现重复控制。
+
+例如：
+
+```text
+SDK 自动 retry Tool
+Harness 也 retry
+Model 看到 error 后又 retry
+Workflow Engine 再 retry 整个 node
+```
+
+一次失败最终可能被执行：
+
+```text
+3 × 3 × 3 = 27 次
+```
+
+因此每个循环都应该明确：
+
+```text
+loop_owner
+retry_owner
+budget_owner
+state_owner
+termination_owner
+```
+
+原则是：
+
+> **同一种 failure semantics 最好只有一个主要控制层负责。**
+
+---
+
+#### 7.2.47 Subagent 不是“再开一个无限 Loop”
+
+主 Agent 委托子 Agent 时，应该给子 run 明确 contract：
+
+```text
+subgoal
+input state
+allowed capabilities
+budget
+deadline
+return schema
+stop condition
+```
+
+主 Agent Loop 还要决定：
+
+```text
+spawn 后是 WAIT 还是继续做别的？
+是否允许多个 subagent 并发？
+何时 cancel？
+结果回来后怎样 merge？
+子 Agent 是否允许再次递归 delegation？
+```
+
+所以：
+
+> **Delegation 会创建新的 run lifecycle，而不是把控制责任消失掉。**
+
+---
+
+#### 7.2.48 Parallel Action 需要 Join Policy
+
+如果模型一次提出多个独立 Tool Call：
+
+```text
+search source A
+search source B
+search source C
+```
+
+Loop Policy 可以允许并行。
+
+但并行之后必须定义：
+
+```text
+wait_all?
+first_success?
+quorum?
+minimum_evidence?
+timeout_partial_merge?
+cancel_remaining?
+```
+
+例如：
+
+```text
+3 个搜索中 2 个已经返回充分证据
+```
+
+系统未必需要继续等第三个慢查询。
+
+因此：
+
+> **Concurrency Policy 不只是“能否并行”，还包括何时认为并行阶段已经足够完成。**
+
+---
+
+#### 7.2.49 Cancellation 是一等 Transition
+
+用户可能说：
+
+```text
+停一下。
+不用继续了。
+不要发送。
+```
+
+或者上游系统撤销任务。
+
+Loop Policy 必须能从：
+
+```text
+RUNNING / WAITING / EXECUTING
+```
+
+进入：
+
+```text
+CANCELLING
+→ CANCELLED
+```
+
+如果存在正在执行的副作用，还需要判断：
+
+```text
+能否真正取消？
+已经执行到什么程度？
+是否需要 reconcile？
+是否需要 compensation？
+```
+
+所以 cancellation 不是简单 `break`。
+
+---
+
+#### 7.2.50 User Interrupt 可能是新指令，也可能是控制事件
+
+长任务中用户的新消息可能表示：
+
+```text
+补充信息
+修改目标
+暂停
+取消
+提高优先级
+缩小范围
+批准 action
+拒绝 action
+```
+
+Loop Policy 应先分类这个 event 的控制语义，再决定是否把它直接放进下一次模型 context。
+
+例如：
+
+```text
+“不要发送邮件”
+```
+
+首先是：
+
+```text
+cancel / revoke pending side effect
+```
+
+然后才是 conversational context。
+
+因此：
+
+> **User message 既可能是 content，也可能是 runtime control event。**
+
+---
+
+#### 7.2.51 Model 声称“完成”只是 Completion Proposal
+
+模型输出：
+
+```text
+Done.
+```
+
+本质上只是：
+
+```text
+completion_proposal = true
+```
+
+Harness 仍应判断：
+
+```text
+required artifacts exist?
+acceptance criteria satisfied?
+pending actions cleared?
+required verification passed?
+mandatory approvals completed?
+open blockers remain?
+```
+
+因此：
+
+```text
+Model says done
+        ≠
+Run is terminal-success
+```
+
+---
+
+#### 7.2.52 Terminal State 不应只有 success / error
+
+实际系统至少应该区分：
+
+| Terminal State | 含义 |
+|---|---|
+| `SUCCEEDED` | 验收条件满足 |
+| `FAILED` | 已发生无法恢复的失败 |
+| `BLOCKED` | 当前缺少不可自行解决的条件 |
+| `CANCELLED` | 被用户或上游主动取消 |
+| `TIMED_OUT` | 超过时间限制 |
+| `BUDGET_EXHAUSTED` | 达到计算 / 成本硬上限 |
+| `PARTIAL` | 明确允许部分交付，且记录未完成项 |
+
+这样 observability 才能回答：
+
+```text
+为什么停？
+```
+
+而不是所有情况都显示：
+
+```text
+Agent stopped
+```
+
+---
+
+#### 7.2.53 一个 Research Agent 的 Loop 应该怎样走
+
+用户要求：
+
+```text
+调研某技术路线，并给出证据支持的结论。
+```
+
+一个合理 Loop 可能是：
+
+```text
+READY
+↓
+CALL_MODEL：识别关键问题与证据缺口
+↓
+EXECUTE：并行搜索多个来源
+↓
+OBSERVE：收集结果
+↓
+VERIFY：来源是否足够独立 / 权威 / 新鲜
+↓
+CONTINUE：存在关键证据缺口
+↓
+CALL_MODEL：决定下一轮针对性检索
+↓
+EXECUTE
+↓
+OBSERVE
+↓
+NO-PROGRESS CHECK：边际新信息已经很低
+↓
+VERIFY：关键主张是否都有证据
+↓
+STOP → SUCCEEDED
+```
+
+这里不应该是：
+
+```text
+搜索 10 次，因为 max_searches = 10
+```
+
+而应该围绕：
+
+```text
+Evidence Gap
+Information Gain
+Verification Coverage
+```
+
+推进。
+
+---
+
+#### 7.2.54 一个 Coding Agent 的 Loop 应该怎样走
+
+任务：
+
+```text
+修复一个测试失败的 bug。
+```
+
+合理轨迹可能是：
+
+```text
+read failure
+↓
+CALL_MODEL：形成局部假设
+↓
+inspect code
+↓
+CALL_MODEL：提出 patch
+↓
+apply patch
+↓
+run targeted test
+↓
+OBSERVE failure
+↓
+new evidence changes diagnosis
+↓
+CALL_MODEL：修正假设
+↓
+apply second patch
+↓
+run targeted test
+↓
+VERIFY pass
+↓
+run broader regression tests
+↓
+VERIFY pass
+↓
+STOP
+```
+
+这里：
+
+```text
+测试
+```
+
+既是 Tool Action，也是下一轮的重要 feedback source。
+
+如果测试正在跑，则应该：
+
+```text
+WAIT_FOR_TEST
+```
+
+而不是继续让模型猜测试结果。
+
+---
+
+#### 7.2.55 一个 Approval-heavy Agent 的 Loop 应该怎样走
+
+任务：
+
+```text
+根据发票创建并提交报销。
+```
+
+可能流程：
+
+```text
+extract invoice
+↓
+validate fields
+↓
+CALL_MODEL：处理语义歧义
+↓
+prepare expense draft
+↓
+VERIFY：金额 / 类别 / 收款方
+↓
+approval required
+↓
+WAITING_FOR_APPROVAL
+↓
+SUSPEND
+
+[human approves]
+↓
+RESUME
+↓
+re-check current state
+↓
+submit expense
+↓
+read-after-write verification
+↓
+STOP
+```
+
+审批等待期间继续 call model 没有任何价值。
+
+---
+
+#### 7.2.56 一个 Long-running Agent 为什么必须把“等待”从“推理”里拆出来
+
+假设任务跨度两天：
+
+```text
+Day 1：提交云端构建
+Day 2：构建结果返回
+```
+
+如果系统把 Agent 理解成持续的模型会话，就会遇到：
+
+- context 不断增长；
+- worker 被无意义占用；
+- 模型反复查询同一状态；
+- restart 后难以恢复；
+- 成本与 wall time 强耦合。
+
+更好的结构是：
+
+```text
+Active Compute
+→ checkpoint
+→ suspend
+→ external event
+→ resume
+→ Active Compute
+```
+
+所以：
+
+> **长时间运行的是 Run State，不一定是模型进程。**
+
+---
+
+#### 7.2.57 Anti-pattern：while True + call_model
+
+最典型反模式：
+
+```python
+while True:
+    response = model(history)
+    if response.tool_call:
+        result = tool(response.tool_call)
+        history.append(result)
+    else:
+        break
+```
+
+它适合最小 demo，但生产系统如果直接停在这里，会缺少：
+
+```text
+waiting state
+pending action
+approval gate
+progress detection
+reconciliation
+budget dimensions
+explicit verification
+cancellation
+recovery state
+structured terminal reason
+```
+
+所以：
+
+> **Demo Loop 可以 model-driven；生产 Loop 应 state-driven。**
+
+---
+
+#### 7.2.58 Anti-pattern：让模型自己决定所有继续 / 停止
+
+如果系统 prompt 只写：
+
+```text
+继续工作直到完成。
+```
+
+会出现两类对称风险。
+
+##### Premature Stop
+
+模型过早认为：
+
+```text
+差不多完成了。
+```
+
+##### Overrun
+
+模型不断：
+
+```text
+再查一点
+再想一下
+再优化一次
+```
+
+因此：
+
+> **Semantic autonomy 可以交给模型；lifecycle authority 不能完全交给模型。**
+
+---
+
+#### 7.2.59 Anti-pattern：每个 Error 都重新问模型
+
+例如：
+
+```text
+HTTP 429
+→ LLM: “我该怎么办？”
+```
+
+这是典型浪费。
+
+更合理的是：
+
+```text
+known transient error
+→ retry policy
+
+retry exhausted / non-retryable
+→ expose structured observation
+→ semantic decision if needed
+```
+
+这样不仅省 token，也减少模型在机械系统问题上的不稳定行为。
+
+---
+
+#### 7.2.60 Anti-pattern：只有 max_steps，没有 Progress Policy
+
+`max_steps` 能防止无限消耗，但无法回答：
+
+```text
+为什么继续？
+为什么现在停？
+第几步开始已经没有价值？
+```
+
+所以：
+
+```text
+Hard Guard
++
+Progress Signal
++
+No-progress Detection
++
+Transition Reason
+```
+
+应该同时存在。
+
+---
+
+#### 7.2.61 Anti-pattern：把 WAIT 当成“再思考一下”
+
+如果当前真正缺少的是：
+
+```text
+用户账户 ID
+审批结果
+异步任务输出
+外部系统恢复
+```
+
+继续思考不会创造这些事实。
+
+所以：
+
+> **当 uncertainty 来自缺失 observation，而不是推理不足时，正确动作通常是获取信息或 WAIT，而不是延长 reasoning。**
+
+---
+
+#### 7.2.62 Loop Trace 至少应该记录什么
+
+为了能够 Debug / Eval / Replay，一个 transition trace 至少应包含：
+
+```text
+run_id
+transition_id
+state_before
+transition_type
+transition_reason
+actor
+model_call_id / action_id
+observation_id
+state_after
+progress_delta
+budget_before / after
+pending_actions
+verification_status
+wait_reason
+terminal_reason
+parent / branch id
+timestamp / latency
+```
+
+这样才能回答：
+
+```text
+为什么这时又调用了一次模型？
+为什么这里没有停？
+为什么等了 30 分钟？
+为什么同一个 Tool 执行了两次？
+为什么进入了 branch？
+哪一步开始没有 progress？
+```
+
+---
+
+#### 7.2.63 Loop Policy 应该怎样评估
+
+不能只看最终任务成功率。
+
+至少可以看：
+
+##### Task Outcome
+
+```text
+success rate
+verified success rate
+partial / blocked / failed rate
+```
+
+##### Efficiency
+
+```text
+model calls per success
+tokens per success
+tool calls per success
+wall time
+cost
+```
+
+##### Loop Quality
+
+```text
+no-progress turns
+repeated-action rate
+repeated-state rate
+oscillation rate
+unnecessary model-call rate
+premature-stop rate
+overrun rate
+```
+
+##### Waiting / Resume Quality
+
+```text
+busy-wait rate
+resume correctness
+duplicate side-effect rate
+stale-state rate
+```
+
+##### Verification Quality
+
+```text
+false completion rate
+verification coverage
+post-stop defect rate
+```
+
+最终目标是：
+
+> **用尽可能少的无效 transition，取得可验证的任务进展。**
+
+---
+
+#### 7.2.64 Loop Eval 应该看 Trajectory，而不是只看 Final Answer
+
+两个 Agent 最终都成功：
+
+```text
+Agent A：8 transitions，1 次 verify，无重复 action
+Agent B：43 transitions，重复搜索 12 次，重试 9 次，最后碰巧成功
+```
+
+Final Accuracy 看起来一样。
+
+但 Loop Quality 完全不同。
+
+因此评测应保留：
+
+```text
+State Sequence
+Transition Sequence
+Action Sequence
+Observation Sequence
+Progress Sequence
+Budget Consumption
+Terminal Reason
+```
+
+这也是为什么 Chapter 9 的 Observability & Evaluation 必须与 Harness trace 接起来。
+
+---
+
+#### 7.2.65 面试时最容易被追问的 Loop Policy 问题
+
+至少应该能回答：
+
+1. **谁真正驱动一次 Agent run？**  
+   Harness / Runner 驱动；模型只在需要语义决策时被调用。
+
+2. **Tool 返回以后为什么不一定立刻再调模型？**  
+   因为可能需要 deterministic validation、verification、等待异步完成或直接执行固定 transition。
+
+3. **WAIT 和 STOP 有什么区别？**  
+   WAIT 是非终止状态，等待外部 event；STOP 进入 terminal state。
+
+4. **怎样避免 Agent 无限循环？**  
+   不只靠 max turns，还要有 repeated action/state、no-progress、oscillation、retry ceiling、多维 budget 与 terminal checks。
+
+5. **模型说 Done 为什么不一定结束？**  
+   Done 只是 completion proposal，系统还需要验证验收条件与真实环境状态。
+
+6. **什么时候应该 Branch？**  
+   当多个候选路径有足够探索价值，且预期收益大于额外成本与 merge 风险。
+
+7. **什么时候不应该再调用模型？**  
+   当 transition 可以由可靠的 deterministic logic 完成，或系统正在等待外部信息。
+
+8. **长任务为什么不应该一直保持 LLM 会话活跃？**  
+   Run State 可以持久化并 suspend/resume，长时间存在不等于持续模型推理。
+
+---
+
+#### 7.2.66 一个 30 秒面试回答
+
+如果面试官问：
+
+> **Agent Loop Policy 是什么？**
+
+可以回答：
+
+> Agent Loop Policy 是 Harness 中控制一次 Agent run 如何推进的策略。它不只是“模型输出 Tool Call 就执行，再把结果喂回模型”，而是根据当前 state、最新 observation、pending action、verification 状态、budget、权限和外部 event，决定下一次 transition 是 call model、execute、verify、wait、branch、recover 还是 stop。可靠 Loop 还需要区分 waiting 与 terminal，检测 repeated action、repeated state、oscillation 和 no-progress，并用 max turns、cost、time、retry、branch 等多维 budget 做 hard guard。核心原则是：**Model proposes the next move; the Harness owns the lifecycle.**
+
+---
+
+#### 7.2.67 7.2 与 Chapter 7 后续 Policy 的接口
+
+7.2 不应该把后面所有内容提前写完。
+
+边界可以固定成：
+
+```text
+7.2 Agent Loop Policy
+    → run 何时推进、暂停、验证、分支、恢复或停止
+
+7.3 Instruction Policy
+    → 当前决策受哪些指令约束
+
+7.4 Context Policy
+    → 每次 model call 看什么
+
+7.5 Tool Policy
+    → Tool 何时可见、可调、可执行
+
+7.6 Memory Policy
+    → 什么状态进入长期 / 短期记忆
+
+7.7 Planning Policy
+    → 何时规划、怎样规划、何时重规划
+
+7.8 Subagent Policy
+    → 何时 delegation、如何给 context / permission / budget / return contract
+
+7.9 Permission / Approval Policy
+    → action 是否拥有执行 authority
+
+7.10 Termination Policy
+    → 什么条件构成真正 terminal state
+
+7.11 Recovery Policy
+    → failure / interruption 后如何恢复
+```
+
+7.2 是这些 Policy 的**运行时交通规则**：
+
+> 它不定义所有局部规则，但决定在什么状态下调用哪一种规则。
+
+---
+
+#### 7.2.68 Loop Policy 设计检查表
+
+设计一个 Agent run 时，可以检查：
+
+##### Driver
+
+- 谁拥有 run lifecycle？
+- 谁决定下一次 model call？
+
+##### State
+
+- running / waiting / terminal 是否显式区分？
+- pending action 是否是一等状态？
+
+##### Transition
+
+- 哪些 transition 是 deterministic？
+- 哪些真的需要 semantic model decision？
+
+##### Waiting
+
+- 缺外部事件时能否 suspend？
+- event 到来后如何 resume / reconcile？
+
+##### Progress
+
+- 什么算真实进展？
+- 如何检测 no-progress / repetition / oscillation？
+
+##### Budget
+
+- model / tool / retry / branch / cost / time 是否分别计数？
+- 是否存在 hard guard？
+
+##### Verification
+
+- action completion 与 goal completion 是否分开？
+- Model 的 Done 是否需要外部验证？
+
+##### Termination
+
+- success / failed / blocked / cancelled / timeout 是否区分？
+
+##### Observability
+
+- 每个 transition 是否记录 reason？
+- 能否解释为什么继续、等待或停止？
+
+---
+
+#### 7.2.69 Loop Policy 的长期稳定原则
+
+这一节最值得长期记住的不是某个框架 API，而是下面这些原则。
+
+1. **The Harness drives the run.**  
+   模型提供语义决策能力，但不独占生命周期控制权。
+
+2. **Model Call is a transition, not a heartbeat.**  
+   只有需要新的语义判断时才调用模型。
+
+3. **State-driven > model-call-driven.**  
+   Loop 应根据 State 与 Event 推进，而不是根据“模型还愿不愿意继续”。
+
+4. **Event-driven > busy-loop.**  
+   等待外部信息时应 suspend，而不是空转推理。
+
+5. **Pending is a real state.**  
+   已提交未完成的 action 必须被显式建模。
+
+6. **Iteration ≠ Progress.**  
+   计算发生不代表任务状态改善。
+
+7. **More thinking ≠ more progress.**  
+   没有新证据、约束或 verifier feedback 时，反复 reflection 可能只是 semantic loop。
+
+8. **Deterministic logic should stay deterministic.**  
+   schema check、retry、权限、deadline 等能由程序处理的，不应无意义升级为 LLM 决策。
+
+9. **Verification is a first-class transition.**  
+   执行动作成功不等于目标已经完成。
+
+10. **Model completion is a proposal, not authority.**  
+    `Done` 必须与真实验收条件对齐。
+
+11. **Every loop needs hard guards.**  
+    max turns、time、cost、retry、branch 等上限用于控制最坏情况。
+
+12. **Progress guards are stronger than step guards.**  
+    no-progress、repetition、oscillation 能更早识别无效运行。
+
+13. **Long-running state does not require continuously running inference.**  
+    长任务应支持 checkpoint、suspend、resume。
+
+14. **Nested loops need explicit ownership.**  
+    SDK、Harness、Workflow、Tool retry 不能层层重复控制同一失败。
+
+15. **Lifecycle authority must respect safety and system invariants.**  
+    Goal pursuit 永远不能越过权限、风险与一致性边界。
+
+---
+
+#### 7.2.70 一句话总结
+
+> **Agent Loop Policy 的本质，是让一次 Agent run 按 State、Observation、Event、Budget 与 Policy 受控推进：需要语义判断时才调用模型，需要真实反馈时执行并观察，需要外部条件时等待并挂起，需要证明时验证，需要探索时有限分支，检测到重复、振荡或无进展时改变策略，并在满足明确终止条件后停止；可靠 Agent 不是“能一直想下去”，而是知道什么时候该继续、该等、该查、该验、该换路，以及什么时候必须停。**
+
+---
+
+#### 7.2.71 参考资料
+
+1. OpenAI. *Agents SDK — Running agents / Runner*. Runner 显式管理 agent loop：模型调用后根据 final output、handoff 或 tool call 决定后续 transition，并提供 `max_turns`、RunState 恢复、tool execution 与 lifecycle hooks 等机制。
+2. OpenAI. *Agents SDK — Runner Reference*. 将一次 turn 定义为一次 AI invocation，并显式区分 final output、handoff、tool execution 与 `MaxTurnsExceeded`，说明 model invocation 只是 run lifecycle 中的一类步骤。
+3. Anthropic. *Building effective agents*（2024）. 区分 workflow 与 agent，并把 Agent 描述为根据环境反馈动态控制自身 process / tool usage 的系统；强调从简单、可组合模式开始，而不是无条件增加 agentic complexity。
+4. Anthropic. *Effective harnesses for long-running agents*（2025）. 讨论长时 Agent 如何跨多个 context window 持续取得增量进展，并通过结构化 artifacts 与 session handoff 维持任务连续性。
+5. Anthropic. *Harness design for long-running application development*（2026）. 进一步讨论长任务中的 context reset、结构化 handoff、generator / evaluator 分离，以及 naive continuous iteration 在长时任务中的失稳问题。
+6. Anthropic. *Long-running Claude for scientific computing*（2026）. 展示 Ralph-style repeated-agent loop，同时通过最大迭代次数和成功条件限制持续运行，说明“继续迭代”仍需要外部 guard。
+7. LangChain / LangGraph. *Thinking in LangGraph*. 将 Agent 建模为显式 State、Node 与 Transition，并区分 LLM step、data step、action step、human-input step；同时展示 retry、interrupt、checkpointer、pause / resume 与不同 failure semantics 的处理方式。
+8. Yao S, Zhao J, Yu D, et al. *ReAct: Synergizing Reasoning and Acting in Language Models*. ICLR 2023. 提出 reasoning 与 action / observation 交错的经典 Agent loop 形式，为后续环境反馈驱动的 Agent 设计提供基础范式。
+
+---
+
 ### 7.3 Instruction Policy
 ### 7.4 Context Policy
 ### 7.5 Tool Policy
@@ -114856,7 +117488,7 @@ Harness = Agent SDK
 ### 7.10 Termination Policy
 ### 7.11 Recovery Policy
 
-7.2–7.11 待补充。
+7.3–7.11 待补充。
 
 核心边界：
 
@@ -115162,7 +117794,7 @@ Model
 | II | 4. Context, Memory & Retrieval | 已完成：4.1–4.6 |
 | II | 5. Capability Extension & Protocols | 已完成：5.1–5.4 |
 | II | 6. Multi-Agent & Agent Interoperability | 已完成：6.1–6.7 |
-| III | 7. Agent Harness | 进行中：7.1 已完成；下一节 7.2 Agent Loop Policy |
+| III | 7. Agent Harness | 进行中：7.1–7.2 已完成；下一节 7.3 Instruction Policy |
 | III | 8. Runtime & Infrastructure | 待写 |
 | III | 9. Observability & Evaluation | 待写 |
 | III | 10. Safety, Permissions & Governance | 待写 |
