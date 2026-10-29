@@ -4,9 +4,12 @@
 
 Agent 不只是一次文本生成；如何评价 task、tool、state、environment、recovery 和长期行为？
 
-## 计划主题
+## 已建立
 
-- Agent Evaluation Contract
+- [01 Agent Evaluation Contract](01_Agent_Evaluation_Contract.md) — Q12
+
+## 后续主题
+
 - Task Success & Partial Credit
 - Tool-use & Grounding Evaluation
 - Recovery & Graceful Degradation
@@ -15,7 +18,7 @@ Agent 不只是一次文本生成；如何评价 task、tool、state、environme
 
 ## 依赖
 
-Part 1；Agent 最小基础；部分内容依赖 Part 7 tracing。
+Part 1；[Agent Fundamentals for Eval](../00_Foundations/06_Agent_Fundamentals_for_Eval.md)；部分内容依赖 Part 7 tracing。
 
 ## VeriAgent Lens
 

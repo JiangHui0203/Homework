@@ -4,12 +4,12 @@
 
 ## 最小范围
 
-1. Probability & Statistics for Eval
+1. [Probability & Statistics for Eval](01_Probability_and_Statistics_for_Eval.md) — **已建立第一版**
 2. Machine Learning Basics for Eval
 3. LLM Fundamentals for Eval
-4. Experiment Design Basics
+4. [Experiment Design Basics](04_Experiment_Design_Basics.md) — **已建立第一版**
 5. Data Handling for Eval
-6. Agent Fundamentals for Eval
+6. [Agent Fundamentals for Eval](06_Agent_Fundamentals_for_Eval.md) — **已建立第一版**
 7. Software Engineering for Eval
 
 ## 纳入标准
@@ -23,6 +23,22 @@
 - 无法解释 Agent trace。
 
 否则默认不展开。
+
+## 第一批基础的学习顺序
+
+```text
+Probability & Statistics
+        ↓
+Estimand / Unit of Analysis
+        ↓
+Experiment Design
+        ↓
+Evaluation Contract / Metric Design
+
+Agent Fundamentals
+        ↓
+Agent Evaluation Contract
+```
 
 ## 学习完成标准
 

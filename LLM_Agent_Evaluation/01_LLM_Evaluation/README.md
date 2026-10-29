@@ -4,10 +4,14 @@
 
 如何把“模型看起来不错”转化成明确、可执行、可比较的 evaluation contract？
 
-## 计划主题
+## 已建立
 
-- Evaluation Contract
-- What Are We Measuring
+- [01 Evaluation Contract](01_Evaluation_Contract.md) — Q01
+- [02 What Are We Measuring](02_What_Are_We_Measuring.md) — Q03
+- [03 Metric Design](03_Metric_Design.md) — Q04
+
+## 后续主题
+
 - Reference-based vs Reference-free Eval
 - Open-ended Generation Evaluation
 - Human Evaluation
@@ -15,7 +19,7 @@
 
 ## 依赖
 
-Part 0 的统计、LLM 基础与实验设计。
+Part 0 的统计、LLM 基础与实验设计；Q02 由 Part 6 维护。
 
 ## 不负责
 

@@ -4,9 +4,12 @@
 
 评分器本身可靠吗？它的偏差、方差和失败模式会怎样影响最终结论？
 
-## 计划主题
+## 已建立
 
-- Grader / Verifier / Judge 边界
+- [01 Grader / Verifier / LLM-as-a-Judge](01_Grader_Verifier_and_Judge.md) — Q07
+
+## 后续主题
+
 - Rubric & Scoring Design
 - Judge Bias and Failure Modes
 - Calibration & Human Agreement
