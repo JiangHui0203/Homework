@@ -57,10 +57,10 @@
 ## C. Agent Evaluation
 
 - [ ] `M1 · S0` **[Q12](./03_Agent_Evaluation/01_Agent_Evaluation_Contract.md)**：为什么 Agent 不能只看 final task success？一个最小完备 Agent Eval 应包含哪些层次？
-- [ ] `M1 · S0` **Q13**：如何评价 tool selection、tool arguments、tool result grounding 与 final answer 之间的正确性？
-- [ ] `M1 · S0` **Q14**：如何评价 recovery / graceful degradation，而不是把所有非成功运行都压成 failure？
-- [ ] `M1 · S0` **Q15**：有 memory / state 的 Agent 应如何避免状态泄漏、历史污染和非独立测试？
-- [ ] `M2 · S0` **Q16**：long-horizon Agent 为什么需要过程指标、阶段性检查点和预算指标？
+- [ ] `M1 · S0` **[Q13](./03_Agent_Evaluation/02_Tool_Use_and_Grounding_Evaluation.md)**：如何评价 tool selection、tool arguments、tool result grounding 与 final answer 之间的正确性？
+- [ ] `M1 · S0` **[Q14](./03_Agent_Evaluation/03_Recovery_and_Graceful_Degradation.md)**：如何评价 recovery / graceful degradation，而不是把所有非成功运行都压成 failure？
+- [ ] `M1 · S0` **[Q15](./03_Agent_Evaluation/04_State_Memory_and_Leakage_Evaluation.md)**：有 memory / state 的 Agent 应如何避免状态泄漏、历史污染和非独立测试？
+- [ ] `M2 · S0` **[Q16](./03_Agent_Evaluation/05_Long_Horizon_Agent_Evaluation.md)**：long-horizon Agent 为什么需要过程指标、阶段性检查点和预算指标？
 
 ## D. Trajectory & Failure Analysis
 
