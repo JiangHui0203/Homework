@@ -69,13 +69,13 @@ failure slicing / taxonomy
 - Part 6：paired / repeated / uncertainty；
 - Part 7：trace、replay、fixture、snapshot。
 
-## 推荐后续 Labs
+## Labs
 
-这组知识最自然对应：
+- [L04 Trajectory Failure Analysis](../labs/L04_trajectory_failure_analysis/README.md)：从 paired structured trace 找 first meaningful failure、evidence strength 与 regression candidates。
+- [L05 Agent Recovery Evaluation](../labs/L05_agent_recovery_evaluation/README.md)：计算 recovery opportunity / attempt / success、safe-stop appropriateness、retry policy violation 与 recovery cost。
+- `L07 Eval Harness`：后续实现可重放的 task-state-action-observation artifact 链。
 
-- `L04 Trajectory Failure Analysis`：从 trace 找 first meaningful failure；
-- `L05 Agent Recovery Evaluation`：区分 first-pass / recovered / safe stop / unrecovered；
-- `L07 Eval Harness`：实现可重放的 task-state-action-observation artifact 链。
+推荐先做 L04，再做 L05：先学会定位 failure，再判断 failure 之后应该采取什么控制动作。
 
 ## VeriAgent Lens
 
