@@ -185,4 +185,4 @@ VeriAgent 的 Olist challenge 不是让 LLM judge 判断 SQL“看起来对不�
 
 - [Evaluation Patterns](../EVAL_PATTERNS.md)
 - [Q01 Evaluation Contract](../01_LLM_Evaluation/01_Evaluation_Contract.md)
-- `../LLM_Agent_Data/` 中关于 grader / verifier / judge 的数据系统视角由其 canonical owner 维护；本篇只负责 Evaluation 方法论边界。
+- [LLM_Agent_Data · Grader / Verifier / LLM-as-a-Judge](../../LLM_Agent_Data/15_Grader_Verifier_and_LLM_as_a_Judge.md) — 数据系统视角的 canonical owner；本篇只负责 Evaluation 方法论边界。
