@@ -27,8 +27,7 @@ jobs:
           s = Path('Agent_Knowledge_System.md').read_text(encoding='utf-8')
           assert '#### 7.4.1 为什么 Harness 需要独立的 Context Policy' in s
           assert '#### 7.4.162 参考资料' in s
-          assert re.search(r'^\| [^|]+ \| 7\.[^|]+ \| 进行中：7\.1–7\.4 已完成 \|$', s, re.M)
-          assert re.search(r'^下一步：继续 .*7\.5', s, re.M)
+          assert re.search(r'^\| [^|]+ \| 7\.[^|]+ \| 进行中：7\.1–7\.4 已完成；下一节 7\.5[^|]+ \|$', s, re.M)
           print('VERIFY_OK')
           PY
       - name: Remove temporary patch files
