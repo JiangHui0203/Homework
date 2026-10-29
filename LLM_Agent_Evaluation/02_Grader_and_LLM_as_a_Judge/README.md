@@ -26,6 +26,24 @@ Q10 设计可执行 protocol
 Q11 处理 Judge 与 Human 不一致
 ```
 
+## Practice
+
+- [L02 — LLM Judge Calibration Lab](../labs/L02_llm_judge_calibration/README.md)
+
+这个 Lab 使用冻结的 Human + Judge 数据，要求亲手完成：
+
+```text
+agreement
+→ repeat consistency
+→ swap test
+→ bias slicing
+→ human disagreement adjudication
+→ release gates
+→ scope-aware GO / NO-GO
+```
+
+完成 Lab 可以作为 Q08–Q11 从“理解”向“能独立设计与分析”推进的实践证据。
+
 ## 后续主题
 
 - Pairwise ranking aggregation / Bradley-Terry / Elo
