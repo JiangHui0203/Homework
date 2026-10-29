@@ -37,7 +37,24 @@ Useful entry points include:
 
 The system is maintained as a stable reference rather than an ever-growing collection of notes.
 
-### 3. LeetCode Hot 100
+### 3. LLM / Agent Evaluation Knowledge System
+
+[**LLM_Agent_Evaluation/**](./LLM_Agent_Evaluation/)
+
+A long-term Evaluation knowledge system for learning, interview preparation, practical evaluation work, and VeriAgent experiments. It focuses on **how to define, measure, compare, diagnose, and maintain trustworthy LLM / Agent evaluations** rather than duplicating the existing data knowledge system.
+
+Core entry points include:
+
+- [Core Questions](./LLM_Agent_Evaluation/CORE_QUESTIONS.md) — evaluation mother questions and mastery tracking;
+- [Evaluation Patterns](./LLM_Agent_Evaluation/EVAL_PATTERNS.md) — reusable evaluation design patterns;
+- [Metrics](./LLM_Agent_Evaluation/METRICS.md), [Benchmarks](./LLM_Agent_Evaluation/BENCHMARKS.md), and [Failure Taxonomy](./LLM_Agent_Evaluation/FAILURE_TAXONOMY.md) — practical retrieval indexes;
+- [Interview Index](./LLM_Agent_Evaluation/INTERVIEW_INDEX.md) — interview-oriented retrieval;
+- [VeriAgent Cases](./LLM_Agent_Evaluation/cases/veriagent/) — current implementation cases and frozen experiments;
+- [Source of Truth](./LLM_Agent_Evaluation/SOURCE_OF_TRUTH.md) — ownership rules that prevent duplication with `LLM_Agent_Data`.
+
+The system separates stable theory, current VeriAgent implementation cases, and dated/versioned frozen experiments.
+
+### 4. LeetCode Hot 100
 
 [**LeetCode/Hot100/**](./LeetCode/Hot100/)
 
