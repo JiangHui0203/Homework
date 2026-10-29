@@ -1,0 +1,106 @@
+# Core Questions
+
+> Evaluation 版“核心母题”。这里决定哪些问题必须真正掌握，而不是记录所有可能的知识点。
+
+## 分级规则
+
+### M1 — Core Evaluation Question
+
+达到 `S4` 时应能：
+
+- 60–90 秒给出核心回答；
+- 5 分钟展开设计；
+- 明确 evaluation contract、metric / protocol 与主要 confounder；
+- 给出至少一个反例或失败模式；
+- 用真实项目或 VeriAgent 举例；
+- 面对追问能解释 trade-off。
+
+### M2 — 高频扩展
+
+应能独立解释、知道何时使用、主要假设是什么，并能关联至少一个 M1。
+
+### M3 — 检索型知识
+
+知道它解决什么问题、属于知识图谱哪个位置，需要时能快速查回即可。
+
+## 掌握度
+
+- `S0`：未系统学习。
+- `S1`：见过，能识别术语或问题形态。
+- `S2`：能脱离笔记独立解释。
+- `S3`：能完成实际设计 / 实现 / 分析。
+- `S4`：能诊断反例、比较方案、处理追问并 defend。
+
+> M1/M2/M3 是相对稳定的重要性；S0–S4 是个人当前状态，两者不得混用。
+
+---
+
+# V0 Master List
+
+## A. Evaluation Contract & LLM Eval
+
+- [ ] `M1 · S0` **Q01**：一个 LLM / Agent 评测在开始跑模型之前，必须先定义哪些 evaluation contract？
+- [ ] `M1 · S0` **Q02**：你到底在估计什么——task、run、sample、user 还是 trajectory？为什么 unit of analysis 选错会让结论失真？
+- [ ] `M1 · S0` **Q03**：最终答案正确率提高，为什么不一定意味着系统能力真的提高？
+- [ ] `M1 · S0` **Q04**：一个 metric 应该怎样定义分子、分母、aggregation、失败运行和缺失值？
+- [ ] `M2 · S0` **Q05**：reference-based 与 reference-free evaluation 各适合什么任务？
+- [ ] `M2 · S0` **Q06**：开放式生成为什么很难只靠一个 automatic metric 评价？
+
+## B. Grader / Verifier / LLM-as-a-Judge
+
+- [ ] `M1 · S0` **Q07**：Grader、Verifier、LLM-as-a-Judge 分别解决什么问题，什么时候应该优先 deterministic verifier？
+- [ ] `M1 · S0` **Q08**：如何证明一个 LLM judge 本身足够可靠，而不是把 judge score 当作 ground truth？
+- [ ] `M1 · S0` **Q09**：position bias、verbosity bias、self-preference、style bias 会怎样污染 judge 结果，如何诊断？
+- [ ] `M1 · S0` **Q10**：如何设计 rubric、pairwise / pointwise protocol 和 adjudication 流程？
+- [ ] `M2 · S0` **Q11**：judge 与 human disagreement 应如何分析，而不是只报一个相关系数？
+
+## C. Agent Evaluation
+
+- [ ] `M1 · S0` **Q12**：为什么 Agent 不能只看 final task success？一个最小完备 Agent Eval 应包含哪些层次？
+- [ ] `M1 · S0` **Q13**：如何评价 tool selection、tool arguments、tool result grounding 与 final answer 之间的正确性？
+- [ ] `M1 · S0` **Q14**：如何评价 recovery / graceful degradation，而不是把所有非成功运行都压成 failure？
+- [ ] `M1 · S0` **Q15**：有 memory / state 的 Agent 应如何避免状态泄漏、历史污染和非独立测试？
+- [ ] `M2 · S0` **Q16**：long-horizon Agent 为什么需要过程指标、阶段性检查点和预算指标？
+
+## D. Trajectory & Failure Analysis
+
+- [ ] `M1 · S0` **Q17**：如何从一条 trajectory 中区分 symptom、first meaningful failure 和 root cause？
+- [ ] `M1 · S0` **Q18**：step-level correctness 与最终 outcome 应如何联合分析，避免错误 credit assignment？
+- [ ] `M1 · S0` **Q19**：平均分变差时，如何用 slice 找出真正退化的能力，而不是盲目看总体指标？
+- [ ] `M2 · S0` **Q20**：failure taxonomy 如何转化为可检测、可统计、可回归测试的工程资产？
+
+## E. Benchmark & Eval Data
+
+- [ ] `M1 · S0` **Q21**：如何构造一个真正有区分度的 eval set，而不是简单收集一批题？
+- [ ] `M1 · S0` **Q22**：如何避免 benchmark leakage、test-set overfitting 和开发集反复调参造成的伪提升？
+- [ ] `M1 · S0` **Q23**：为什么 frozen core、regression set、hard set / rotating set 应该分工不同？
+- [ ] `M2 · S0` **Q24**：difficulty、coverage、slice balance 和 natural frequency 应如何权衡？
+
+## F. Statistics & Experiment Design
+
+- [ ] `M1 · S0` **Q25**：准确率从 70% 到 73%，你如何判断这 3 个点是否可信？
+- [ ] `M1 · S0` **Q26**：什么时候应该使用 paired evaluation，为什么同题配对通常比两组独立平均更有力？
+- [ ] `M1 · S0` **Q27**：bootstrap、permutation test、confidence interval 分别在 Eval 中回答什么问题？
+- [ ] `M1 · S0` **Q28**：LLM / Agent 存在随机性时，题目数量和重复次数应该怎样设计？
+- [ ] `M2 · S0` **Q29**：多指标、多切片、多轮试验为什么会产生 multiple-comparison 问题？
+- [ ] `M2 · S0` **Q30**：相关性高是否意味着 evaluator 可替代 human judgment？
+
+## G. Eval Engineering
+
+- [ ] `M1 · S0` **Q31**：一个可复现的 eval harness 至少需要记录哪些 artifact、version、trace 和 configuration？
+- [ ] `M1 · S0` **Q32**：如何设计 replay、fixture、mock、fault injection，使 Agent failure 可以稳定复现？
+- [ ] `M1 · S0` **Q33**：如何把 offline eval 变成 CI regression gate，同时避免 flaky eval 阻塞开发？
+- [ ] `M1 · S0` **Q34**：如何同时报告 quality、cost、latency、stability，而不是只优化单一准确率？
+
+## H. Eval → Data / Post-training
+
+- [ ] `M1 · S0` **Q35**：什么样的 failure 才值得进入 hard-case mining / data flywheel，而不是直接拿所有失败去训练？
+- [ ] `M1 · S0` **Q36**：post-training 后如何证明改善来自目标能力，而不是 benchmark 记忆或评测协议漂移？
+- [ ] `M2 · S0` **Q37**：如何把 evaluator signal 转成 preference / reward / supervision，同时控制 evaluator bias？
+
+## 维护规则
+
+- 新增 M1 必须能映射到至少一个 Pattern、一个真实案例或 Lab。
+- 如果一个问题只是在问术语定义，默认不能成为 M1。
+- 完成度更新只修改 `S0–S4`，不因为“已经学会”而降低 M1/M2 级别。
+- M1 长期控制在“可反复复习”的规模，不无限增长。
