@@ -108,12 +108,12 @@ Slice aggregation
 Regression fixture
 ```
 
-## 推荐后续 Labs
+## Labs
 
-- `L04 Trajectory Failure Analysis`：给一批 structured trace，标 symptom / first meaningful failure / root-cause evidence，并做 slice diagnosis。
-- `L05 Agent Recovery Evaluation`：把 initial failure、recovery decision、recovered success、safe stop 和 recovery cost 联合分析。
+- [L04 Trajectory Failure Analysis](../labs/L04_trajectory_failure_analysis/README.md)：16 条 paired synthetic trajectories，完成 first meaningful failure、root-cause evidence、paired loss、slice diagnosis 与 regression promotion。
+- [L05 Agent Recovery Evaluation](../labs/L05_agent_recovery_evaluation/README.md)：24 条 recovery episodes，完成 retry / safe stop / false recovery / budget / cost 的条件评测。
 
-Q17–Q20 建完后再做 L04/L05，可以把 Part 3 与 Part 4 一起压成 S3 实践。
+L04 是 Part 4 的主实践；L05 把 Part 4 的 failure localization 接回 Part 3 的 recovery control。
 
 ## VeriAgent Lens
 
