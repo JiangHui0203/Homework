@@ -32,8 +32,8 @@ sec75 = re.search(r'(?m)^### (7\.5[^\n]*)$', text)
 if not sec75:
     raise SystemExit('could not derive 7.5 heading')
 
-# Replace only the canonical next-step line that currently points to 7.4.
-footer_pattern = re.compile(r'(?m)^下一步：继续 .*7\.4[^\n]*$')
+# Match the single canonical next-step line containing the current breakpoint, regardless of older wording style.
+footer_pattern = re.compile(r'(?m)^.*下一步.*7\.4[^\n]*$')
 footer_matches = list(footer_pattern.finditer(text))
 if len(footer_matches) != 1:
     raise SystemExit(f'expected exactly one 7.4 next-step footer, found {len(footer_matches)}')
