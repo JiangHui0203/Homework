@@ -49,10 +49,10 @@
 ## B. Grader / Verifier / LLM-as-a-Judge
 
 - [ ] `M1 · S0` **[Q07](./02_Grader_and_LLM_as_a_Judge/01_Grader_Verifier_and_Judge.md)**：Grader、Verifier、LLM-as-a-Judge 分别解决什么问题，什么时候应该优先 deterministic verifier？
-- [ ] `M1 · S0` **Q08**：如何证明一个 LLM judge 本身足够可靠，而不是把 judge score 当作 ground truth？
-- [ ] `M1 · S0` **Q09**：position bias、verbosity bias、self-preference、style bias 会怎样污染 judge 结果，如何诊断？
-- [ ] `M1 · S0` **Q10**：如何设计 rubric、pairwise / pointwise protocol 和 adjudication 流程？
-- [ ] `M2 · S0` **Q11**：judge 与 human disagreement 应如何分析，而不是只报一个相关系数？
+- [ ] `M1 · S0` **[Q08](./02_Grader_and_LLM_as_a_Judge/02_Judge_Reliability_and_Calibration.md)**：如何证明一个 LLM judge 本身足够可靠，而不是把 judge score 当作 ground truth？
+- [ ] `M1 · S0` **[Q09](./02_Grader_and_LLM_as_a_Judge/03_Judge_Bias_and_Failure_Modes.md)**：position bias、verbosity bias、self-preference、style bias 会怎样污染 judge 结果，如何诊断？
+- [ ] `M1 · S0` **[Q10](./02_Grader_and_LLM_as_a_Judge/04_Rubric_and_Scoring_Protocol.md)**：如何设计 rubric、pairwise / pointwise protocol 和 adjudication 流程？
+- [ ] `M2 · S0` **[Q11](./02_Grader_and_LLM_as_a_Judge/05_Human_Disagreement_and_Adjudication.md)**：judge 与 human disagreement 应如何分析，而不是只报一个相关系数？
 
 ## C. Agent Evaluation
 

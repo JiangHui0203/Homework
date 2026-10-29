@@ -40,10 +40,54 @@ VeriAgent example
 | Cost | Tokens per Valid Success | 包含失败消耗后的单位成功 token |
 | Cost | Calls per Valid Success | 单位成功请求数 |
 | Latency | End-to-End P50/P95 | 完整任务耗时分布 |
-| Judge | Human Agreement | evaluator 与人工的一致性 |
-| Judge | Pairwise Preference Accuracy | judge 对 pairwise gold 的正确率 |
+| Judge | Anchor Agreement | Judge 与 adjudicated human / verifier anchor 的一致性 |
+| Judge | Pairwise Preference Accuracy | Judge 对可靠 pairwise reference 的正确率 |
+| Judge | Repeat Consistency / Flip Rate | 完全相同输入重复评分是否稳定 |
+| Judge | Swap Consistency | A/B 交换位置后，内容偏好是否保持 |
+| Judge | Slot-conditioned Win Rate | 候选处于不同展示位置时的条件胜率 |
+| Judge | Critical-slice Error Rate | 高风险 / 关键 slice 上 Judge 错误率 |
+| Judge | Human-Human Agreement | 人工 reference 本身有多一致 |
+| Judge | Judge-Human Agreement | Judge 与人工判断有多一致 |
+| Judge | Score Offset / MAE | Judge 是否系统偏高/偏低、误差有多大 |
 | Calibration | Calibration Error / Brier-style measures | confidence 与实际正确性的匹配 |
 | Regression | Paired Net Win / Loss | 新旧系统在同任务上的净改善/退化 |
+
+## Judge metric 使用提醒
+
+### Agreement ≠ Correlation
+
+- agreement 关心逐样本是否做出相同判断；
+- correlation 关心变化趋势或排序是否一致；
+- 二者都不能单独证明 evaluator validity。
+
+### Swap Consistency
+
+对于同一 pair：
+
+```text
+(A, B) -> A
+(B, A) -> A
+```
+
+内容偏好一致；如果仅交换位置就改变 winner，则记为 swap inconsistency。必须保留 tie / abstain 规则，不能把它们悄悄算成一致或错误。
+
+### Repeat Flip Rate
+
+同一 Judge contract、同一输入重复执行时，最终 label 改变的比例。unit 应明确是 judgment pair、task 还是 criterion judgment。
+
+### Human Agreement
+
+必须说明 human reference 是：
+
+```text
+single annotator
+majority vote
+mean / median score
+expert adjudication
+raw rating distribution
+```
+
+否则“Judge-human agreement”没有明确分母与 reference construction。
 
 ## 维护规则
 
@@ -52,3 +96,4 @@ VeriAgent example
 - metric 定义与 release threshold 分离。
 - aggregate metric 必须保留可解释 slice。
 - 单个 metric 不能承担它没有测量的概念。
+- Judge reliability 至少同时看 validity、repeatability、bias robustness 和 critical-slice behavior；不要用单个相关系数代替完整结论。

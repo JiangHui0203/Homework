@@ -6,20 +6,47 @@
 
 ## 已建立
 
-- [01 Grader / Verifier / LLM-as-a-Judge](01_Grader_Verifier_and_Judge.md) — Q07
+- [01 Grader / Verifier / LLM-as-a-Judge](01_Grader_Verifier_and_Judge.md) — Q07：Evaluator 边界与 deterministic-first 原则
+- [02 Judge Reliability & Calibration](02_Judge_Reliability_and_Calibration.md) — Q08：如何验证 Judge 本身是否足够可靠
+- [03 Judge Bias & Failure Modes](03_Judge_Bias_and_Failure_Modes.md) — Q09：position / verbosity / self-preference / style bias
+- [04 Rubric & Scoring Protocol](04_Rubric_and_Scoring_Protocol.md) — Q10：rubric、pointwise / pairwise、hard gate 与 adjudication
+- [05 Human Disagreement & Adjudication](05_Human_Disagreement_and_Adjudication.md) — Q11：agreement、disagreement、human reference 与争议处理
+
+## 这五篇的学习顺序
+
+```text
+Q07 先知道谁在评
+ ↓
+Q08 再验证 Judge 靠不靠谱
+ ↓
+Q09 找系统性 bias
+ ↓
+Q10 设计可执行 protocol
+ ↓
+Q11 处理 Judge 与 Human 不一致
+```
 
 ## 后续主题
 
-- Rubric & Scoring Design
-- Judge Bias and Failure Modes
-- Calibration & Human Agreement
-- Pairwise / Ranking / Preference
-- Adjudication / Judge Ensembles
+- Pairwise ranking aggregation / Bradley-Terry / Elo
+- Judge ensembles and routing
+- Confidence / abstention calibration
+- Judge regression suite
 
 ## Canonical Boundary
 
-`LLM_Agent_Data` 已有 Grader/Verifier/Judge 的数据系统视角；本 Part 重点维护 evaluator reliability 与 operational evaluation methodology。
+`LLM_Agent_Data/15_Grader_Verifier_and_LLM_as_a_Judge.md` 维护 Evidence → Evaluator → Label 的数据系统 canonical semantics；本 Part 不重写该章。
+
+本 Part 的 owner 是：
+
+```text
+Judge reliability
+Judge bias diagnosis
+Rubric / scoring protocol
+Human agreement / disagreement analysis
+Operational calibration and adjudication
+```
 
 ## VeriAgent Lens
 
-优先讨论 deterministic proof / SQL / contract verification 与模型 judgment 的边界。
+VeriAgent 当前大量使用 deterministic proof / SQL / contract verification，因此主要作为 Judge 的边界案例：能直接验证的 correctness 不应降级成 LLM judgment。未来如增加解释质量、帮助性等开放式评价，再引入经过校准的 Judge layer。
