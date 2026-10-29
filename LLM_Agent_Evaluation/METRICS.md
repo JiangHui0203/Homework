@@ -47,9 +47,16 @@ VeriAgent example
 | Memory | Memory Net Benefit | paired runs 中改善与退化的净 outcome 差 |
 | Trajectory | Checkpoint Completion Rate | 有多少 episode 到达有效任务 milestone |
 | Trajectory | Conditional Stage Success | 到达某阶段后，向下一阶段有效推进的比例 |
-| Trajectory | First-Failure Distribution | 关键失败集中在哪个阶段 |
+| Trajectory | First-Failure Distribution | first meaningful failure 集中在哪个阶段 / layer |
+| Trajectory | Step–Outcome Consistency Table | step correctness 与 final outcome 的四格分布 |
+| Trajectory | Lucky / Compensated Success Rate | 关键 step 错误但 final outcome 正确的比例 |
 | Trajectory | Loop / Stall Rate | 长链中失去有效进展的 episode 比例 |
 | Trajectory | Post-failure Waste | 首次不可恢复失败后继续消耗的 token / calls / time |
+| Failure | Failure Recurrence Rate | 同类 operational failure 在有效 opportunity 中复发频率 |
+| Failure | Failure Detection Rate | 已发生可定义 failure 中有多少被 evaluator / guard 检出 |
+| Failure | Failure Escape Rate | 已发生 failure 中有多少逃逸并影响交付 / final outcome |
+| Regression | Slice Regression Delta | candidate 相对 baseline 在预定义 slice 的 paired 变化 |
+| Regression | Paired Net Win / Loss | 新旧系统在同任务上的净改善/退化 |
 | Stability | Repeat Consistency | 同任务重复运行是否稳定 |
 | Budget | Budget Violation Rate | 超出冻结 token / call / time / retry 预算的比例 |
 | Budget | Success under Fixed Budget | 在统一预算约束下的任务成功能力 |
@@ -66,7 +73,6 @@ VeriAgent example
 | Judge | Judge-Human Agreement | Judge 与人工判断有多一致 |
 | Judge | Score Offset / MAE | Judge 是否系统偏高/偏低、误差有多大 |
 | Calibration | Calibration Error / Brier-style measures | confidence 与实际正确性的匹配 |
-| Regression | Paired Net Win / Loss | 新旧系统在同任务上的净改善/退化 |
 
 ## Agent metric 使用提醒
 
@@ -176,6 +182,66 @@ Success under Fixed Budget
 
 联合解释。
 
+## Trajectory / failure metric 使用提醒
+
+### First-Failure Distribution 必须先固定 localization rule
+
+不要把：
+
+```text
+last error
+final symptom
+first suspicious low-confidence token
+```
+
+自动当作 first meaningful failure。
+
+正式统计前应固定 stage ontology、evidence requirement 与 unresolved 处理。
+
+### Step correctness 与 outcome 要联合报告
+
+至少保留四格：
+
+```text
+step correct + outcome correct
+step correct + outcome wrong
+step wrong   + outcome correct
+step wrong   + outcome wrong
+```
+
+`step wrong + outcome correct` 可以暴露 lucky / compensated success；它不能从 final success 中被抹掉。
+
+### Failure Recurrence 的 denominator 是 opportunity
+
+推荐：
+
+```text
+same operational failure occurrences
+-----------------------------------
+eligible opportunities where it could occur
+```
+
+不能简单除以所有 episode。
+
+### Slice Regression Delta 不等于 Root Cause
+
+发现某 slice 下降，只能说明 association。
+
+应继续结合：
+
+```text
+paired losses
+first-failure shift
+trace evidence
+replay / counterfactual
+```
+
+再形成机制结论。
+
+### Exploratory slice 与 confirmatory slice 分开
+
+预注册 capability slice 可以进入 release evidence；结果出来后新发现的 failure cluster 更适合生成下一轮 hypothesis / hard set。
+
 ## Judge metric 使用提醒
 
 ### Agreement ≠ Correlation
@@ -221,4 +287,5 @@ raw rating distribution
 - aggregate metric 必须保留可解释 slice。
 - 单个 metric 不能承担它没有测量的概念。
 - Agent 过程指标必须服务于 diagnosis、attribution、reliability、budget 或 replay；无决策用途的 telemetry 不自动升级成正式 metric。
+- failure metric 必须绑定 operational definition、evidence level 和 taxonomy version；definition drift 不能伪装成性能变化。
 - Judge reliability 至少同时看 validity、repeatability、bias robustness 和 critical-slice behavior；不要用单个相关系数代替完整结论。

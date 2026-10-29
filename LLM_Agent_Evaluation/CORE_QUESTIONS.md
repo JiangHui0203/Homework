@@ -64,10 +64,10 @@
 
 ## D. Trajectory & Failure Analysis
 
-- [ ] `M1 · S0` **Q17**：如何从一条 trajectory 中区分 symptom、first meaningful failure 和 root cause？
-- [ ] `M1 · S0` **Q18**：step-level correctness 与最终 outcome 应如何联合分析，避免错误 credit assignment？
-- [ ] `M1 · S0` **Q19**：平均分变差时，如何用 slice 找出真正退化的能力，而不是盲目看总体指标？
-- [ ] `M2 · S0` **Q20**：failure taxonomy 如何转化为可检测、可统计、可回归测试的工程资产？
+- [ ] `M1 · S0` **[Q17](./04_Trajectory_and_Failure_Analysis/01_First_Meaningful_Failure_and_Root_Cause.md)**：如何从一条 trajectory 中区分 symptom、first meaningful failure 和 root cause？
+- [ ] `M1 · S0` **[Q18](./04_Trajectory_and_Failure_Analysis/02_Step_Outcome_and_Credit_Assignment.md)**：step-level correctness 与最终 outcome 应如何联合分析，避免错误 credit assignment？
+- [ ] `M1 · S0` **[Q19](./04_Trajectory_and_Failure_Analysis/03_Slice_Based_Regression_Diagnosis.md)**：平均分变差时，如何用 slice 找出真正退化的能力，而不是盲目看总体指标？
+- [ ] `M2 · S0` **[Q20](./04_Trajectory_and_Failure_Analysis/04_Failure_Taxonomy_as_Engineering_Asset.md)**：failure taxonomy 如何转化为可检测、可统计、可回归测试的工程资产？
 
 ## E. Benchmark & Eval Data
 
