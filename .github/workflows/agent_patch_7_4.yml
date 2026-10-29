@@ -1,0 +1,24 @@
+name: Patch Agent Knowledge System 7.4
+
+on:
+  push:
+    branches:
+      - agent-patch-7-4
+    paths:
+      - '.github/workflows/agent_patch_7_4.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent-patch-7-4
+          fetch-depth: 0
+
+      - name: Patch 7.4 Context Policy
+        env:
+          SECTION_B64: "PiAqKuacrOiKgueCueS7r++8mjIwNy4zIOino+WGs+KAnOW9k+WJjeacieWTquS6myBpbnN0cnVjdGlvbiDnnJ/ 正在..."
