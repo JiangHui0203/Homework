@@ -10,6 +10,10 @@
 - [02 What Are We Measuring](02_What_Are_We_Measuring.md) — Q03
 - [03 Metric Design](03_Metric_Design.md) — Q04
 
+## Practice
+
+- [L01 Metric Design Lab](../labs/L01_metric_design/README.md) — 用冻结 Agent run 数据亲手定义 denominator、failure handling、cost 与 release reporting contract。
+
 ## 后续主题
 
 - Reference-based vs Reference-free Eval

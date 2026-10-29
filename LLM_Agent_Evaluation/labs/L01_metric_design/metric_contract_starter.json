@@ -1,0 +1,120 @@
+{
+  "evaluation_claim": "",
+  "unit_of_analysis": "",
+  "official_score_policy": "",
+  "metrics": [
+    {
+      "id": "M01",
+      "name": "Task Success Rate",
+      "question": "",
+      "unit": "",
+      "numerator": "",
+      "denominator": "",
+      "inclusion_rule": "",
+      "aggregation": "",
+      "failed_missing_handling": "",
+      "direction": "",
+      "interpretation_boundary": ""
+    },
+    {
+      "id": "M02",
+      "name": "Accepted Output Accuracy",
+      "question": "",
+      "unit": "",
+      "numerator": "",
+      "denominator": "",
+      "inclusion_rule": "",
+      "aggregation": "",
+      "failed_missing_handling": "",
+      "direction": "",
+      "interpretation_boundary": ""
+    },
+    {
+      "id": "M03",
+      "name": "False Accept Rate",
+      "question": "",
+      "unit": "",
+      "numerator": "",
+      "denominator": "",
+      "inclusion_rule": "",
+      "aggregation": "",
+      "failed_missing_handling": "",
+      "direction": "",
+      "interpretation_boundary": ""
+    },
+    {
+      "id": "M04",
+      "name": "Safe Stop Success Rate",
+      "question": "",
+      "unit": "",
+      "numerator": "",
+      "denominator": "",
+      "inclusion_rule": "",
+      "aggregation": "",
+      "failed_missing_handling": "",
+      "direction": "",
+      "interpretation_boundary": ""
+    },
+    {
+      "id": "M05",
+      "name": "Recovery Success Rate",
+      "question": "",
+      "unit": "",
+      "numerator": "",
+      "denominator": "",
+      "inclusion_rule": "",
+      "aggregation": "",
+      "failed_missing_handling": "",
+      "direction": "",
+      "interpretation_boundary": ""
+    },
+    {
+      "id": "M06",
+      "name": "Tokens per Valid Success",
+      "question": "",
+      "unit": "",
+      "numerator": "",
+      "denominator": "",
+      "inclusion_rule": "",
+      "aggregation": "",
+      "failed_missing_handling": "",
+      "direction": "",
+      "interpretation_boundary": ""
+    },
+    {
+      "id": "M07",
+      "name": "End-to-End P95 Latency",
+      "question": "",
+      "unit": "",
+      "numerator": "",
+      "denominator": "",
+      "inclusion_rule": "",
+      "aggregation": "",
+      "failed_missing_handling": "",
+      "direction": "",
+      "interpretation_boundary": ""
+    },
+    {
+      "id": "M08",
+      "name": "Experiment Completeness",
+      "question": "",
+      "unit": "",
+      "numerator": "",
+      "denominator": "",
+      "inclusion_rule": "",
+      "aggregation": "",
+      "failed_missing_handling": "",
+      "direction": "",
+      "interpretation_boundary": ""
+    }
+  ],
+  "release_gates": {
+    "experiment_completeness": "100%",
+    "task_success_rate": ">= 75%",
+    "false_accept_rate": "= 0%",
+    "safe_stop_success_rate": ">= 90%",
+    "recovery_success_rate": ">= 70%",
+    "tokens_per_valid_success": "<= 1800",
+    "p95_latency_ms": "<= 4500"
+  }
+}

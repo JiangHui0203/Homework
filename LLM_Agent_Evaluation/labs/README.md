@@ -4,7 +4,7 @@ Lab 用来把“看懂”推进到“会做”。每个 M1 最终应至少关联
 
 ## 第一批 Labs
 
-- `L01 Metric Design`：给一个 Agent 任务定义 outcome / reliability / cost metrics。
+- [**L01 Metric Design**](L01_metric_design/README.md)：用冻结 Agent run 数据定义 outcome / reliability / recovery / cost / latency metrics，审计 denominator、failed/missing handling 与 protocol completeness。
 - [**L02 Judge Calibration**](L02_llm_judge_calibration/README.md)：用冻结 Human + Judge 数据完成 agreement、repeat、swap、bias slicing、adjudication 和上线判定。
 - `L03 Paired Evaluation`：设计 paired experiment + uncertainty。
 - `L04 Trajectory Failure Analysis`：从 trace 找 first meaningful failure。
