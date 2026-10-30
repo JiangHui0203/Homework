@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "benchmark_id": "l07_synthetic_agent_eval_v1",
+  "planned_tasks": 8,
+  "repeats": 2,
+  "variants": ["baseline", "candidate"],
+  "seed": 20261030,
+  "trace_schema_version": "1.0",
+  "evaluator_version": "deterministic_contract_v1",
+  "budget": {
+    "max_tokens_per_run": 2200,
+    "max_tool_calls": 4,
+    "max_retries": 1
+  },
+  "gate": {
+    "artifact_completeness": 1.0,
+    "critical_invalid_outcomes": 0,
+    "candidate_success_noninferiority_pp": 0.0,
+    "candidate_repeat_consistency_min": 0.75,
+    "candidate_tokens_per_valid_success_max": 1400,
+    "candidate_p95_latency_ms_max": 2400,
+    "budget_violations": 0,
+    "replay_match_rate": 1.0
+  },
+  "rerun_policy": {
+    "deterministic_failure": "do_not_rerun_to_erase_failure",
+    "infra_abort": "one_full_rerun_allowed",
+    "stochastic_grey_zone": "not_used_in_this_lab"
+  }
+}
