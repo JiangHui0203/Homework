@@ -71,10 +71,10 @@
 
 ## E. Benchmark & Eval Data
 
-- [ ] `M1 · S0` **Q21**：如何构造一个真正有区分度的 eval set，而不是简单收集一批题？
-- [ ] `M1 · S0` **Q22**：如何避免 benchmark leakage、test-set overfitting 和开发集反复调参造成的伪提升？
-- [ ] `M1 · S0` **Q23**：为什么 frozen core、regression set、hard set / rotating set 应该分工不同？
-- [ ] `M2 · S0` **Q24**：difficulty、coverage、slice balance 和 natural frequency 应如何权衡？
+- [ ] `M1 · S0` **[Q21](./05_Benchmark_and_Evaluation_Data/01_Discriminative_Benchmark_Design.md)**：如何构造一个真正有区分度的 eval set，而不是简单收集一批题？
+- [ ] `M1 · S0` **[Q22](./05_Benchmark_and_Evaluation_Data/02_Leakage_and_Test_Set_Overfitting.md)**：如何避免 benchmark leakage、test-set overfitting 和开发集反复调参造成的伪提升？
+- [ ] `M1 · S0` **[Q23](./05_Benchmark_and_Evaluation_Data/03_Frozen_Regression_Hard_and_Rotating_Sets.md)**：为什么 frozen core、regression set、hard set / rotating set 应该分工不同？
+- [ ] `M2 · S0` **[Q24](./05_Benchmark_and_Evaluation_Data/04_Coverage_Difficulty_and_Distribution_Tradeoffs.md)**：difficulty、coverage、slice balance 和 natural frequency 应如何权衡？
 
 ## F. Statistics & Experiment Design
 
