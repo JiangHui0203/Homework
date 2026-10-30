@@ -1,0 +1,40 @@
+{
+  "version": "L06-v1",
+  "capabilities": {
+    "simple_lookup": {"population_weight": 0.50, "representative_target": 6, "diagnostic_target": 3},
+    "join_fanout": {"population_weight": 0.20, "representative_target": 2, "diagnostic_target": 3},
+    "time_scope": {"population_weight": 0.15, "representative_target": 2, "diagnostic_target": 3},
+    "safe_stop": {"population_weight": 0.10, "representative_target": 1, "diagnostic_target": 3},
+    "recovery": {"population_weight": 0.05, "representative_target": 1, "diagnostic_target": 3}
+  },
+  "representative_set": {
+    "size": 12,
+    "purpose": "approximate target-population mix",
+    "aggregation": "population_weighted",
+    "max_total_variation_distance": 0.06
+  },
+  "diagnostic_set": {
+    "size": 15,
+    "purpose": "balanced capability diagnosis",
+    "aggregation": "macro_equal_capability",
+    "required_difficulty_coverage": ["medium", "hard_or_adversarial"],
+    "min_high_or_critical_risk_items": 8
+  },
+  "eligibility": {
+    "blocked_exposure_statuses": ["DEVELOPMENT_EXPOSED", "PUBLIC_CONTAMINATION_RISK", "UNKNOWN"],
+    "require_reference_verified": true,
+    "require_discriminative_check": true,
+    "block_group_if_any_member_exposed": true
+  },
+  "split_policy": {
+    "no_duplicate_task_ids": true,
+    "group_disjoint_within_set": true,
+    "group_disjoint_across_sets": true,
+    "template_overlap_across_sets": "warn"
+  },
+  "pilot_zone": {
+    "ceiling_threshold": 0.90,
+    "floor_threshold": 0.20,
+    "note": "historical_pass_rate is for instrument audit only, not release evidence"
+  }
+}
