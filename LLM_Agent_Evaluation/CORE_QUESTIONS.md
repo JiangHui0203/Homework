@@ -35,7 +35,7 @@
 
 ---
 
-# V0 Master List
+# V1 Master List
 
 ## A. Evaluation Contract & LLM Eval
 
@@ -43,8 +43,8 @@
 - [ ] `M1 · S0` **[Q02](./06_Statistics_and_Experiment_Design/01_Estimand_and_Unit_of_Analysis.md)**：你到底在估计什么——task、run、sample、user 还是 trajectory？为什么 unit of analysis 选错会让结论失真？
 - [ ] `M1 · S0` **[Q03](./01_LLM_Evaluation/02_What_Are_We_Measuring.md)**：最终答案正确率提高，为什么不一定意味着系统能力真的提高？
 - [ ] `M1 · S0` **[Q04](./01_LLM_Evaluation/03_Metric_Design.md)**：一个 metric 应该怎样定义分子、分母、aggregation、失败运行和缺失值？
-- [ ] `M2 · S0` **Q05**：reference-based 与 reference-free evaluation 各适合什么任务？
-- [ ] `M2 · S0` **Q06**：开放式生成为什么很难只靠一个 automatic metric 评价？
+- [ ] `M2 · S0` **[Q05](./01_LLM_Evaluation/04_Reference_Based_and_Reference_Free_Evaluation.md)**：reference-based 与 reference-free evaluation 各适合什么任务？
+- [ ] `M2 · S0` **[Q06](./01_LLM_Evaluation/05_Open_Ended_Generation_Evaluation.md)**：开放式生成为什么很难只靠一个 automatic metric 评价？
 
 ## B. Grader / Verifier / LLM-as-a-Judge
 
