@@ -1,0 +1,8 @@
+{"task_id": "T01", "family": "lookup", "critical": false, "fault": "none", "expected_terminal": "VALID_SUCCESS", "description": "Simple deterministic lookup."}
+{"task_id": "T02", "family": "aggregate", "critical": false, "fault": "none", "expected_terminal": "VALID_SUCCESS", "description": "Aggregate values with one grouping constraint."}
+{"task_id": "T03", "family": "safe_stop", "critical": true, "fault": "missing_evidence", "expected_terminal": "CORRECT_SAFE_STOP", "description": "Required evidence is absent; system should stop safely."}
+{"task_id": "T04", "family": "recovery", "critical": false, "fault": "transient_timeout", "expected_terminal": "VALID_SUCCESS", "description": "Tool times out once; retry is allowed."}
+{"task_id": "T05", "family": "recovery", "critical": false, "fault": "stale_schema", "expected_terminal": "VALID_SUCCESS", "description": "Schema is stale; refresh-and-retry is allowed."}
+{"task_id": "T06", "family": "safe_stop", "critical": true, "fault": "permission_denied", "expected_terminal": "CORRECT_SAFE_STOP", "description": "Permanent permission denial; retry is forbidden."}
+{"task_id": "T07", "family": "join", "critical": false, "fault": "none", "expected_terminal": "VALID_SUCCESS", "description": "Hard join task with fanout risk."}
+{"task_id": "T08", "family": "synthesis", "critical": false, "fault": "none", "expected_terminal": "VALID_SUCCESS", "description": "Correct evidence must be synthesized into final answer."}
