@@ -11,7 +11,7 @@ Lab 用来把“看懂”推进到“会做”。每个 M1 最终应至少关联
 - [**L05 Agent Recovery Evaluation**](L05_agent_recovery_evaluation/README.md)：用冻结 recovery episodes 计算 opportunity / attempt / success、safe stop、retry policy、false recovery 与 recovery cost。
 - [**L06 Benchmark Slice Design**](L06_benchmark_slice_design/README.md)：从带 capability / difficulty / risk / natural-frequency / group / exposure 元数据的 task pool 构造 representative + diagnostic 两套 benchmark view，并做 split / leakage / weighting audit。
 - [**L07 Eval Harness**](L07_eval_harness/README.md)：用纯离线 deterministic simulator 实现 manifest、config snapshot、structured trace、artifact hash、validation、exact replay 和 multi-dimensional release gate。
-- `L08 VeriAgent Frozen Case`：把一次真实实验整理成 frozen experiment。
+- [**L08 VeriAgent Frozen Case**](L08_veriagent_frozen_case/README.md)：用真实 VeriAgent `reviewed dev failures → frozen candidate memory → held-out paired test → attribution failure` 完成全链路审计、证据陈述与面试复述。
 
 Lab 使用 [`../templates/LAB.md`](../templates/LAB.md)。
 
@@ -24,6 +24,7 @@ Q12–Q20 -> L04 Trajectory Failure Analysis + L05 Agent Recovery Evaluation
 Q21–Q24 -> L06 Benchmark Slice Design
 Q25–Q29 -> L03 Paired Evaluation
 Q31–Q34 -> L07 Eval Harness
+Q01–Q37 -> L08 VeriAgent Frozen Case (capstone)
 ```
 
 L03 训练：
@@ -68,9 +69,25 @@ frozen contract
 → release gate
 ```
 
+L08 是最终综合：
+
+```text
+real source provenance
+→ dev failure review
+→ candidate promotion boundary
+→ held-out paired result
+→ treatment-delivery audit
+→ causal attribution boundary
+→ cost / stability
+→ exposure update
+→ no-promotion decision
+→ interview defense
+```
+
 ## 完成度原则
 
 - 阅读知识正文只能说明“见过/理解”；
 - 跑完 Lab、独立写出分析与结论，才是向 `S3` 推进的证据；
 - Lab 的参考答案不能替代自己的报告；
-- synthetic Lab 只验证方法掌握，不构成任何真实模型/系统的性能证据。
+- synthetic Lab 只验证方法掌握，不构成任何真实模型/系统的性能证据；
+- L08 使用真实历史实验，但完成 L08 仍不自动修改 `S0–S4`，需要实际独立完成与复述。

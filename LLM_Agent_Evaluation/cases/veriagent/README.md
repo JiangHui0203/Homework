@@ -20,7 +20,12 @@ VeriAgent 把 generation、verification、control、recovery 与 observability �
 
 ### Frozen
 
-见 [`frozen/`](./frozen/)：保存带 commit / protocol / artifacts 的实验解释。
+见 [`frozen/`](./frozen/)：保存带 commit / protocol / artifacts 的历史实验解释，不随当前实现漂移。
+
+首个完整 frozen capstone：
+
+- [2026-10-26 Olist Challenge Candidate Memory v1](./frozen/2026-10-26_challenge_candidate_memory_v1.md)
+- 对应 Lab：[L08 VeriAgent Frozen Case](../../labs/L08_veriagent_frozen_case/README.md)
 
 ## 第一批建议案例
 
@@ -31,10 +36,13 @@ VeriAgent 把 generation、verification、control、recovery 与 observability �
 - Recovery Evaluation
 - Memory / Experience Paired Evaluation
 - Reproducibility & Frozen Experiment
+- Failure-derived intervention attribution
 
 ## 禁止事项
 
 - 不复制大段 VeriAgent 源代码；
 - 不把当前实现细节写成普遍理论；
 - 不把“机制被调用”写成“能力提升”；
-- 不用最新结果覆盖历史 frozen result。
+- 不把 raw aggregate delta 自动写成 causal improvement；
+- 不用最新结果覆盖历史 frozen result；
+- 不把 Git-ignored / local-only artifact 伪装成 clone-verifiable evidence。

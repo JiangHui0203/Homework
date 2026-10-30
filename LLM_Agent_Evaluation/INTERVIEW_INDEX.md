@@ -23,6 +23,42 @@
 | 3% 提升可信吗 | Q25–Q30 | paired repeated evaluation |
 | Eval 工程怎么落地 | Q31–Q34 | manifest / replay / trace / CI |
 | Eval 如何服务数据和训练 | Q35–Q37 | reviewed failure → candidate experience |
+| 一个完整真实 Eval 项目怎么讲 | Q01–Q37 | [L08 VeriAgent Frozen Case](labs/L08_veriagent_frozen_case/INTERVIEW_PACK.md) |
+
+## VeriAgent capstone
+
+推荐把 [L08 Interview Pack](labs/L08_veriagent_frozen_case/INTERVIEW_PACK.md) 作为项目主案例。
+
+核心不是：
+
+```text
+加了 memory
+→ 29/36 变成 30/36
+```
+
+而是：
+
+```text
+reviewed development failure
+→ freeze candidate
+→ paired held-out evaluation
+→ stage-level treatment exposure audit
+→ raw delta exists
+→ attribution fails
+→ candidate not promoted
+→ used test becomes exposed
+→ next iteration requires fresh evidence
+```
+
+这能同时回答：
+
+- 怎么做 benchmark；
+- 怎么处理 repeated / paired eval；
+- 怎么从 trace 做 failure attribution；
+- 怎么控制 data flywheel；
+- 怎么避免 test overfit；
+- 怎么做 negative-result decision；
+- 为什么 mechanism active 不等于 capability improved。
 
 ## 项目表达约束
 

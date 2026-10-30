@@ -1,0 +1,202 @@
+{
+  "schema_version": 1,
+  "experiment_id": "veriagent-olist-challenge-candidate-memory-v1-2026-10-26",
+  "frozen_date": "2026-10-26",
+  "case_pack_date": "2026-10-30",
+  "source_repository": "JiangHui0203/veriagent",
+  "source_commit": "6f5f61c5a612b015c0462bba7f46fa4fd556092a",
+  "claim": "Evaluate whether two reviewed development-failure rules, injected only at SQL generation, improve held-out Olist challenge correctness over a no-memory baseline.",
+  "git_verifiable_sources": [
+    {
+      "path": "docs/challenge_evaluation.md",
+      "git_blob_sha1": "1ea4f06d34a687b2ccb2c386d5e369a3c72f2626",
+      "role": "frozen protocol, development results, held-out paired results, attribution conclusion"
+    },
+    {
+      "path": "docs/experience_memory.md",
+      "git_blob_sha1": "49f4ede65998cfbdfc99da36df97242d4c632725",
+      "role": "memory architecture, metric definitions, isolation/repeat semantics"
+    },
+    {
+      "path": "evaluation/reviews/olist_candidate_v1.json",
+      "git_blob_sha1": "404ef68b64bb09a5841d06a9580db1e57ce0fe7b",
+      "role": "review approval and mapping from failed runs to candidate rules"
+    }
+  ],
+  "documented_local_only_artifacts": [
+    {
+      "path": "results/challenge_set_20261026T071641_710355Z/catalog.md",
+      "role": "24-task challenge catalog and data evidence"
+    },
+    {
+      "path": "results/challenge_eval_20261026T072815_498927Z/challenge_score.md",
+      "role": "development baseline score"
+    },
+    {
+      "path": "results/challenge_eval_20261026T072815_498927Z/failure_analysis.md",
+      "role": "development failure analysis"
+    },
+    {
+      "path": "memory/challenge_candidate_v1.json",
+      "role": "frozen candidate memory; Git-ignored/local"
+    },
+    {
+      "path": "memory/challenge_candidate_v1.promotion.json",
+      "role": "candidate extraction/promotion report; Git-ignored/local"
+    },
+    {
+      "path": "results/challenge_eval_20261026T074807_799473Z/challenge_score.md",
+      "role": "held-out paired score"
+    },
+    {
+      "path": "results/challenge_eval_20261026T074807_799473Z/candidate_assessment.md",
+      "role": "held-out attribution assessment"
+    },
+    {
+      "path": "results/challenge_eval_20261026T074807_799473Z/candidate_assessment.json",
+      "role": "machine-readable held-out attribution assessment"
+    }
+  ],
+  "challenge_set": {
+    "catalog_id": "fde2a8141cc95b6a2fd5836bd1c11ee3d80efb92a6f9cb7d06bd3124964f4e06",
+    "total_tasks": 24,
+    "dev_tasks": 12,
+    "heldout_test_tasks": 12,
+    "families": [
+      "payment_grain",
+      "customer_identity",
+      "join_fanout",
+      "time_scope"
+    ],
+    "tasks_per_family_per_split": 3,
+    "reference_policy": "Reference SQL must agree with an independent Python computation; each task's designated typical-wrong SQL must differ from the correct result beyond tolerance.",
+    "generalization_boundary": "Same database and shared task-expression templates; evidence is domain-internal scenario transfer, not cross-database generalization."
+  },
+  "development": {
+    "condition": "no candidate memory",
+    "distinct_tasks": 12,
+    "repeats_per_task": 2,
+    "runs": 24,
+    "correct": 22,
+    "repeat_1_correct": 10,
+    "repeat_2_correct": 12,
+    "wrong_answer_accepted": 1,
+    "sql_execution_failures": 1,
+    "review_status": "APPROVED_FOR_CANDIDATE",
+    "review_sha256": "4c0bd9932af8b9f37da4e04c9af050ec38f1ee85b4bdd0d8b08ca09eb75cc0c8",
+    "reviewed_failures": [
+      {
+        "task_id": "CJ01",
+        "failed_run_id": "CJ01_r01",
+        "successful_run_id": "CJ01_r02",
+        "rule_id": "reviewed:child_row_eligibility",
+        "observed_failure": "Child-row count condition was evaluated on the parent orders table, producing an empty/incorrect filter that was accepted.",
+        "evidence_boundary": "The successful counterpart is an independent repeat, not a learned repair."
+      },
+      {
+        "task_id": "CJ03",
+        "failed_run_id": "CJ03_r01",
+        "successful_run_id": "CJ03_r02",
+        "rule_id": "reviewed:alias_scope",
+        "observed_failure": "SQL referenced alias oi outside its visible scope and DuckDB rejected the query.",
+        "evidence_boundary": "The successful counterpart is an independent repeat, not a learned repair."
+      }
+    ]
+  },
+  "candidate": {
+    "snapshot_id": "e2837d4e8852bfdc5fe7346889d6bf5e71948814d75086e862fed4d705b0ee7d",
+    "rules": [
+      {
+        "rule_id": "reviewed:child_row_eligibility",
+        "summary": "Count item/payment child rows in a relation where those child rows are present; do not infer child-row multiplicity from unique parent-order rows."
+      },
+      {
+        "rule_id": "reviewed:alias_scope",
+        "summary": "Only reference aliases visible in the current SQL scope; place child-row counting in a CTE or correlated subquery that contains the child relation."
+      }
+    ],
+    "intervention_stage": "SQL generation",
+    "retrieval_scope": "Questions containing item/payment row-count language",
+    "does_not_change": [
+      "model weights",
+      "initial analysis prompt",
+      "default memory file"
+    ],
+    "development_origin": true
+  },
+  "heldout_test": {
+    "distinct_tasks": 12,
+    "repeats_per_task_per_condition": 3,
+    "conditions": [
+      "no_memory",
+      "candidate_memory_only"
+    ],
+    "runs_per_condition": 36,
+    "total_task_runs": 72,
+    "total_model_requests": 190,
+    "no_memory": {
+      "correct": 29,
+      "wrong_answer_accepted": 0,
+      "analysis_nonexistent_payments_table": 7,
+      "entered_sql_correct": "29/29",
+      "tasks_all_three_pass": 7,
+      "tasks_all_three_fail": 0,
+      "total_tokens": 70984,
+      "tokens_per_correct": 2447.72,
+      "latency_p50_seconds": 4.72,
+      "latency_p95_seconds": 5.61
+    },
+    "candidate_memory_only": {
+      "correct": 30,
+      "wrong_answer_accepted": 0,
+      "analysis_nonexistent_payments_table": 6,
+      "entered_sql_correct": "30/30",
+      "tasks_all_three_pass": 9,
+      "tasks_all_three_fail": 1,
+      "total_tokens": 77934,
+      "tokens_per_correct": 2597.8,
+      "latency_p50_seconds": 4.63,
+      "latency_p95_seconds": 5.41
+    },
+    "paired": {
+      "wrong_to_right": 3,
+      "right_to_wrong": 2,
+      "both_right": 27,
+      "both_wrong": 4,
+      "net_correct_runs": 1,
+      "raw_delta_percentage_points": 2.7777777778
+    },
+    "cost_delta": {
+      "total_tokens_percent": 9.7909388031,
+      "tokens_per_correct_percent": 6.1314202605
+    },
+    "retrieval": {
+      "eligible_tasks": 8,
+      "potential_candidate_hits": 24,
+      "candidate_early_failures_before_sql": 6,
+      "candidate_runs_with_injection": 18,
+      "candidate_runs_total": 36,
+      "injected_rules_per_reached_run": 2
+    }
+  },
+  "attribution": {
+    "intervention_stage": "SQL generation",
+    "observed_failures_total": 13,
+    "failures_before_intervention_stage": 13,
+    "first_analysis_prompt_pairs_identical_hash": "36/36",
+    "target_rule_error_recurrence_after_sql_entry": "not observed in either arm",
+    "causal_conclusion": "The +1/36 paired outcome difference cannot be attributed to candidate memory because all observed failures occurred before the candidate could act, and the target SQL error mechanisms did not recur in executed SQL.",
+    "negative_evidence_boundary": "Absence of target-error recurrence is not evidence that candidate memory prevented the errors; early failures do not count as avoided target errors."
+  },
+  "decision": {
+    "promotion": "DO_NOT_REPLACE_DEFAULT_MEMORY",
+    "retain_candidate_and_evidence": true,
+    "next_action": "Fix inaccurate table-name behavior in the earlier analysis stage, then evaluate a revised intervention on a fresh held-out set.",
+    "test_exposure_after_run": "DEVELOPMENT_EXPOSED",
+    "reuse_rule": "The used held-out set may remain a regression/known-hard asset but cannot be called a first independent test after candidate changes."
+  },
+  "implementation_evidence": {
+    "regression_checks_passed": 110,
+    "boundary": "Scripted-model tests validate implementation behavior, not real-model capability improvement."
+  }
+}
