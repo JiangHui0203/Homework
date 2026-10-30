@@ -19,6 +19,8 @@
 - [`METRICS.md`](./METRICS.md) / [`BENCHMARKS.md`](./BENCHMARKS.md) / [`FAILURE_TAXONOMY.md`](./FAILURE_TAXONOMY.md)：实际工作检索入口。
 - [`INTERVIEW_INDEX.md`](./INTERVIEW_INDEX.md)：把知识转换成可口述、可追问、可举例的面试能力。
 
+治理 / release 状态：[`V1_COMPLETION_AUDIT.md`](./V1_COMPLETION_AUDIT.md)。
+
 建议学习循环：
 
 ```text
@@ -99,4 +101,4 @@ veriagent
 
 掌握度：`S0 未学习` → `S1 能识别` → `S2 能解释` → `S3 能设计/实现` → `S4 能诊断、比较并 defend`。
 
-当前阶段：**V0 Architecture / Skeleton**。先保证 owner、索引、模板和依赖正确，再逐步补正文。
+当前阶段：**V1 Release Candidate**。28/28 个 M1 已有正式正文，L01–L08 已建立；V1 Complete 仍需补齐 Q05/Q06，并至少建立一个 VeriAgent Current Case。完整结论与下一阶段顺序见 [`V1_COMPLETION_AUDIT.md`](./V1_COMPLETION_AUDIT.md)。
