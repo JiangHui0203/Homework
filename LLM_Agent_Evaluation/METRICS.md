@@ -57,6 +57,9 @@ VeriAgent example
 | Failure | Failure Escape Rate | 已发生 failure 中有多少逃逸并影响交付 / final outcome |
 | Regression | Slice Regression Delta | candidate 相对 baseline 在预定义 slice 的 paired 变化 |
 | Regression | Paired Net Win / Loss | 新旧系统在同任务上的净改善/退化 |
+| Inference | Paired Effect Estimate | candidate 相对 baseline 在 primary unit 上的平均 / 净变化 |
+| Inference | Confidence Interval | primary effect 的 sampling uncertainty 范围 |
+| Inference | Discordant Pair Rate | paired binary comparison 中发生 win / loss 的单位比例 |
 | Stability | Repeat Consistency | 同任务重复运行是否稳定 |
 | Budget | Budget Violation Rate | 超出冻结 token / call / time / retry 预算的比例 |
 | Budget | Success under Fixed Budget | 在统一预算约束下的任务成功能力 |
@@ -73,6 +76,162 @@ VeriAgent example
 | Judge | Judge-Human Agreement | Judge 与人工判断有多一致 |
 | Judge | Score Offset / MAE | Judge 是否系统偏高/偏低、误差有多大 |
 | Calibration | Calibration Error / Brier-style measures | confidence 与实际正确性的匹配 |
+
+## Statistical reporting 使用提醒
+
+### Point Estimate 不能单独承担“可信度”
+
+正式版本比较至少同时报告：
+
+```text
+primary estimand
+primary unit
+N independent units
+point estimate
+paired movement (if available)
+confidence interval
+critical slices
+```
+
+例如：
+
+```text
+70% → 73%
+```
+
+本身不足以说明提升可信。
+
+### Paired Effect 应保留 Wins / Losses
+
+对于同题 binary outcome：
+
+```text
+win  = baseline wrong, candidate right
+loss = baseline right, candidate wrong
+```
+
+推荐同时报告：
+
+```text
+both correct
+wins
+losses
+both wrong
+net paired delta
+```
+
+同一个 `+3pp` 可以来自完全不同的 win/loss 结构。
+
+### Confidence Interval 的 Unit 必须匹配 Estimand
+
+如果：
+
+```text
+12 tasks × 3 repeats = 36 runs
+```
+
+而 claim 是 task-level generalization，则 uncertainty 不能默认把 36 runs 当 36 个独立 tasks。
+
+优先：
+
+```text
+resample / analyze tasks
+```
+
+或使用显式 clustered / hierarchical 方法。
+
+### Bootstrap 不会创造新样本
+
+更多 bootstrap resamples 只能减少 Monte Carlo 误差，不会增加：
+
+```text
+task diversity
+capability coverage
+rare-event opportunities
+```
+
+小 N 产生宽 CI 是有信息的结果，不应通过“多 bootstrap 几次”掩盖。
+
+### Permutation Test 必须尊重 Exchangeability
+
+Permutation 不是随便 shuffle rows。
+
+paired A/B 中，应在零假设下交换合法的 A/B 标签，或等价地对 paired difference 做 sign flip。
+
+如果 task / user / session 存在 cluster，交换结构也必须尊重实验设计。
+
+### p-value ≠ Effect Size ≠ Deployment Value
+
+```text
+small p-value
+```
+
+不代表：
+
+```text
+large effect
+causal mechanism proven
+worth extra cost
+safe to deploy
+```
+
+推荐将：
+
+```text
+effect size + CI
+```
+
+放在主位，把 hypothesis test 作为补充证据。
+
+### More Runs ≠ More Independent Tasks
+
+```text
+N tasks × R repeats
+```
+
+中：
+
+- `N` 主要增加 task / population coverage；
+- `R` 主要估计同 task 下 stochasticity。
+
+如果主要 claim 是对新 task 泛化，不能用大量 repeats 冒充大量独立 tasks。
+
+### Multiple Comparisons 也包括 Adaptive Selection
+
+不仅是“同时做很多 p-values”。下面都产生 multiplicity / winner-selection 风险：
+
+```text
+试很多 prompt
+试很多 threshold
+看很多 slices
+多轮 peeking
+挑最好的 seed / subset
+```
+
+应区分：
+
+```text
+confirmatory primary metrics / slices
+vs
+exploratory diagnostics
+```
+
+探索结果需要 fresh confirmation。
+
+### Correlation 不能单独支持 Human Replacement
+
+高 Pearson / Spearman correlation 不等于：
+
+```text
+high agreement
+low MAE
+no score offset
+same threshold decisions
+low critical-slice error
+stable repeated judgments
+```
+
+Evaluator replacement claim 必须结合 agreement、calibration、decision confusion、critical slices、bias probes 与 escalation policy。
 
 ## Agent metric 使用提醒
 
@@ -286,6 +445,8 @@ raw rating distribution
 - metric 定义与 release threshold 分离。
 - aggregate metric 必须保留可解释 slice。
 - 单个 metric 不能承担它没有测量的概念。
+- uncertainty method 必须绑定 primary estimand、unit、cluster / pairing structure；不能只写“bootstrap 95% CI”而不说明 resampling unit。
+- confirmatory 与 exploratory analysis 必须分开；多轮自适应选择不能伪装成单次预注册实验。
 - Agent 过程指标必须服务于 diagnosis、attribution、reliability、budget 或 replay；无决策用途的 telemetry 不自动升级成正式 metric。
 - failure metric 必须绑定 operational definition、evidence level 和 taxonomy version；definition drift 不能伪装成性能变化。
 - Judge reliability 至少同时看 validity、repeatability、bias robustness 和 critical-slice behavior；不要用单个相关系数代替完整结论。
