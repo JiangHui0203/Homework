@@ -85,9 +85,19 @@ versioning
 - Part 7：benchmark manifest、hash、snapshot、replay 属于 eval engineering；
 - Part 8：benchmark failure 可进入 data flywheel，但 holdout 不应被无边界写回训练。
 
-## 推荐后续 Lab
+## Practice
 
-- `L06 Benchmark Slice Design`：给 task pool、natural frequency、risk 和 difficulty metadata，设计 representative + diagnostic 两套 view，并完成 split / leakage audit。
+- [**L06 Benchmark Slice Design**](../labs/L06_benchmark_slice_design/README.md)：给冻结 task pool、natural frequency、risk、difficulty、group/template 与 exposure metadata，构造 representative + diagnostic 两套 view，并完成 leakage / weighting audit。
+
+L06 的重点不是“挑一套看起来合理的题”，而是亲手处理：
+
+```text
+row-level clean vs group-level clean
+natural frequency vs diagnostic balance
+hard vs discriminative
+sampling distribution vs reporting weights
+fresh holdout vs exposed regression asset
+```
 
 ## VeriAgent Lens
 
