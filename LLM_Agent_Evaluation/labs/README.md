@@ -9,7 +9,7 @@ Lab 用来把“看懂”推进到“会做”。每个 M1 最终应至少关联
 - `L03 Paired Evaluation`：设计 paired experiment + uncertainty。
 - [**L04 Trajectory Failure Analysis**](L04_trajectory_failure_analysis/README.md)：用 paired structured traces 做 first meaningful failure、evidence strength、slice regression 与 regression promotion。
 - [**L05 Agent Recovery Evaluation**](L05_agent_recovery_evaluation/README.md)：用冻结 recovery episodes 计算 opportunity / attempt / success、safe stop、retry policy、false recovery 与 recovery cost。
-- `L06 Benchmark Slice Design`：从 task set 构造 capability / difficulty slices。
+- [**L06 Benchmark Slice Design**](L06_benchmark_slice_design/README.md)：从带 capability / difficulty / risk / natural-frequency / group / exposure 元数据的 task pool 构造 representative + diagnostic 两套 benchmark view，并做 split / leakage / weighting audit。
 - `L07 Eval Harness`：实现最小 task-result-artifact-replay 链路。
 - `L08 VeriAgent Frozen Case`：把一次真实实验整理成 frozen experiment。
 
@@ -21,6 +21,7 @@ Lab 使用 [`../templates/LAB.md`](../templates/LAB.md)。
 Q01–Q04 -> L01 Metric Design
 Q07–Q11 -> L02 Judge Calibration
 Q12–Q20 -> L04 Trajectory Failure Analysis + L05 Agent Recovery Evaluation
+Q21–Q24 -> L06 Benchmark Slice Design
 ```
 
 L04 与 L05 有意分工：
@@ -28,6 +29,17 @@ L04 与 L05 有意分工：
 ```text
 L04: failure 发生在哪里？证据支持到哪一层？如何聚合成 regression？
 L05: failure 发生以后，系统应该 retry、recover、safe stop 还是 handoff？
+```
+
+L06 则训练：
+
+```text
+benchmark claim
+→ pool eligibility
+→ representative sampling
+→ diagnostic coverage
+→ split / leakage audit
+→ weighting / interpretation
 ```
 
 ## 完成度原则
