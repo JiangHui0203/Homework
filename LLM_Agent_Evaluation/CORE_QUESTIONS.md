@@ -94,9 +94,9 @@
 
 ## H. Eval → Data / Post-training
 
-- [ ] `M1 · S0` **Q35**：什么样的 failure 才值得进入 hard-case mining / data flywheel，而不是直接拿所有失败去训练？
-- [ ] `M1 · S0` **Q36**：post-training 后如何证明改善来自目标能力，而不是 benchmark 记忆或评测协议漂移？
-- [ ] `M2 · S0` **Q37**：如何把 evaluator signal 转成 preference / reward / supervision，同时控制 evaluator bias？
+- [ ] `M1 · S0` **[Q35](./08_Data_Flywheel_and_Post_Training/01_Failure_Promotion_to_Data_Flywheel.md)**：什么样的 failure 才值得进入 hard-case mining / data flywheel，而不是直接拿所有失败去训练？
+- [ ] `M1 · S0` **[Q36](./08_Data_Flywheel_and_Post_Training/02_Post_Training_Causal_Validation.md)**：post-training 后如何证明改善来自目标能力，而不是 benchmark 记忆或评测协议漂移？
+- [ ] `M2 · S0` **[Q37](./08_Data_Flywheel_and_Post_Training/03_Evaluator_Signal_to_Supervision.md)**：如何把 evaluator signal 转成 preference / reward / supervision，同时控制 evaluator bias？
 
 ## 维护规则
 
