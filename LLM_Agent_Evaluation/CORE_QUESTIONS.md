@@ -87,10 +87,10 @@
 
 ## G. Eval Engineering
 
-- [ ] `M1 · S0` **Q31**：一个可复现的 eval harness 至少需要记录哪些 artifact、version、trace 和 configuration？
-- [ ] `M1 · S0` **Q32**：如何设计 replay、fixture、mock、fault injection，使 Agent failure 可以稳定复现？
-- [ ] `M1 · S0` **Q33**：如何把 offline eval 变成 CI regression gate，同时避免 flaky eval 阻塞开发？
-- [ ] `M1 · S0` **Q34**：如何同时报告 quality、cost、latency、stability，而不是只优化单一准确率？
+- [ ] `M1 · S0` **[Q31](./07_Eval_Engineering/02_Reproducible_Eval_Harness.md)**：一个可复现的 eval harness 至少需要记录哪些 artifact、version、trace 和 configuration？
+- [ ] `M1 · S0` **[Q32](./07_Eval_Engineering/03_Replay_Fixture_Mock_and_Fault_Injection.md)**：如何设计 replay、fixture、mock、fault injection，使 Agent failure 可以稳定复现？
+- [ ] `M1 · S0` **[Q33](./07_Eval_Engineering/04_CI_Regression_Gates_and_Flakiness.md)**：如何把 offline eval 变成 CI regression gate，同时避免 flaky eval 阻塞开发？
+- [ ] `M1 · S0` **[Q34](./07_Eval_Engineering/05_Multidimensional_Eval_Reporting.md)**：如何同时报告 quality、cost、latency、stability，而不是只优化单一准确率？
 
 ## H. Eval → Data / Post-training
 
