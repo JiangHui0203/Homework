@@ -78,12 +78,12 @@
 
 ## F. Statistics & Experiment Design
 
-- [ ] `M1 · S0` **Q25**：准确率从 70% 到 73%，你如何判断这 3 个点是否可信？
-- [ ] `M1 · S0` **Q26**：什么时候应该使用 paired evaluation，为什么同题配对通常比两组独立平均更有力？
-- [ ] `M1 · S0` **Q27**：bootstrap、permutation test、confidence interval 分别在 Eval 中回答什么问题？
-- [ ] `M1 · S0` **Q28**：LLM / Agent 存在随机性时，题目数量和重复次数应该怎样设计？
-- [ ] `M2 · S0` **Q29**：多指标、多切片、多轮试验为什么会产生 multiple-comparison 问题？
-- [ ] `M2 · S0` **Q30**：相关性高是否意味着 evaluator 可替代 human judgment？
+- [ ] `M1 · S0` **[Q25](./06_Statistics_and_Experiment_Design/02_Is_the_Improvement_Credible.md)**：准确率从 70% 到 73%，你如何判断这 3 个点是否可信？
+- [ ] `M1 · S0` **[Q26](./06_Statistics_and_Experiment_Design/03_Paired_Evaluation.md)**：什么时候应该使用 paired evaluation，为什么同题配对通常比两组独立平均更有力？
+- [ ] `M1 · S0` **[Q27](./06_Statistics_and_Experiment_Design/04_Bootstrap_Permutation_and_Confidence_Intervals.md)**：bootstrap、permutation test、confidence interval 分别在 Eval 中回答什么问题？
+- [ ] `M1 · S0` **[Q28](./06_Statistics_and_Experiment_Design/05_Task_Count_and_Repeats.md)**：LLM / Agent 存在随机性时，题目数量和重复次数应该怎样设计？
+- [ ] `M2 · S0` **[Q29](./06_Statistics_and_Experiment_Design/06_Multiple_Comparisons_and_Adaptive_Analysis.md)**：多指标、多切片、多轮试验为什么会产生 multiple-comparison 问题？
+- [ ] `M2 · S0` **[Q30](./06_Statistics_and_Experiment_Design/07_Correlation_Does_Not_Replace_Human_Judgment.md)**：相关性高是否意味着 evaluator 可替代 human judgment？
 
 ## G. Eval Engineering
 
