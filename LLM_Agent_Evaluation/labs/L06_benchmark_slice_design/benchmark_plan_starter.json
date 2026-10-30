@@ -1,0 +1,25 @@
+{
+  "claim": "",
+  "target_population": "",
+  "unit_of_evaluation": "task",
+  "representative": {
+    "task_ids": [],
+    "aggregation": "population_weighted",
+    "interpretation": ""
+  },
+  "diagnostic": {
+    "task_ids": [],
+    "aggregation": "macro_equal_capability",
+    "interpretation": ""
+  },
+  "split_policy": {
+    "group_disjoint_within_set": true,
+    "group_disjoint_across_sets": true,
+    "template_overlap_policy": "warn_and_report"
+  },
+  "interpretation_boundary": {
+    "representative_supports": "",
+    "diagnostic_supports": "",
+    "does_not_support": ""
+  }
+}
