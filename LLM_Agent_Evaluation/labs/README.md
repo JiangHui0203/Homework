@@ -6,7 +6,7 @@ Lab 用来把“看懂”推进到“会做”。每个 M1 最终应至少关联
 
 - [**L01 Metric Design**](L01_metric_design/README.md)：用冻结 Agent run 数据定义 outcome / reliability / recovery / cost / latency metrics，审计 denominator、failed/missing handling 与 protocol completeness。
 - [**L02 Judge Calibration**](L02_llm_judge_calibration/README.md)：用冻结 Human + Judge 数据完成 agreement、repeat、swap、bias slicing、adjudication 和上线判定。
-- `L03 Paired Evaluation`：设计 paired experiment + uncertainty。
+- [**L03 Paired Evaluation**](L03_paired_evaluation/README.md)：用 12 tasks × 3 repeats 的 paired 数据完成 task-level effect、wins/losses、bootstrap CI、sign-flip permutation、task/repeat audit 与 multiplicity review。
 - [**L04 Trajectory Failure Analysis**](L04_trajectory_failure_analysis/README.md)：用 paired structured traces 做 first meaningful failure、evidence strength、slice regression 与 regression promotion。
 - [**L05 Agent Recovery Evaluation**](L05_agent_recovery_evaluation/README.md)：用冻结 recovery episodes 计算 opportunity / attempt / success、safe stop、retry policy、false recovery 与 recovery cost。
 - [**L06 Benchmark Slice Design**](L06_benchmark_slice_design/README.md)：从带 capability / difficulty / risk / natural-frequency / group / exposure 元数据的 task pool 构造 representative + diagnostic 两套 benchmark view，并做 split / leakage / weighting audit。
@@ -22,6 +22,19 @@ Q01–Q04 -> L01 Metric Design
 Q07–Q11 -> L02 Judge Calibration
 Q12–Q20 -> L04 Trajectory Failure Analysis + L05 Agent Recovery Evaluation
 Q21–Q24 -> L06 Benchmark Slice Design
+Q25–Q29 -> L03 Paired Evaluation
+```
+
+L03 训练：
+
+```text
+estimand / unit
+→ paired task movement
+→ bootstrap uncertainty
+→ permutation null test
+→ task vs repeat budget
+→ multiple-comparison review
+→ evidence statement
 ```
 
 L04 与 L05 有意分工：

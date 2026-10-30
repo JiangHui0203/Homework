@@ -1,0 +1,41 @@
+{
+  "claim": "Estimate candidate minus baseline mean success on future tasks drawn from the frozen synthetic benchmark population.",
+  "design": {
+    "primary_estimand": "mean task-level success difference: candidate - baseline",
+    "primary_unit": "task_id",
+    "nested_unit": "repeat_id",
+    "pairing_key": [
+      "task_id",
+      "repeat_id"
+    ],
+    "n_tasks": 12,
+    "repeats_per_task": 3
+  },
+  "bootstrap": {
+    "unit": "task_id",
+    "iterations": 20000,
+    "seed": 20261030,
+    "confidence_level": 0.95
+  },
+  "permutation": {
+    "unit": "task_id",
+    "method": "exact sign flip",
+    "alternative": "two-sided"
+  },
+  "multiplicity": {
+    "confirmatory_views": [
+      "overall"
+    ],
+    "exploratory_slices": [
+      "lookup",
+      "join",
+      "time",
+      "safe_stop"
+    ]
+  },
+  "decision": {
+    "minimum_practical_effect_pp": 5.0
+  },
+  "stopping_rule": "Fixed 12-task x 3-repeat dataset; no peeking-driven extension.",
+  "interpretation_boundary": "Synthetic teaching data only; does not establish performance of any real model or Agent."
+}

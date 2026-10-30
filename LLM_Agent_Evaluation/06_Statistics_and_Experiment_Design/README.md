@@ -110,11 +110,24 @@ Decision:
 - Part 5 决定 sample 来自什么 population、是否 clean holdout；
 - Part 7 负责把 pairing、seed、snapshot、artifact 与 analysis pipeline 做成可复现 harness。
 
-## 推荐后续 Lab
+## 实践 Lab
 
-- `L03 Paired Evaluation`：给定 paired task × repeat 数据，完成 effect、paired win/loss、task-level bootstrap CI、permutation test、sample-size / repeat audit 和 multiple-comparison review。
+- [L03 Paired Evaluation](../labs/L03_paired_evaluation/README.md)：给定 `12 tasks × 3 repeats` 的冻结 paired 数据，完成 task-level effect、wins/losses、task bootstrap CI、exact sign-flip permutation、task/repeat audit 和 multiple-comparison review。
 
-Q25–Q30 学完后再做 L03，能把“这个提升到底可信不可信”真正压到 S3。
+L03 故意让：
+
+```text
+29/36 → 30/36
+```
+
+看起来像提升，但最终要求你判断：
+
+```text
+point estimate
+≠ sufficient evidence
+```
+
+独立完成后，才是 Q25–Q29 向 S3 推进的实践证据。
 
 ## VeriAgent Lens
 
